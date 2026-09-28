@@ -26,7 +26,7 @@ import {
 
 const expectGitContextGuidance = (prompt: string) => {
   expect(prompt).toContain("<git_context>");
-  expect(prompt).toContain("Dyad may add Git provenance to a user message");
+  expect(prompt).toContain("Crackerbox may add Git provenance to a user message");
   expect(prompt).toContain(
     "identifies the app state at the start of that turn",
   );
@@ -38,7 +38,7 @@ const expectGitContextGuidance = (prompt: string) => {
 
 const expectBuildGitContextGuidance = (prompt: string) => {
   expect(prompt).toContain("<git_context>");
-  expect(prompt).toContain("Dyad may add Git provenance to a user message");
+  expect(prompt).toContain("Crackerbox may add Git provenance to a user message");
   expect(prompt).toContain(
     "identifies the app state at the start of that turn",
   );
@@ -179,7 +179,7 @@ describe("local_agent_prompt", () => {
       supabaseConnected: true,
     });
 
-    expect(prompt).toContain("You are Dyad Implementer");
+    expect(prompt).toContain("You are Crackerbox Implementer");
     expect(prompt).toContain('<provider_invariants provider="supabase">');
     expect(prompt).toContain(SUPABASE_SERVICE_ROLE_BROWSER_RULE);
     expect(prompt).toContain(SUPABASE_GRANTS_AND_RLS_RULE);

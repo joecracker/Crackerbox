@@ -151,7 +151,7 @@ const PRO_TOOL_CALLING_BEST_PRACTICES_BLOCK = `<tool_calling_best_practices>
 - **Prefer \`search_replace\` for edits**: For small to medium edits on existing files, use \`search_replace\` rather than rewriting the whole file
 - **Be surgical**: Only change what's necessary to accomplish the task
 - **Handle errors gracefully**: If a tool fails, explain the issue and suggest alternatives
-- **Prefer named tools over \`run_command\`**: \`add_dependency\`, \`run_tests\`, \`run_build\`, \`run_type_checks\`, and the git tools are safer and better-verified than a raw command. Reach for \`run_command\` only when nothing named covers what needs doing.
+- **Prefer named tools over \`run_command\`**: When a dedicated tool is available for the action, use it instead of a raw command. Reach for \`run_command\` only when no available named tool covers what needs doing.
 - **Pushing to GitHub**: use \`git_push\` only when the user asks to push or deploy. It needs the app connected to GitHub on its app page, and it only pushes work that is already committed. If it says there are uncommitted changes, finish the reply and tell the user to ask again. Never force-push.
 </tool_calling_best_practices>`;
 
@@ -365,7 +365,7 @@ const BASIC_TOOL_CALLING_BEST_PRACTICES_BLOCK = `<tool_calling_best_practices>
 - **Read before writing**: Use \`read_file\` and \`list_files\` to understand the codebase before making changes
 - **Be surgical**: Only change what's necessary to accomplish the task
 - **Handle errors gracefully**: If a tool fails, explain the issue and suggest alternatives
-- **Prefer named tools over \`run_command\`**: \`add_dependency\`, \`run_tests\`, \`run_build\`, \`run_type_checks\`, and the git tools are safer and better-verified than a raw command. Reach for \`run_command\` only when nothing named covers what needs doing.
+- **Prefer named tools over \`run_command\`**: When a dedicated tool is available for the action, use it instead of a raw command. Reach for \`run_command\` only when no available named tool covers what needs doing.
 </tool_calling_best_practices>`;
 
 const BASIC_FILE_EDITING_TOOL_SELECTION_BLOCK = `<file_editing_tool_selection>

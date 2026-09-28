@@ -217,7 +217,7 @@ function ConnectedAccount({ appId }: { appId: number }) {
       <div className={noticeClass} data-testid="cloudflare-no-targets">
         <p className="font-medium mb-1">No Cloudflare Worker found</p>
         <p>
-          Dyad deploys folders that contain a Wrangler config (wrangler.jsonc,
+          Crackerbox deploys folders that contain a Wrangler config (wrangler.jsonc,
           wrangler.json or wrangler.toml). Add a Worker to this app, then sync
           it to GitHub.
         </p>
@@ -252,7 +252,7 @@ function ConnectedAccount({ appId }: { appId: number }) {
               className={warningClass}
               data-testid="cloudflare-config-missing"
             >
-              Dyad cannot find a Wrangler config for {folder.label} on{" "}
+              Crackerbox cannot find a Wrangler config for {folder.label} on{" "}
               {status.data.branch}. If the config is gone, Cloudflare cannot
               build it either, but its deploy rule is still there: restore the
               config, or disconnect {folder.label} to remove the rule.
@@ -344,7 +344,7 @@ function ConnectedAccount({ appId }: { appId: number }) {
   );
 }
 
-/** A folder shown in the tab. `target` is null when Dyad cannot find its Wrangler config. */
+/** A folder shown in the tab. `target` is null when Crackerbox cannot find its Wrangler config. */
 interface DeployFolder {
   rootDirectory: string;
   label: string;

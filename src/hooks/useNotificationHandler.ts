@@ -235,7 +235,7 @@ export function useNotificationHandler() {
       // get app name so user knows which app is making the request
       const appName = chatSummary?.appId
         ? await resolveAppNameForAppId(chatSummary.appId, queryClient)
-        : "Dyad";
+        : "Crackerbox";
       const title = appName;
 
       // A terminal event can arrive while permission or chat/app metadata is
@@ -340,7 +340,7 @@ export function useNotificationHandler() {
         const chatSummary = await resolveChatSummary(chatId, queryClient);
         const appName = chatSummary?.appId
           ? await resolveAppNameForAppId(chatSummary.appId, queryClient)
-          : "Dyad";
+          : "Crackerbox";
         const chatTitle = chatSummary?.title ?? null;
 
         const bodyContext = summary || chatTitle || "Chat response completed";
@@ -396,7 +396,7 @@ export function useNotificationHandler() {
             const chatSummary = await resolveChatSummary(chatId, queryClient);
             const appName = chatSummary?.appId
               ? await resolveAppNameForAppId(chatSummary.appId, queryClient)
-              : "Dyad";
+              : "Crackerbox";
             const chatTitle = chatSummary?.title ?? null;
 
             const bodyContext =

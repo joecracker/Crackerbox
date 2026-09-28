@@ -23,6 +23,7 @@ import { useLoadApps } from "@/hooks/useLoadApps";
 import { useGenerateImage } from "@/hooks/useGenerateImage";
 import { useUserBudgetInfo } from "@/hooks/useUserBudgetInfo";
 import { AiAccessBanner } from "./ProBanner";
+import { PRO_BILLING_FEATURES_ENABLED } from "@/lib/proBillingFlags";
 import { AppSearchSelect } from "./AppSearchSelect";
 import type { ImageThemeMode } from "@/ipc/types";
 
@@ -170,7 +171,7 @@ export function ImageGeneratorDialog({
                   Pro-only feature
                 </p>
               </div>
-              <AiAccessBanner />
+              {PRO_BILLING_FEATURES_ENABLED && <AiAccessBanner />}
             </div>
           ) : (
             <>

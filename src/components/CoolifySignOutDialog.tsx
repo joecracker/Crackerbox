@@ -16,7 +16,7 @@ import { ipc } from "@/ipc/types";
 import { queryKeys } from "@/lib/queryKeys";
 
 /**
- * The last look at credentials Dyad is about to forget.
+ * The last look at credentials Crackerbox is about to forget.
  *
  * Signing out clears the instance outright rather than keeping a copy around
  * for an instance nothing is connected to. That is only fair if the user gets
@@ -75,10 +75,10 @@ export function CoolifySignOutDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Sign out of Coolify?</AlertDialogTitle>
           <AlertDialogDescription>
-            Dyad will forget the details below. Your server keeps running and
+            Crackerbox will forget the details below. Your server keeps running and
             your apps keep their settings.
             {credentials?.server?.password
-              ? " Dyad made this password up and is the only thing holding it — Coolify cannot show it to you again."
+              ? " Crackerbox made this password up and is the only thing holding it — Coolify cannot show it to you again."
               : ""}
           </AlertDialogDescription>
         </AlertDialogHeader>

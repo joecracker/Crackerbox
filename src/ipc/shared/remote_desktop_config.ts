@@ -52,6 +52,13 @@ async function fetchRemoteDesktopConfig(): Promise<RemoteDesktopConfig | null> {
 }
 
 export async function getRemoteDesktopConfig(): Promise<RemoteDesktopConfig | null> {
+  // Crackerbox doesn't rely on Dyad's servers for security defaults --
+  // resolveEffectiveSettings() in main/settings.ts already falls back to
+  // blockUnsafeNpmPackages: true when this returns null, which is exactly
+  // what happened here anyway on any network failure. No reason to phone
+  // home for one boolean.
+  return null;
+
   if (
     remoteDesktopConfigCache &&
     remoteDesktopConfigCache.expiresAt > Date.now()

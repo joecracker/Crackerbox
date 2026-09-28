@@ -24,8 +24,8 @@ import { selectCoolifySetupCapabilities } from "@/coolify_setup/capabilities";
  * Setting up a server that has nothing on it yet.
  *
  * The order on screen is the order the work has to happen in, and the first
- * step is the only manual one: nothing can reach the server until Dyad's key is
- * on it. Everything after that is Dyad's job, and the panel's remaining work is
+ * step is the only manual one: nothing can reach the server until Crackerbox's key is
+ * on it. Everything after that is Crackerbox's job, and the panel's remaining work is
  * to make a multi-minute install look like progress rather than a hang.
  */
 
@@ -50,7 +50,7 @@ function CopyButton({ value, label }: { value: string; label: string }) {
       size="sm"
       onClick={() => {
         // A refused clipboard is worth saying out loud. This is often the
-        // only copy of a password Dyad invented, and a button that quietly
+        // only copy of a password Crackerbox invented, and a button that quietly
         // does nothing reads as one that worked.
         navigator.clipboard
           .writeText(value)
@@ -82,9 +82,9 @@ export function CoolifyServerSetup({
    */
   onUseExisting: (instanceUrl?: string) => void;
   /**
-   * The server Dyad already holds an account for, if it holds one.
+   * The server Crackerbox already holds an account for, if it holds one.
    *
-   * Installing is refused outright while it does — Dyad has the only copy of
+   * Installing is refused outright while it does — Crackerbox has the only copy of
    * that password — so without this the button is live for a press that can
    * only come back as an error.
    */
@@ -136,7 +136,7 @@ export function CoolifyServerSetup({
     mutationFn: async () => {
       const asked = host.trim();
       // Cleared before asking, so a check that fails leaves no verdict behind.
-      // The screen's premise is that Dyad installs onto the machine that just
+      // The screen's premise is that Crackerbox installs onto the machine that just
       // answered, and a pass from a previous answer contradicts it.
       setInspection(null);
       const checks = await ipc.coolifySetup.inspect({
@@ -223,7 +223,7 @@ export function CoolifyServerSetup({
           <ServerCog className="h-5 w-5" />
           Coolify is installed
         </div>
-        {/* Dyad keeps these, so this is a copy rather than the only sight of
+        {/* Crackerbox keeps these, so this is a copy rather than the only sight of
             them. Put here anyway: this is the moment they are needed. */}
         <div className="rounded-md border p-3 space-y-2 text-sm">
           <p className="font-medium">
@@ -253,7 +253,7 @@ export function CoolifyServerSetup({
             </div>
           </div>
         </div>
-        {/* Only when it is true. Dyad asks for a certificate and usually gets
+        {/* Only when it is true. Crackerbox asks for a certificate and usually gets
             one, so a standing warning would be noise — and a warning nobody
             sees when it matters is worse than one that appears only then. The
             token here carries root abilities and travels on every deploy, not
@@ -265,14 +265,14 @@ export function CoolifyServerSetup({
           >
             <p className="font-medium">This server is not encrypted</p>
             <p className="text-muted-foreground">
-              {result.insecureReason} Dyad will still work, but its access token
+              {result.insecureReason} Crackerbox will still work, but its access token
               crosses your network unencrypted every time it deploys. Adding a
               domain that points at this server fixes it.
             </p>
             {/* A decision rather than a notice, and only where there is one to
                 make: a token was created, and keeping it is what puts it on
                 the network. Unticked to start, so continuing without reading
-                this leaves Dyad unconnected rather than connected over a
+                this leaves Crackerbox unconnected rather than connected over a
                 address nobody agreed to. */}
             {result.tokenStored && (
               <label className="mt-2 flex items-center gap-2">
@@ -283,7 +283,7 @@ export function CoolifyServerSetup({
                   }
                   data-testid="coolify-setup-accept-insecure"
                 />
-                <span>Keep Dyad connected to this address anyway</span>
+                <span>Keep Crackerbox connected to this address anyway</span>
               </label>
             )}
           </div>
@@ -291,14 +291,14 @@ export function CoolifyServerSetup({
         {result.tokenStored && (
           <p className="text-sm text-muted-foreground">
             {result.secure
-              ? "Dyad created its own API token, so you can pick a server and project next."
-              : "Dyad created an API token for this server. It is not kept unless you say so above, because this address is not encrypted."}
+              ? "Crackerbox created its own API token, so you can pick a server and project next."
+              : "Crackerbox created an API token for this server. It is not kept unless you say so above, because this address is not encrypted."}
           </p>
         )}
         {(!result.tokenStored ||
           (!result.secure && !acceptedInsecureToken)) && (
           // The install stands; only the last step did not. Saying so plainly
-          // beats implying the whole thing failed. A token Dyad made but will
+          // beats implying the whole thing failed. A token Crackerbox made but will
           // not keep is not a token it failed to make, so the two say so
           // differently.
           <div
@@ -308,11 +308,11 @@ export function CoolifyServerSetup({
             <p className="font-medium">One step left, in Coolify</p>
             <p className="text-muted-foreground">
               {result.tokenStored
-                ? "Unless you tick the box above, Dyad forgets the token it made."
+                ? "Unless you tick the box above, Crackerbox forgets the token it made."
                 : (result.tokenUnavailableReason ??
-                  "Dyad could not create an API token automatically.")}{" "}
+                  "Crackerbox could not create an API token automatically.")}{" "}
               Open {result.dashboardUrl}, sign in with the details above,{" "}
-              {/* Dyad turns the API on before it mints, so this stays done
+              {/* Crackerbox turns the API on before it mints, so this stays done
                   even when the mint is what failed. */}
               {!result.apiEnabled &&
                 "enable the API under Settings → Advanced, then "}
@@ -376,7 +376,7 @@ export function CoolifyServerSetup({
   return (
     <div className="space-y-3" data-testid="coolify-server-setup">
       <p className="text-sm text-muted-foreground">
-        Dyad allows you to self-host an instance of Coolify to deploy your apps.
+        Crackerbox allows you to self-host an instance of Coolify to deploy your apps.
         To install it you need a Linux server with root access and about 2GB of
         memory. Easiest if you have not created the server yet, since the key
         below can go in at that point.
@@ -392,7 +392,7 @@ export function CoolifyServerSetup({
         <p className="text-xs text-muted-foreground">
           Easiest when creating the server: most hosts — DigitalOcean, Hetzner
           and others — have an <strong>SSH keys</strong> field on the create
-          page. Paste this in there and the server will trust Dyad from the
+          page. Paste this in there and the server will trust Crackerbox from the
           moment it starts.
         </p>
         <p className="text-xs text-muted-foreground">
@@ -448,7 +448,7 @@ export function CoolifyServerSetup({
         />
         {/* Checked while typing, because neither reason is cheap to find out
             later: a domain Coolify will not take costs the whole install, and
-            an address Dyad cannot put in a shell word costs a run that
+            an address Crackerbox cannot put in a shell word costs a run that
             connects, looks the server over, and then fails. */}
         {emailRefusal && (
           <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
@@ -462,7 +462,7 @@ export function CoolifyServerSetup({
 
       <div>
         <Label htmlFor={domainId}>4. Domain (optional)</Label>
-        {/* Dyad can get a certificate without this, using a free service that
+        {/* Crackerbox can get a certificate without this, using a free service that
             turns an address into a name. Someone with their own domain is
             better off using it: it is theirs, and that free service shares one
             certificate allowance between everyone who uses it. */}
@@ -480,7 +480,7 @@ export function CoolifyServerSetup({
           </p>
         )}
         <p className="mt-1 text-xs text-muted-foreground">
-          Point it at this server first. Leave blank and Dyad will set up HTTPS
+          Point it at this server first. Leave blank and Crackerbox will set up HTTPS
           using the server&apos;s address.
         </p>
       </div>
@@ -527,7 +527,7 @@ export function CoolifyServerSetup({
         >
           {inspectionForHost.hostFingerprint && (
             // Shown so someone who cares can compare it against their
-            // provider's console before Dyad sends anything to the machine.
+            // provider's console before Crackerbox sends anything to the machine.
             <div className="flex items-center justify-between gap-2">
               <span className="text-muted-foreground">Server fingerprint</span>
               <code className="text-xs">
@@ -554,7 +554,7 @@ export function CoolifyServerSetup({
           className="text-sm text-amber-600 dark:text-amber-400"
           data-testid="coolify-setup-snapshot-error"
         >
-          Could not read what Dyad is doing with servers right now.{" "}
+          Could not read what Crackerbox is doing with servers right now.{" "}
           <button
             type="button"
             className="underline underline-offset-4"
@@ -598,7 +598,7 @@ export function CoolifyServerSetup({
             // token. It also catches an existing Coolify, too little memory
             // and a held package lock, which is a failed install either way.
             inspectionForHost?.ready !== true ||
-            // Refused by the handler while Dyad holds an account, so offering
+            // Refused by the handler while Crackerbox holds an account, so offering
             // it here only produces a toast.
             Boolean(heldServerUrl)
           }
@@ -617,14 +617,14 @@ export function CoolifyServerSetup({
           className="text-sm text-muted-foreground"
           data-testid="coolify-setup-holds-account"
         >
-          Dyad is holding the admin password for {heldServerUrl}, and it has the
+          Crackerbox is holding the admin password for {heldServerUrl}, and it has the
           only copy. Sign out of Coolify to set up another — that shows the
           password one last time before forgetting it.
         </p>
       )}
       {!inspectionForHost && host.trim() && (
         <p className="text-sm text-muted-foreground">
-          Check the server first. Dyad shows you its fingerprint, and installs
+          Check the server first. Crackerbox shows you its fingerprint, and installs
           only onto the machine that answered.
         </p>
       )}

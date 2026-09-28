@@ -336,6 +336,52 @@ export async function getAccountSubdomain(
 }
 
 // ---------------------------------------------------------------------------
+// Zones and custom domains
+// ---------------------------------------------------------------------------
+
+/**
+ * The zone id for a domain the token can see, or null if the token has no
+ * access to a zone with that name. Used to attach a Worker to a
+ * crackerbox.app subdomain without hardcoding the zone id.
+ */
+export async function getZoneIdByName(
+  token: string,
+  zoneName: string,
+): Promise<string | null> {
+  const zones = await request<{ id: string; name: string }[]>(
+    token,
+    "GET",
+    apiPath`/zones?name=${zoneName}`,
+  );
+  return zones?.[0]?.id ?? null;
+}
+
+/**
+ * Attaches a Worker to a hostname on a zone Cloudflare already manages,
+ * creating whatever DNS record that needs behind the scenes. Safe to call
+ * again for the same hostname; it just repoints it at this Worker.
+ */
+export async function attachWorkerCustomDomain(
+  token: string,
+  accountId: string,
+  zoneId: string,
+  hostname: string,
+  workerName: string,
+): Promise<void> {
+  await request(
+    token,
+    "PUT",
+    apiPath`/accounts/${accountId}/workers/domains`,
+    {
+      zone_id: zoneId,
+      hostname,
+      service: workerName,
+      environment: "production",
+    },
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Builds: repository access, connections, tokens
 // ---------------------------------------------------------------------------
 

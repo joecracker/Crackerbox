@@ -377,7 +377,7 @@ export function TestAssertionsPlanCard({
     if (chatId == null || !generatedSpecPath) return;
     streamMessage({
       prompt: [
-        `I approved the assertions. Dyad generated ${generatedSpecPath} from my recording.`,
+        `I approved the assertions. Crackerbox generated ${generatedSpecPath} from my recording.`,
         "",
         `Run it with run_tests to make sure it actually works. If it fails, read the failure, decide whether the test or the app is wrong, fix it, and run it again until it passes — or tell me what's blocking it.`,
       ].join("\n"),
@@ -893,7 +893,7 @@ export function TestAssertionsPlanCard({
               {hasBlankAssertion
                 ? "Describe every check before approving."
                 : isAgentWaiting
-                  ? "Dyad is waiting on this before it continues."
+                  ? "Crackerbox is waiting on this before it continues."
                   : "Approving generates the test file and runs it."}
             </span>
             {/* One group, so the decision stays together on the right when the

@@ -102,6 +102,18 @@ export function suggestWorkerName({
 }
 
 // ---------------------------------------------------------------------------
+// crackerbox.app subdomains
+// ---------------------------------------------------------------------------
+
+/** The zone every newly created Worker gets a friendly subdomain on. */
+export const CRACKERBOX_ROOT_DOMAIN = "crackerbox.app";
+
+/** The address a new Worker gets on that zone, alongside its workers.dev one. */
+export function buildCrackerboxHostname(workerName: string): string {
+  return `${workerName}.${CRACKERBOX_ROOT_DOMAIN}`;
+}
+
+// ---------------------------------------------------------------------------
 // Deploy rule
 // ---------------------------------------------------------------------------
 

@@ -43,7 +43,6 @@ const DYAD_CUSTOM_TAG_NAMES = [
   "dyad-codebase-context",
   "dyad-web-search-result",
   "dyad-web-search",
-  "dyad-web-crawl",
   "dyad-web-fetch",
   "dyad-code-search-result",
   "dyad-code-search",

@@ -39,12 +39,6 @@ export const PortalMigrate = ({ appId }: PortalMigrateProps) => {
     migrateMutation.mutate();
   };
 
-  const openDocs = () => {
-    ipc.system.openExternalUrl(
-      "https://www.dyad.sh/docs/templates/portal#create-a-database-migration",
-    );
-  };
-
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -75,16 +69,6 @@ export const PortalMigrate = ({ appId }: PortalMigrateProps) => {
                 Generate database migration
               </>
             )}
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={openDocs}
-            className="text-sm"
-          >
-            <ExternalLink className="w-3 h-3 mr-1" />
-            Docs
           </Button>
         </div>
 

@@ -122,7 +122,6 @@ describe("local-agent default request (integration)", () => {
       "set_chat_summary",
       "spawn_agent",
       "update_todos",
-      "web_crawl",
       "web_fetch",
       "web_search",
       "write_file",

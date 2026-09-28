@@ -30,7 +30,6 @@ import { enableNitroTool } from "./tools/enable_nitro";
 import { readLogsTool } from "./tools/read_logs";
 import { searchReplaceTool } from "./tools/search_replace";
 import { webSearchTool } from "./tools/web_search";
-import { webCrawlTool } from "./tools/web_crawl";
 import { webFetchTool } from "./tools/web_fetch";
 import { generateImageTool } from "./tools/generate_image";
 import { updateTodosTool } from "./tools/update_todos";
@@ -38,6 +37,12 @@ import { runTypeChecksTool } from "./tools/run_type_checks";
 import { runTestsTool } from "./tools/run_tests";
 import { runPreCommitTool } from "./tools/run_pre_commit";
 import { runBuildTool } from "./tools/run_build";
+import { runCommandTool } from "./tools/run_command";
+import { haListEntitiesTool } from "./tools/ha_list_entities";
+import { haListFilesTool } from "./tools/ha_list_files";
+import { haReadFileTool } from "./tools/ha_read_file";
+import { haWriteFileTool } from "./tools/ha_write_file";
+import { haDeleteFileTool } from "./tools/ha_delete_file";
 import { generateTestAssertionsTool } from "./tools/generate_test_assertions";
 import {
   reinstallAndRestartAppTool,
@@ -178,13 +183,18 @@ export const TOOL_DEFINITIONS: readonly ToolDefinition[] = [
   enableNitroTool,
   readLogsTool,
   webSearchTool,
-  webCrawlTool,
   webFetchTool,
   generateImageTool,
   updateTodosTool,
   runTypeChecksTool,
   runPreCommitTool,
   runBuildTool,
+  runCommandTool,
+  haListEntitiesTool,
+  haListFilesTool,
+  haReadFileTool,
+  haWriteFileTool,
+  haDeleteFileTool,
   runTestsTool,
   generateTestAssertionsTool,
   restartAppTool,

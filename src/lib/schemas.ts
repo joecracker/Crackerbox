@@ -324,6 +324,30 @@ export const SupabaseSchema = z.object({
 });
 export type Supabase = z.infer<typeof SupabaseSchema>;
 
+/**
+ * Home Assistant connection: a REST token for read-only entity/state lookups,
+ * and SSH for file access under HA's /config (dashboards, www/, etc). Either
+ * half can be set without the other -- entity listing only needs the token,
+ * file access only needs SSH.
+ */
+export const HomeAssistantSchema = z.object({
+  baseUrl: z.string().optional(),
+  accessToken: SecretSchema.optional(),
+  sshHost: z.string().optional(),
+  sshPort: z.number().optional(),
+  sshUsername: z.string().optional(),
+  sshPrivateKey: SecretSchema.optional(),
+  /**
+   * SHA256 host key fingerprint pinned on first successful SSH connection
+   * (trust-on-first-use). Every later connection is checked against this
+   * instead of trusting again, so a swapped or spoofed host is refused
+   * rather than silently accepted.
+   */
+  sshHostKeyFingerprint: z.string().optional(),
+  /** Root directory file tools are confined to. HA's config folder. */
+  configPath: z.string().optional(),
+});
+export type HomeAssistant = z.infer<typeof HomeAssistantSchema>;
 export const NeonSchema = z.object({
   accessToken: SecretSchema.optional(),
   refreshToken: SecretSchema.optional(),
@@ -496,6 +520,7 @@ const BaseUserSettingsFields = {
   coolify: CoolifySchema.optional(),
   supabase: SupabaseSchema.optional(),
   neon: NeonSchema.optional(),
+  homeAssistant: HomeAssistantSchema.optional(),
   autoApproveChanges: z.boolean().optional(),
   telemetryConsent: z.enum(["opted_in", "opted_out", "unset"]).optional(),
   telemetryUserId: z.string().optional(),
@@ -508,6 +533,10 @@ const BaseUserSettingsFields = {
   experiments: ExperimentsSchema.optional(),
   lastShownReleaseNotesVersion: z.string().optional(),
   maxChatTurnsInContext: z.number().optional(),
+  // Free-text notes CB should always have in context, in every chat, across
+  // every app -- not scoped to the current chat's message history like
+  // everything else here.
+  cbMemory: z.string().optional(),
   maxToolCallSteps: z.number().optional(),
   modelEffortPreferences: z.record(z.string(), EffortLevelSchema).optional(),
   recentModels: z.array(LargeLanguageModelSchema).optional(),

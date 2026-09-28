@@ -29,6 +29,7 @@ import {
   deleteWorker,
   describeTriggerRepo,
   describeTriggerSource,
+  attachWorkerCustomDomain,
   enableWorkersDevRoute,
   ensureBuildToken,
   getAccountSubdomain,
@@ -36,6 +37,7 @@ import {
   getLatestBuild,
   getTriggerRepoConnectionUuid,
   getTriggerRootDirectory,
+  getZoneIdByName,
   isCloudflareAuthFailure,
   isWorkersDevRouteEnabled,
   listAccounts,
@@ -57,7 +59,9 @@ import {
 } from "@/cloudflare_deploy/api";
 import {
   buildCloudflareWorkerDashboardUrl,
+  buildCrackerboxHostname,
   buildDeployRule,
+  CRACKERBOX_ROOT_DOMAIN,
   isBuildTokenRevokedLog,
   isValidWorkerName,
   pnpmVersionForBuild,
@@ -623,6 +627,29 @@ async function handleConnectWorker(
       // Only for a Worker made here. How an existing Worker is reachable is
       // its owner's decision: one kept behind a custom domain stays that way.
       await enableWorkersDevRoute(token, accountId, workerName);
+      // A friendly crackerbox.app address alongside workers.dev. Best-effort:
+      // a missing zone, an already-taken hostname, or any other failure here
+      // just leaves the Worker on its workers.dev address, same as before
+      // this existed, rather than failing the whole connect.
+      try {
+        const zoneId = await getZoneIdByName(token, CRACKERBOX_ROOT_DOMAIN);
+        if (zoneId) {
+          const hostname = buildCrackerboxHostname(workerName);
+          await attachWorkerCustomDomain(
+            token,
+            accountId,
+            zoneId,
+            hostname,
+            workerName,
+          );
+          workerUrl = `https://${hostname}`;
+        }
+      } catch (error) {
+        logger.warn(
+          `Could not attach ${workerName}.${CRACKERBOX_ROOT_DOMAIN}; the Worker stays reachable at its workers.dev address.`,
+          error,
+        );
+      }
     } else if (!worker) {
       throw new DyadError(
         `No Worker named "${workerName}" exists in this account.`,

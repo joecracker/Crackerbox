@@ -877,20 +877,10 @@ export function HelpDialog() {
             onClick={() => setIsHelpBotOpen(true)}
             className="w-full py-6 border-primary/50 shadow-sm shadow-primary/10 transition-all hover:shadow-md hover:shadow-primary/15"
           >
-            <SparklesIcon className="mr-2 h-5 w-5" /> Chat with Dyad help bot
+            <SparklesIcon className="mr-2 h-5 w-5" /> Chat with Crackerbox help bot
             (Pro)
           </Button>
-        ) : (
-          <Button
-            variant="outline"
-            onClick={() =>
-              ipc.system.openExternalUrl("https://www.dyad.sh/docs")
-            }
-            className="w-full py-6 bg-(--background-lightest)"
-          >
-            <BookOpenIcon className="mr-2 h-5 w-5" /> {t("home:help.openDocs")}
-          </Button>
-        )}
+        ) : null}
 
         <div className="flex items-center gap-3">
           <div className="h-px flex-1 bg-border" />

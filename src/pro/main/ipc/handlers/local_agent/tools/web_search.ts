@@ -6,7 +6,7 @@ import {
   escapeXmlAttr,
   escapeXmlContent,
 } from "./types";
-import { engineFetch } from "./engine_fetch";
+import { readSettings } from "@/main/settings";
 import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
 
 const logger = log.scope("web_search");
@@ -96,8 +96,13 @@ function parseSSEEvents(
   return remaining;
 }
 
+const WEB_SEARCH_TIMEOUT_MS = 90_000;
+
 /**
- * Call the web search SSE endpoint and stream results
+ * Call OpenRouter's chat completions endpoint with the "web" search
+ * plugin enabled (Parallel engine, turbo mode) and stream results.
+ * Crackerbox doesn't use Dyad's Pro engine -- this runs on Tim's own
+ * OpenRouter key instead, same key he already uses for chat.
  */
 async function callWebSearchSSE(
   query: string,
@@ -105,13 +110,64 @@ async function callWebSearchSSE(
 ): Promise<string> {
   ctx.onXmlStream(`<dyad-web-search query="${escapeXmlAttr(query)}">`);
 
-  const response = await engineFetch(ctx, "/tools/web-search", {
-    method: "POST",
-    headers: {
-      Accept: "text/event-stream",
-    },
-    body: JSON.stringify({ query }),
-  });
+  const settings = readSettings();
+  const apiKey = settings.providerSettings?.openrouter?.apiKey?.value;
+
+  if (!apiKey) {
+    throw new DyadError(
+      "An OpenRouter API key is required for web search. Add one in Settings.",
+      DyadErrorKind.Auth,
+    );
+  }
+
+  const model = settings.selectedModel?.name || "openai/gpt-4o-mini";
+
+  const controller = new AbortController();
+  const onAbort = () => controller.abort(ctx.abortSignal?.reason);
+  if (ctx.abortSignal) {
+    if (ctx.abortSignal.aborted) {
+      controller.abort(ctx.abortSignal.reason);
+    } else {
+      ctx.abortSignal.addEventListener("abort", onAbort, { once: true });
+    }
+  }
+  const timeout = setTimeout(() => controller.abort(), WEB_SEARCH_TIMEOUT_MS);
+
+  let response: Response;
+  try {
+    response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+        Accept: "text/event-stream",
+      },
+      body: JSON.stringify({
+        model,
+        stream: true,
+        messages: [
+          {
+            role: "user",
+            content: `Search the web and answer concisely, citing sources: ${query}`,
+          },
+        ],
+        plugins: [
+          {
+            id: "web",
+            engine: "parallel",
+            mode: "turbo",
+            max_results: 5,
+          },
+        ],
+      }),
+    });
+  } finally {
+    clearTimeout(timeout);
+    if (ctx.abortSignal) {
+      ctx.abortSignal.removeEventListener("abort", onAbort);
+    }
+  }
 
   if (!response.ok) {
     const errorText = await response.text();
@@ -176,10 +232,9 @@ export const webSearchTool: ToolDefinition<z.infer<typeof webSearchSchema>> = {
   description: DESCRIPTION,
   inputSchema: webSearchSchema,
   defaultConsent: "ask",
-  usesEngineEndpoint: true,
 
-  // Requires Dyad Pro engine API
-  isEnabled: (ctx) => ctx.isDyadPro,
+  // Uses Tim's own OpenRouter key -- no Dyad Pro engine required.
+  isEnabled: () => true,
 
   getConsentPreview: (args) => `Search the web: "${args.query}"`,
 

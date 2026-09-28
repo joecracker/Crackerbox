@@ -3,10 +3,6 @@ import {
   StopCircleIcon,
   FolderOpenIcon,
   XIcon,
-  Mic,
-  MicOff,
-  Loader2,
-  Lock,
 } from "lucide-react";
 import {
   Tooltip,
@@ -17,7 +13,7 @@ import {
 import { useSettings } from "@/hooks/useSettings";
 import { homeChatInputValueAtom, homeSelectedAppAtom } from "@/atoms/chatAtoms";
 import { useAtom } from "jotai";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { useStreamChat } from "@/hooks/useStreamChat";
 import { useAttachments } from "@/hooks/useAttachments";
 import { AttachmentsList } from "./AttachmentsList";
@@ -27,15 +23,11 @@ import { HomeSubmitOptions } from "@/pages/home";
 import { ChatInputControls } from "../ChatInputControls";
 import { LexicalChatInput } from "./LexicalChatInput";
 import { useChatModeToggle } from "@/hooks/useChatModeToggle";
-import { useTypingPlaceholder } from "@/hooks/useTypingPlaceholder";
 import { AuxiliaryActionsMenu } from "./AuxiliaryActionsMenu";
+import { ImportAppButton } from "@/components/ImportAppButton";
 import { cn } from "@/lib/utils";
 import { useLoadApps } from "@/hooks/useLoadApps";
 import { AppSearchDialog } from "../AppSearchDialog";
-import { useVoiceToText } from "@/hooks/useVoiceToText";
-import { useUserBudgetInfo } from "@/hooks/useUserBudgetInfo";
-import { showError } from "@/lib/toast";
-import { ipc } from "@/ipc/types";
 
 export function HomeChatInput({
   onSubmit,
@@ -51,35 +43,14 @@ export function HomeChatInput({
     hasChatId: false,
   }); // eslint-disable-line @typescript-eslint/no-unused-vars
   useChatModeToggle();
-  const { userBudget } = useUserBudgetInfo();
-  const isProEnabled = !!userBudget && !!settings?.enableDyadPro;
-
-  const handleTranscription = useCallback(
-    (text: string) => {
-      if (disabled) return;
-      setInputValue((prev: string) => (prev.trim() ? prev + " " + text : text));
-    },
-    [disabled, setInputValue],
-  );
-
-  const { isRecording, isTranscribing, toggleRecording } = useVoiceToText({
-    enabled: isProEnabled,
-    onTranscription: handleTranscription,
-    onError: (message) => showError(message),
-  });
 
   const [appSearchOpen, setAppSearchOpen] = useState(false);
   const { apps, loading: appsLoading } = useLoadApps();
   const canSelectApp = !appsLoading && apps.length > 0;
 
-  const typingText = useTypingPlaceholder([
-    "an ecommerce store...",
-    "an information page...",
-    "a landing page...",
-  ]);
   const placeholder = selectedApp
     ? `Send a message to ${selectedApp.name}...`
-    : `Ask Dyad to build ${typingText ?? ""}`;
+    : "Ask Crackerbox to build something...";
 
   // Use the attachments hook
   const {
@@ -113,10 +84,6 @@ export function HomeChatInput({
       pendingFiles
     ) {
       return;
-    }
-
-    if (isRecording) {
-      await toggleRecording();
     }
 
     // Call the parent's onSubmit handler with attachments and selected app
@@ -183,67 +150,6 @@ export function HomeChatInput({
               messageHistory={[]}
             />
 
-            {/* Voice-to-text button */}
-            {isProEnabled ? (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <button
-                      onClick={toggleRecording}
-                      disabled={disabled || isTranscribing}
-                      aria-label={
-                        isRecording
-                          ? "Stop recording"
-                          : isTranscribing
-                            ? "Transcribing..."
-                            : "Voice to text"
-                      }
-                      className={cn(
-                        "px-2 py-2 mb-0.5 text-muted-foreground rounded-lg transition-colors duration-150 cursor-pointer disabled:cursor-default disabled:opacity-30",
-                        isRecording &&
-                          "text-red-500 hover:text-red-600 animate-pulse",
-                        !isRecording && !isTranscribing && "hover:text-primary",
-                      )}
-                    />
-                  }
-                >
-                  {isTranscribing ? (
-                    <Loader2 size={20} className="animate-spin" />
-                  ) : isRecording ? (
-                    <MicOff size={20} />
-                  ) : (
-                    <Mic size={20} />
-                  )}
-                </TooltipTrigger>
-                <TooltipContent>
-                  {isRecording
-                    ? "Stop recording"
-                    : isTranscribing
-                      ? "Transcribing..."
-                      : "Voice to text"}
-                </TooltipContent>
-              </Tooltip>
-            ) : (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <button
-                      onClick={() =>
-                        ipc.system.openExternalUrl("https://dyad.sh/pro")
-                      }
-                      disabled={disabled}
-                      aria-label="Voice to text (Pro)"
-                      className="px-2 py-2 mb-0.5 text-muted-foreground hover:text-primary rounded-lg transition-colors duration-150 cursor-pointer relative"
-                    />
-                  }
-                >
-                  <Mic size={20} />
-                  <Lock size={10} className="absolute -top-0.5 -right-0.5" />
-                </TooltipTrigger>
-                <TooltipContent>Voice to text (requires Pro)</TooltipContent>
-              </Tooltip>
-            )}
-
             {isStreaming ? (
               <Tooltip>
                 <TooltipTrigger
@@ -281,33 +187,34 @@ export function HomeChatInput({
               </Tooltip>
             )}
           </div>
-          <div className="px-2 flex items-center justify-between pb-0.5 pt-0.5">
-            <div className="flex items-center">
-              <ChatInputControls />
-              {canSelectApp && (
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <button
-                        onClick={() => {
-                          if (!disabled) setAppSearchOpen(true);
-                        }}
-                        disabled={disabled}
-                        className={cn(
-                          "cursor-pointer px-2 py-1 ml-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1",
-                          selectedApp
-                            ? "bg-primary/10 text-primary hover:bg-primary/15"
-                            : "text-foreground/80 hover:text-foreground hover:bg-muted/60",
-                        )}
-                        data-testid="home-app-selector"
-                      />
-                    }
-                  >
-                    <FolderOpenIcon size={14} />
-                    <span className="truncate max-w-[150px]">
-                      {selectedApp ? selectedApp.name : "No app selected"}
-                    </span>
-                    {selectedApp && (
+          <div className="px-2 flex items-center flex-wrap gap-1.5 pb-1 pt-0.5">
+            <ChatInputControls />
+
+            {canSelectApp && (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <button
+                      onClick={() => {
+                        if (!disabled) setAppSearchOpen(true);
+                      }}
+                      disabled={disabled}
+                      className={cn(
+                        "cursor-pointer h-7 px-2 text-xs font-medium rounded-lg transition-colors flex items-center gap-1",
+                        selectedApp
+                          ? "bg-primary/10 text-primary hover:bg-primary/15"
+                          : "text-foreground/80 hover:text-foreground hover:bg-muted/60",
+                      )}
+                      data-testid="home-app-selector"
+                    />
+                  }
+                >
+                  <FolderOpenIcon size={14} />
+                  {selectedApp && (
+                    <>
+                      <span className="truncate max-w-[90px]">
+                        {selectedApp.name}
+                      </span>
                       <button
                         type="button"
                         disabled={disabled}
@@ -321,17 +228,18 @@ export function HomeChatInput({
                       >
                         <XIcon size={12} />
                       </button>
-                    )}
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {selectedApp
-                      ? "Change selected app"
-                      : "Select an existing app"}
-                  </TooltipContent>
-                </Tooltip>
-              )}
-            </div>
+                    </>
+                  )}
+                </TooltipTrigger>
+                <TooltipContent>
+                  {selectedApp
+                    ? "Change selected app"
+                    : "Select an existing app"}
+                </TooltipContent>
+              </Tooltip>
+            )}
 
+            <ImportAppButton className="px-0 pb-0" variant="ghost" size="sm" />
             <AuxiliaryActionsMenu onFileSelect={handleFileSelect} />
           </div>
         </div>

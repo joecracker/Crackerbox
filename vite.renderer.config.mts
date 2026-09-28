@@ -7,6 +7,11 @@ const ReactCompilerConfig = {};
 
 // https://vite.dev/config/
 export default defineConfig({
+  server: {
+    watch: {
+      ignored: ["**/userData/**"],
+    },
+  },
   plugins: [
     react({
       babel: {

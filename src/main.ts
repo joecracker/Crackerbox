@@ -9,13 +9,17 @@ import {
   net,
   nativeImage,
   crashReporter,
+  Tray,
   type Event as ElectronEvent,
+  nativeTheme,
 } from "electron";
 import * as path from "node:path";
 import { randomUUID } from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { registerIpcHandlers } from "./ipc/ipc_host";
+import "./main/ipc_bridge_registry"; // must load before registerIpcHandlers() below
+import { startPhoneBridgeServer } from "./main/phone_bridge_server";
 import dotenv from "dotenv";
 import { updateElectronApp, UpdateSourceType } from "update-electron-app";
 import log from "electron-log";
@@ -296,7 +300,7 @@ let pendingNativeBrowserCrash: {
   attribution: "ptype" | "sentinel";
 } | null = null;
 
-// Summarize each new minidump (signal, faulting module + offset, process type —
+// Summarize each new minidump (signal, faulting module + offset, process type �
 // no memory). A main-process crash is the app crash, so its summary is stashed
 // and attached to app:crash_detected; other (survived child) crashes are left
 // to their own paths. Each dump is then kept under a timestamped name for later
@@ -473,7 +477,7 @@ export async function onReady() {
   // must not block startup.
   void reconcileOrphanTestBranches();
   void reconcileOrphanTestUsers();
-  // Also prunes retained test artifacts whose app no longer exists — nothing
+  // Also prunes retained test artifacts whose app no longer exists � nothing
   // else ever removes them, and the user has no surface that shows they exist.
   // Read when the prune is about to run, not now: the sandbox sweep it happens
   // after can take a long time, and an app created in the meantime must not
@@ -510,7 +514,7 @@ export async function onReady() {
 
   const settings = await readEffectiveSettings();
 
-  // Add dyad-apps directory to git safe.directory (required for Windows).
+  // Add crackerbox-apps directory to git safe.directory (required for Windows).
   // The trailing /* allows access to all repositories under the named directory.
   // See: https://git-scm.com/docs/git-config#Documentation/git-config.txt-safedirectory
   // Don't need to await because this only needs to run before
@@ -622,6 +626,17 @@ export async function onReady() {
   await onFirstRunMaybe(settings);
   await createFreshStartupWindow();
   createApplicationMenu();
+  createAppTray();
+
+  // Step 10 milestone 1: LAN-only phone access. allowedDevServerUrl was
+  // already computed above for the desktop window's own loadURL/loadFile
+  // branch -- reused here so the phone gets the same dev-server-vs-static
+  // logic without re-deriving MAIN_WINDOW_VITE_DEV_SERVER_URL a second time.
+  try {
+    startPhoneBridgeServer(MAIN_WINDOW_VITE_DEV_SERVER_URL || undefined);
+  } catch (error) {
+    logger.error("Failed to start phone bridge server", error);
+  }
 
   sendTelemetryEvent("runtime_source", {
     runtime_source: settings.customNodePath
@@ -635,14 +650,18 @@ export async function onReady() {
 
   logger.info("Auto-update enabled=", settings.enableAutoUpdate);
   if (settings.enableAutoUpdate) {
-    // Technically we could just pass the releaseChannel directly to the host,
-    // but this is more explicit and falls back to stable if there's an unknown
-    // release channel.
-    const postfix = settings.releaseChannel === "beta" ? "beta" : "stable";
-    const host = `https://api.dyad.sh/v1/update/${postfix}`;
-    logger.info("Auto-update release channel=", postfix);
+    // Dyad's own hosted update-check service (api.dyad.sh) only knows about
+    // upstream dyad-sh/dyad releases, so it can't be reused for this fork.
+    // GitHub Releases themselves are the update source instead: Forge's
+    // publisher-github already uploads Squirrel's RELEASES file and .nupkg
+    // alongside Setup.exe on every publish, and Squirrel.Windows (via
+    // update-electron-app's StaticStorage source) can read that layout
+    // straight off GitHub's own "latest release" download URL � no update
+    // server of our own required.
+    const baseUrl = "https://github.com/joecracker/dyad/releases/latest/download";
+    logger.info("Auto-update source=", baseUrl);
     // update-electron-app logs updater errors at info level, which the
-    // warn-filtered bug-report logs drop — leaving only the orphaned stack
+    // warn-filtered bug-report logs drop � leaving only the orphaned stack
     // trace tail. Log at error level and record for debug bundles.
     autoUpdater.on("error", (error) => {
       logger.error("Auto-updater error:", error);
@@ -652,9 +671,8 @@ export async function onReady() {
       logger,
       updateInterval: "60 minutes",
       updateSource: {
-        type: UpdateSourceType.ElectronPublicUpdateService,
-        repo: "dyad-sh/dyad",
-        host,
+        type: UpdateSourceType.StaticStorage,
+        baseUrl,
       },
     }); // additional configuration options available
   }
@@ -721,6 +739,7 @@ declare global {
 }
 
 let mainWindow: BrowserWindow | null = null;
+let appTray: Tray | null = null;
 const productWindows = new Map<WindowSessionId, BrowserWindow>();
 const productWindowDescriptors = new Map<
   WindowSessionId,
@@ -891,7 +910,14 @@ const createWindow = ({
     height: 700,
     minHeight: 500,
     titleBarStyle: "hidden",
-    titleBarOverlay: false,
+    titleBarOverlay:
+      process.platform === "win32"
+        ? {
+            color: nativeTheme.shouldUseDarkColors ? "#181818" : "#f1f0f7",
+            symbolColor: nativeTheme.shouldUseDarkColors ? "#ffffff" : "#000000",
+            height: 36,
+          }
+        : false,
     trafficLightPosition: {
       x: 13,
       y: 13,
@@ -1093,25 +1119,9 @@ const createWindow = ({
 
     scheduleSafeStorageKeychainUnlockRetryAfterRendererLoad();
   });
-  // Start the development-only DevTools reload after the initial renderer load
-  // succeeds. Explicit new-window creation can safely await `initialLoad`
-  // without that intentional reload aborting its promise.
-  if (process.env.NODE_ENV === "development") {
-    void initialLoad.then(
-      () => {
-        if (browserWindow.isDestroyed()) return;
-        browserWindow.webContents.once("devtools-opened", () => {
-          setTimeout(() => {
-            if (!browserWindow.isDestroyed()) {
-              browserWindow.webContents.reloadIgnoringCache();
-            }
-          }, 300);
-        });
-        browserWindow.webContents.openDevTools();
-      },
-      () => undefined,
-    );
-  }
+  // DevTools auto-open on launch was intentionally removed (personal-use app,
+  // not active Dyad upstream development) -- open manually via the menu/
+  // Ctrl+Shift+I whenever actually troubleshooting something.
 
   // Persist any non-clean renderer-process termination so we can report it on
   // the next successful renderer load. We deliberately do nothing here besides
@@ -1202,6 +1212,45 @@ const createWindow = ({
   });
   return { windowSessionId, browserWindow, rendererLoad: initialLoad };
 };
+
+// Shows a cracker-cube tray icon for as long as the app is running, with a
+// quick way to bring the main window to front or quit. Left-click (Windows)
+// / click (macOS) toggles focus on the primary window; right-click opens the
+// menu. Safe to call more than once -- it no-ops if the tray already exists.
+function createAppTray(): void {
+  if (appTray) return;
+
+  const trayIcon = nativeImage
+    .createFromPath(path.join(app.getAppPath(), "assets/icon/logo.png"))
+    .resize({ width: 16, height: 16 });
+  appTray = new Tray(trayIcon);
+  appTray.setToolTip("Crackerbox");
+
+  const focusPrimaryWindow = () => {
+    const window =
+      mainWindow ?? productWindows.get(PRIMARY_WINDOW_SESSION_ID) ?? null;
+    if (!window || window.isDestroyed()) return;
+    if (window.isMinimized()) window.restore();
+    window.show();
+    window.focus();
+  };
+
+  appTray.on("click", focusPrimaryWindow);
+
+  appTray.setContextMenu(
+    Menu.buildFromTemplate([
+      { label: "Open Crackerbox", click: focusPrimaryWindow },
+      { type: "separator" },
+      {
+        label: "Quit Crackerbox",
+        click: () => {
+          isAppQuitting = true;
+          app.quit();
+        },
+      },
+    ]),
+  );
+}
 
 async function createFreshStartupWindow(): Promise<void> {
   try {
@@ -1385,6 +1434,12 @@ if (initialDeepLink) {
 // Skip singleton lock for E2E test builds to allow parallel test execution.
 // Deep link handling still works via the 'open-url' event registered below.
 // The 'second-instance' handler is intentionally omitted since it requires the singleton lock.
+
+// Forces Chromium to software rendering. Works around an intermittent GPU-driver
+// crash/blank-window issue on some Windows machines; costs some CPU on paint but
+// avoids the far worse failure mode of a dead renderer.
+app.disableHardwareAcceleration();
+
 if (IS_TEST_BUILD) {
   startAppWhenReady();
 } else {
@@ -1775,7 +1830,7 @@ app.on("before-quit", (event) => {
 });
 
 // IMPORTANT: This handler must be synchronous because Electron's EventEmitter
-// does not await async callbacks — the returned Promise would be silently ignored.
+// does not await async callbacks � the returned Promise would be silently ignored.
 app.on("will-quit", () => {
   stopClaudeProcesses();
   logLifecycle("app:will-quit");

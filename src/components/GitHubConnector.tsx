@@ -72,22 +72,9 @@ interface LinkedGitHubRepo {
 }
 
 function GitHubTroubleshootingLink({ className = "" }: { className?: string }) {
-  return (
-    <a
-      href="https://www.dyad.sh/docs/integrations/github#troubleshooting"
-      onClick={(event) => {
-        event.preventDefault();
-        ipc.system.openExternalUrl(
-          "https://www.dyad.sh/docs/integrations/github#troubleshooting",
-        );
-      }}
-      className={`cursor-pointer text-blue-600 hover:underline dark:text-blue-400 ${className}`}
-      target="_blank"
-      rel="noopener noreferrer"
-    >
-      See troubleshooting guide
-    </a>
-  );
+  // No Crackerbox-hosted equivalent to Dyad's GitHub integration troubleshooting doc; hidden.
+  void className;
+  return null;
 }
 
 function GitHubOperationError({ message }: { message: string }) {
@@ -452,7 +439,7 @@ function ConnectedGitHubConnector({
                   <p className="sr-only">
                     {(
                       conflictVerificationError ??
-                      "Dyad couldn't check the repository."
+                      "Crackerbox couldn't check the repository."
                     )
                       .split("\n", 1)[0]
                       .slice(0, 240)}
@@ -465,7 +452,7 @@ function ConnectedGitHubConnector({
                   <GitHubOperationError
                     message={
                       conflictVerificationError ??
-                      "Dyad couldn't check the repository."
+                      "Crackerbox couldn't check the repository."
                     }
                   />
                 </div>

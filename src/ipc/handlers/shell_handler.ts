@@ -91,9 +91,9 @@ export function registerShellHandlers() {
     }
 
     // Security: only allow opening files within .dyad/media subdirectories.
-    // The dyad-apps tree contains AI-generated code, so opening arbitrary files
+    // The crackerbox-apps tree contains AI-generated code, so opening arbitrary files
     // there via shell.openPath could execute malicious executables.
-    // App paths may be under the default dyad-apps base directory (normal) or
+    // App paths may be under the default crackerbox-apps base directory (normal) or
     // at an external location (imported with skipCopy).
     if (!isFileWithinAnyDyadMediaDir(fullPath)) {
       throw new DyadError(

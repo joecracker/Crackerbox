@@ -230,7 +230,7 @@ export function describesSomething(description: string): boolean {
 // =============================================================================
 
 export const GITHUB_ISSUES_BASE =
-  "https://github.com/dyad-sh/dyad/issues/new" as const;
+  "https://github.com/joecracker/dyad/issues/new" as const;
 
 /** Builds the prefilled issue URL. Never truncates -- see ISSUE_URL_CEILING. */
 export function buildIssueUrl({

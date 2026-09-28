@@ -47,7 +47,6 @@ import { DyadMcpToolSearch } from "./DyadMcpToolSearch";
 import { DyadMcpToolSchema } from "./DyadMcpToolSchema";
 import { DyadWebSearchResult } from "./DyadWebSearchResult";
 import { DyadWebSearch } from "./DyadWebSearch";
-import { DyadWebCrawl } from "./DyadWebCrawl";
 import { DyadWebFetch } from "./DyadWebFetch";
 import { DyadImageGeneration } from "./DyadImageGeneration";
 import { DyadCodeSearchResult } from "./DyadCodeSearchResult";
@@ -611,16 +610,6 @@ function renderCustomTag(
         >
           {content}
         </DyadReadChat>
-      );
-    case "dyad-web-crawl":
-      return (
-        <DyadWebCrawl
-          node={{
-            properties: {},
-          }}
-        >
-          {content}
-        </DyadWebCrawl>
       );
     case "dyad-web-fetch":
       return (

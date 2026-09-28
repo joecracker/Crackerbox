@@ -7,14 +7,14 @@ import { showError } from "@/lib/toast";
 import { queryKeys } from "@/lib/queryKeys";
 
 /**
- * The way into a server Dyad set up.
+ * The way into a server Crackerbox set up.
  *
- * Dyad invents the admin password and mints the API token, so it is the only
+ * Crackerbox invents the admin password and mints the API token, so it is the only
  * thing that knows either. Without somewhere to read them, a machine the user
  * owns has no way in they can see.
  *
  * Shown rather than hidden behind a control: these belong to the user, and
- * making them click to discover that Dyad even has them means most people
+ * making them click to discover that Crackerbox even has them means most people
  * never find out. The values themselves stay masked until asked for, which is
  * the part worth a click.
  */
@@ -97,7 +97,7 @@ function Field({
  * Said rather than left blank.
  *
  * readSettings drops a password it cannot decrypt and keeps the account, so
- * the absence is Dyad holding one it cannot open — not a server that never
+ * the absence is Crackerbox holding one it cannot open — not a server that never
  * had one. Left to the row simply not appearing, the two look identical, and
  * only one of them makes signing out a safe thing to do next.
  */
@@ -107,7 +107,7 @@ function LockedPassword() {
       className="text-destructive text-sm"
       data-testid="coolify-credentials-locked-password"
     >
-      Dyad is holding an admin password for this server but cannot read it on
+      Crackerbox is holding an admin password for this server but cannot read it on
       this machine.
     </p>
   );
@@ -131,7 +131,7 @@ export function CoolifyCredentials({
 
   // Said rather than left blank, the same reason the failure below is said:
   // callers introduce this panel as the details they are about to show, so a
-  // blank where those belong reads as Dyad holding nothing rather than as a
+  // blank where those belong reads as Crackerbox holding nothing rather than as a
   // read still going. Local and quick, which is why this is a line and not a
   // skeleton — but quick is not instant on a cold start.
   if (isPending && !isError) {
@@ -140,14 +140,14 @@ export function CoolifyCredentials({
         className="text-muted-foreground text-sm"
         data-testid="coolify-credentials-loading"
       >
-        Looking up what Dyad has stored…
+        Looking up what Crackerbox has stored…
       </p>
     );
   }
 
   // Only when there is nothing to show. A read that fails over details
   // already in hand — the refetch on window focus, which production does not
-  // retry — still leaves them readable, and taking a password Dyad holds the
+  // retry — still leaves them readable, and taking a password Crackerbox holds the
   // only copy of off the screen to report the refresh would be the worse
   // trade.
   if (isError && !credentials) {
@@ -156,7 +156,7 @@ export function CoolifyCredentials({
         className="text-destructive text-sm"
         data-testid="coolify-credentials-unreadable"
       >
-        Dyad could not read what it has stored for this Coolify.
+        Crackerbox could not read what it has stored for this Coolify.
       </p>
     );
   }
@@ -166,7 +166,7 @@ export function CoolifyCredentials({
   // Nothing stored at all — signed out, or never connected. A panel of blanks
   // would read as something having failed.
   if (!instance && !server) return null;
-  // The usual case: Dyad set the server up and is connected to it. Merged on
+  // The usual case: Crackerbox set the server up and is connected to it. Merged on
   // the address matching exactly, never on a guess at two spellings of one
   // machine — guessing wrong the other way shows two blocks with two correct
   // addresses, which is a moment's confusion rather than a wrong password.
@@ -184,7 +184,7 @@ export function CoolifyCredentials({
         <div className="border-t pt-3 font-semibold">Your Coolify server</div>
       )}
 
-      {/* A password Dyad holds but cannot decrypt comes back absent, which
+      {/* A password Crackerbox holds but cannot decrypt comes back absent, which
           renders as a server that never had one — and the way that reads,
           the obvious next move is the sign-out that discards it for good.
           The dialog says this; nowhere else did. */}
@@ -207,7 +207,7 @@ export function CoolifyCredentials({
             <div className="space-y-2" data-testid="coolify-credentials-server">
               {showsBoth && (
                 <div className="text-muted-foreground text-xs">
-                  The server Dyad set up
+                  The server Crackerbox set up
                 </div>
               )}
               <Field
@@ -239,7 +239,7 @@ export function CoolifyCredentials({
             >
               {showsBoth && (
                 <div className="text-muted-foreground text-xs">
-                  The Coolify Dyad is connected to
+                  The Coolify Crackerbox is connected to
                 </div>
               )}
               <Field

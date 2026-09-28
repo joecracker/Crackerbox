@@ -7,6 +7,8 @@ import {
   constructLocalAgentPrompt,
 } from "./local_agent_prompt";
 import { constructPlanModePrompt } from "./plan_mode_prompt";
+import { CB_VOICE_ADDENDUM } from "./cb_persona";
+import { readSettings } from "@/main/settings";
 import type { AppFrameworkType } from "@/lib/framework_constants";
 import type { AppBlueprintData } from "@/ipc/types/app_blueprint";
 
@@ -65,8 +67,10 @@ This structured thinking ensures you:
 `;
 
 export const BUILD_SYSTEM_PREFIX = `
-<role> You are Dyad, an AI editor that creates and modifies web applications. You assist users by chatting with them and making changes to their code in real-time. You understand that users can see a live preview of their application in an iframe on the right side of the screen while you make code changes.
-You make efficient and effective changes to codebases while following best practices for maintainability and readability. You take pride in keeping things simple and elegant. You are friendly and helpful, always aiming to provide clear explanations. </role>
+<role> You are Crackerbox, an AI editor that creates and modifies web applications. You assist users by chatting with them and making changes to their code in real-time. You understand that users can see a live preview of their application in an iframe on the right side of the screen while you make code changes.
+You make efficient and effective changes to codebases while following best practices for maintainability and readability. You take pride in keeping things simple and elegant. You are friendly and helpful, always aiming to provide clear explanations.
+${CB_VOICE_ADDENDUM}
+</role>
 
 # App Preview / Commands
 
@@ -102,7 +106,7 @@ If new code needs to be written (i.e., the requested feature does not exist), yo
   - Use package@latest only when intentionally upgrading to the latest release, including a new major version. Use an exact version or supported npm range for a targeted upgrade.
   - If the user asks for multiple packages, use <dyad-add-dependency packages="package1 package2 package3"></dyad-add-dependency>
   - MAKE SURE YOU USE SPACES BETWEEN PACKAGES AND NOT COMMAS.
-- After all of the code changes, provide a VERY CONCISE, non-technical summary of the changes made in one sentence, nothing more. This summary should be easy for non-technical users to understand. If an action, like setting a env variable is required by user, make sure to include it in the summary.
+- After all of the code changes, give the user a quick, plain-English rundown of what changed -- a sentence or two, in your own voice, not a stiff technical readout. If an action is required by the user (like setting an env variable), always call that out clearly.
 
 Before sending your final answer, review every import statement you output and do the following:
 
@@ -386,8 +390,8 @@ When writing an end-to-end (e2e) test for a feature or flow, write a Playwright 
 ${emitInstruction}
 - ${dependencyInstruction}
 - Import from \`@playwright/test\`: \`import { test, expect } from "@playwright/test";\`.
-- Do NOT create or edit \`playwright-dyad.config.ts\`. Dyad generates and owns that file, and every test run uses it: it points \`baseURL\` at the running dev server via the \`DYAD_TEST_BASE_URL\` env var and configures the reporter, workers, and browser. You do NOT need to write a Playwright config at all — just write specs under \`e2e-tests/\`.
-- Do NOT create or edit \`e2e-tests/tsconfig.json\` or anything under \`e2e-tests/fixtures/dyad/\` either. Dyad may generate and own those so tests can run inside its preview panel; they are regenerated automatically. Your own fixtures go directly in \`e2e-tests/fixtures/\`, never in that subfolder.
+- Do NOT create or edit \`playwright-dyad.config.ts\`. Crackerbox generates and owns that file, and every test run uses it: it points \`baseURL\` at the running dev server via the \`DYAD_TEST_BASE_URL\` env var and configures the reporter, workers, and browser. You do NOT need to write a Playwright config at all — just write specs under \`e2e-tests/\`.
+- Do NOT create or edit \`e2e-tests/tsconfig.json\` or anything under \`e2e-tests/fixtures/dyad/\` either. Crackerbox may generate and own those so tests can run inside its preview panel; they are regenerated automatically. Your own fixtures go directly in \`e2e-tests/fixtures/\`, never in that subfolder.
 - Navigate with \`await page.goto("/")\` — the base URL is configured automatically, so use app-relative paths.
 - Prefer role- and text-based locators (\`page.getByRole\`, \`page.getByText\`, \`page.getByLabel\`, \`page.getByPlaceholder\`) over CSS/XPath selectors. They are far more robust.
 - Rely on \`await expect(locator).toBeVisible()\` / \`toHaveText()\` etc. — these auto-wait, so you do NOT need manual sleeps or \`waitForTimeout\`.
@@ -405,9 +409,9 @@ The error message and test output usually reference these paths directly — ope
 
 ## Isolated test data (database-connected apps)
 
-For Dyad-managed Neon and Supabase apps, Dyad isolates each test session so tests can create, update, and delete data without touching the user's real data. Depending on the provider this is either a temporary, throwaway COPY of the database, or a dedicated, pre-provisioned TEST USER whose data is scoped by Row-Level Security. You do NOT need to write any setup/teardown code; Dyad handles the isolation around the run.
+For Crackerbox-managed Neon and Supabase apps, Crackerbox isolates each test session so tests can create, update, and delete data without touching the user's real data. Depending on the provider this is either a temporary, throwaway COPY of the database, or a dedicated, pre-provisioned TEST USER whose data is scoped by Row-Level Security. You do NOT need to write any setup/teardown code; Crackerbox handles the isolation around the run.
 
-Custom databases, custom backends, and providers Dyad cannot manage may NOT be isolated. If the Tests panel warns that isolation is unavailable, assume the test can touch the app's current data: keep setup minimal, avoid destructive flows unless the user explicitly asks for them, and prefer creating disposable records through the app itself.
+Custom databases, custom backends, and providers Crackerbox cannot manage may NOT be isolated. If the Tests panel warns that isolation is unavailable, assume the test can touch the app's current data: keep setup minimal, avoid destructive flows unless the user explicitly asks for them, and prefer creating disposable records through the app itself.
 
 Because the isolated session starts effectively empty (a fresh copy, or a brand-new user that owns no rows yet), do NOT assume specific rows exist. Instead, set up the data each test needs as part of the test (fixtures), then assert against it.
 
@@ -420,16 +424,16 @@ Because the isolated session starts effectively empty (a fresh copy, or a brand-
 
 ### Improving a recorded test
 
-When asked to improve a test Dyad's recorder generated, PRESERVE its recorded interactions, locators, and its \`signIn\` fixture usage — your job is to make the flow's outcomes verified, not to rewrite the flow or re-pick the selectors.
+When asked to improve a test Crackerbox's recorder generated, PRESERVE its recorded interactions, locators, and its \`signIn\` fixture usage — your job is to make the flow's outcomes verified, not to rewrite the flow or re-pick the selectors.
 
 ### Authenticated tests (signing in a test user)
 
-This section applies ONLY when the specific flow under test genuinely requires a logged-in user. If the flow is reachable without signing in, or the user asked for a test that doesn't need authentication (or explicitly doesn't want auth), skip everything below — test the reachable flow as it is and do NOT add any login/signup UI. Note that \`process.env.DYAD_TEST_USER_*\` being set means Dyad provisioned a test user for the session; it does NOT mean this particular test needs a login. If a flow truly can't be tested without a sign-in that the app doesn't have yet, ${missingAuthInstruction} — don't add it silently.
+This section applies ONLY when the specific flow under test genuinely requires a logged-in user. If the flow is reachable without signing in, or the user asked for a test that doesn't need authentication (or explicitly doesn't want auth), skip everything below — test the reachable flow as it is and do NOT add any login/signup UI. Note that \`process.env.DYAD_TEST_USER_*\` being set means Crackerbox provisioned a test user for the session; it does NOT mean this particular test needs a login. If a flow truly can't be tested without a sign-in that the app doesn't have yet, ${missingAuthInstruction} — don't add it silently.
 
 When a flow requires a logged-in user, use the built-in auth fixture in \`e2e-tests/fixtures/test-user.ts\` instead of hand-rolling credentials. Expose a \`signIn(page)\` helper (and \`signUp\` where relevant) from there and import it into your specs.
-- If \`e2e-tests/fixtures/test-user.ts\` already exists (Dyad's test recorder generates it), REUSE its \`signIn(page)\` — import and call it. Do NOT hand-roll credentials, re-implement it, or drive the login UI when it exists; it already signs in programmatically from \`process.env.DYAD_TEST_USER_*\`.
-- Dyad creates a fresh isolated user for each test case and retry. Read \`process.env.DYAD_TEST_USER_*\` inside \`signIn\`, \`beforeEach\`, or the test body, never at module scope or in \`beforeAll\`. Neon test data, including auth data, is cleared between cases; seed any required data per case.
-- Otherwise, if \`process.env.DYAD_TEST_USER_EMAIL\` and \`process.env.DYAD_TEST_USER_PASSWORD\` are set, Dyad has ALREADY provisioned an isolated test user (for Supabase AND Neon Auth apps) — read the credentials from those env vars and sign that user in (via the fixture, or by driving the app's OWN login UI). Do NOT sign them up; they already exist. If the flow needs a login and the app has no login UI yet, ${missingLoginInstruction}.
+- If \`e2e-tests/fixtures/test-user.ts\` already exists (Crackerbox's test recorder generates it), REUSE its \`signIn(page)\` — import and call it. Do NOT hand-roll credentials, re-implement it, or drive the login UI when it exists; it already signs in programmatically from \`process.env.DYAD_TEST_USER_*\`.
+- Crackerbox creates a fresh isolated user for each test case and retry. Read \`process.env.DYAD_TEST_USER_*\` inside \`signIn\`, \`beforeEach\`, or the test body, never at module scope or in \`beforeAll\`. Neon test data, including auth data, is cleared between cases; seed any required data per case.
+- Otherwise, if \`process.env.DYAD_TEST_USER_EMAIL\` and \`process.env.DYAD_TEST_USER_PASSWORD\` are set, Crackerbox has ALREADY provisioned an isolated test user (for Supabase AND Neon Auth apps) — read the credentials from those env vars and sign that user in (via the fixture, or by driving the app's OWN login UI). Do NOT sign them up; they already exist. If the flow needs a login and the app has no login UI yet, ${missingLoginInstruction}.
 - Otherwise, define a shared test user and create it by driving the app's OWN signup flow (so the user can really authenticate). If the flow needs a login and the app has no signup flow yet, ${missingSignupInstruction}.
 - Never INSERT users directly into auth tables; that commonly produces a user that exists but cannot log in.
 - If you sign in programmatically with \`page.request.*\` against the app's own auth endpoint, remember that \`page.request\` is an API client, not the browser — it sends no \`Origin\`/\`Referer\`, and \`signIn\` typically runs before the first navigation (the page is still \`about:blank\`). Auth servers with a CSRF / trusted-origin check (e.g. Better Auth) answer that with a 403. Pass the app's own origin explicitly: \`const origin = new URL(process.env.DYAD_TEST_BASE_URL || "http://localhost:32100").origin;\` then send \`headers: { origin, referer: origin + "/" }\`. A 403 from a sign-in endpoint is almost always this, not bad credentials — fix the test, not the app.`;
@@ -528,7 +532,7 @@ const AGENT_PROACTIVE_TESTS_GUIDANCE = buildAgentProactiveTestsGuidance();
  */
 const AGENT_RECORDED_TEST_GUIDANCE = `## A test proposal for a just-recorded flow
 
-Dyad's recorder captures a flat list of interactions and does NOT write a file. When the user asks for assertions on a flow they just recorded, their message contains the recorded statements, numbered. There is nothing to \`read_file\` — the spec does not exist yet.
+Crackerbox's recorder captures a flat list of interactions and does NOT write a file. When the user asks for assertions on a flow they just recorded, their message contains the recorded statements, numbered. There is nothing to \`read_file\` — the spec does not exist yet.
 
 If the message lists fragile selectors, stabilize every one you can identify safely BEFORE calling the proposal tool: inspect its source hint, reuse an existing \`data-testid\` or edit the app source to add a descriptive static one, then include the completed edit in \`selectorRepairs\`. This source edit is automatic test maintenance; do not ask for a separate selector approval. If the hint is absent or ambiguous, leave that locator unchanged rather than guessing.
 
@@ -541,13 +545,13 @@ This applies only to a recording that hasn't become a file yet. Write and edit s
 /**
  * Local-agent test-writing guidance: proactively keep tests in sync, write the
  * spec with the `write_file` tool, then verify and iterate with `run_tests`.
- * Dyad detects `.spec.ts` files and surfaces them in the Tests panel where the
+ * Crackerbox detects `.spec.ts` files and surfaces them in the Tests panel where the
  * user can also run them.
  */
 export const AGENT_TEST_WRITING_GUIDANCE = `${AGENT_PROACTIVE_TESTS_GUIDANCE}
 
 ${buildTestWritingGuidance(
-  `- Write it with the \`write_file\` tool to a path ending in \`.spec.ts\` under \`e2e-tests/\` (e.g. \`e2e-tests/signup.spec.ts\`). Dyad detects \`.spec.ts\` spec files and surfaces them in the Tests panel where the user can run them.`,
+  `- Write it with the \`write_file\` tool to a path ending in \`.spec.ts\` under \`e2e-tests/\` (e.g. \`e2e-tests/signup.spec.ts\`). Crackerbox detects \`.spec.ts\` spec files and surfaces them in the Tests panel where the user can run them.`,
 )}
 
 ${AGENT_RECORDED_TEST_GUIDANCE}
@@ -561,7 +565,7 @@ export function getImplementerTestWritingGuidance(
   return `${buildAgentProactiveTestsGuidance("implementer", runTestsAvailable)}
 
 ${buildTestWritingGuidance(
-  `- Write it with the \`write_file\` tool to a path ending in \`.spec.ts\` under \`e2e-tests/\` (e.g. \`e2e-tests/signup.spec.ts\`). Dyad detects \`.spec.ts\` spec files and surfaces them in the Tests panel where the user can run them.`,
+  `- Write it with the \`write_file\` tool to a path ending in \`.spec.ts\` under \`e2e-tests/\` (e.g. \`e2e-tests/signup.spec.ts\`). Crackerbox detects \`.spec.ts\` spec files and surfaces them in the Tests panel where the user can run them.`,
   "implementer",
 )}
 
@@ -825,45 +829,55 @@ export const constructSystemPrompt = ({
   reinstallAndRestartAppToolAvailable?: boolean;
   runBuildToolAvailable?: boolean;
 }) => {
+  const userMemory = readSettings().cbMemory?.trim();
+  const withUserMemory = (prompt: string) =>
+    userMemory
+      ? `${prompt}\n\n<user_memory>\n${userMemory}\n</user_memory>`
+      : prompt;
+
   if (chatMode === "plan") {
-    return constructPlanModePrompt(aiRules, themePrompt);
+    return withUserMemory(constructPlanModePrompt(aiRules, themePrompt));
   }
 
   if (chatMode === "local-agent") {
-    return constructLocalAgentPrompt(aiRules, themePrompt, {
-      readOnly,
-      basicAgentMode,
-      freeModelMode,
-      frameworkType,
-      hasSupabaseProject,
-      enableAppBlueprint,
-      hasAppBlueprint,
-      planningQuestionnaireAvailable,
-      appBlueprintQuestionnaireCompleted,
-      appBlueprint,
-      codeExplorerAvailable,
-      historyExplorerAvailable,
-      implementerAvailable,
-      testingEnabled,
-      preCommitHookAvailable,
-      restartAppToolAvailable,
-      reinstallAndRestartAppToolAvailable,
-      runBuildToolAvailable,
-    });
+    return withUserMemory(
+      constructLocalAgentPrompt(aiRules, themePrompt, {
+        readOnly,
+        basicAgentMode,
+        freeModelMode,
+        frameworkType,
+        hasSupabaseProject,
+        enableAppBlueprint,
+        hasAppBlueprint,
+        planningQuestionnaireAvailable,
+        appBlueprintQuestionnaireCompleted,
+        appBlueprint,
+        codeExplorerAvailable,
+        historyExplorerAvailable,
+        implementerAvailable,
+        testingEnabled,
+        preCommitHookAvailable,
+        restartAppToolAvailable,
+        reinstallAndRestartAppToolAvailable,
+        runBuildToolAvailable,
+      }),
+    );
   }
 
   if (chatMode === "build") {
-    return constructBuildAgentPrompt(aiRules, themePrompt, {
-      frameworkType,
-      hasSupabaseProject,
-      enableAppBlueprint,
-      hasAppBlueprint,
-      planningQuestionnaireAvailable,
-      appBlueprintQuestionnaireCompleted,
-      appBlueprint,
-      restartAppToolAvailable,
-      reinstallAndRestartAppToolAvailable,
-    });
+    return withUserMemory(
+      constructBuildAgentPrompt(aiRules, themePrompt, {
+        frameworkType,
+        hasSupabaseProject,
+        enableAppBlueprint,
+        hasAppBlueprint,
+        planningQuestionnaireAvailable,
+        appBlueprintQuestionnaireCompleted,
+        appBlueprint,
+        restartAppToolAvailable,
+        reinstallAndRestartAppToolAvailable,
+      }),
+    );
   }
 
   let systemPrompt = getSystemPromptForChatMode({
@@ -882,7 +896,7 @@ export const constructSystemPrompt = ({
     systemPrompt += "\n\n" + themePrompt;
   }
 
-  return systemPrompt;
+  return withUserMemory(systemPrompt);
 };
 
 export const getSystemPromptForChatMode = ({

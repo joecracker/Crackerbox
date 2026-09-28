@@ -88,6 +88,11 @@ async function fetchRemoteMcpCatalog(): Promise<{
  * endpoint not deployed yet).
  */
 export async function getRemoteMcpCatalog(): Promise<McpCatalogEntry[]> {
+  // Crackerbox doesn't use Dyad's curated MCP server suggestions -- Tim adds
+  // MCP servers directly, and every caller already treats an empty catalog
+  // as a normal state. No reason to phone home for a marketing list.
+  return [];
+
   if (catalogCache && catalogCache.expiresAt > Date.now()) {
     return catalogCache.entries;
   }

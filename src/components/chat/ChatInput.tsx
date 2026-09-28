@@ -111,6 +111,7 @@ import { useChats } from "@/hooks/useChats";
 import { useRouter } from "@tanstack/react-router";
 import { showError as showErrorToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
+import { PRO_BILLING_FEATURES_ENABLED } from "@/lib/proBillingFlags";
 import { useVoiceToText } from "@/hooks/useVoiceToText";
 import { isDyadProEnabled, isLocalAgentBackedMode } from "@/lib/schemas";
 import { isFreeProModel } from "@/lib/freeProModel";
@@ -1078,7 +1079,7 @@ export function ChatInput({ chatId }: { chatId?: number }) {
             />
 
             {/* Voice-to-text button */}
-            {isProEnabled ? (
+            {PRO_BILLING_FEATURES_ENABLED && (isProEnabled ? (
               <Tooltip>
                 <TooltipTrigger
                   render={
@@ -1137,7 +1138,7 @@ export function ChatInput({ chatId }: { chatId?: number }) {
                   {t("voiceToTextRequiresPro", "Voice to text (requires Pro)")}
                 </TooltipContent>
               </Tooltip>
-            )}
+            ))}
 
             {isStreaming ? (
               // Cancelling is not instant — an in-flight tool has to unwind
@@ -1194,10 +1195,8 @@ export function ChatInput({ chatId }: { chatId?: number }) {
               </Tooltip>
             )}
           </div>
-          <div className="px-2 flex items-center justify-between pb-0.5 pt-0.5">
-            <div className="flex items-center">
-              <ChatInputControls />
-            </div>
+          <div className="px-2 flex items-center flex-wrap gap-1.5 pb-1 pt-0.5">
+            <ChatInputControls />
 
             <AuxiliaryActionsMenu
               onFileSelect={handleFileSelect}

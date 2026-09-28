@@ -135,10 +135,10 @@ export function CoolifyConnector({ appId }: { appId: number | null }) {
     // Leaving the edit refills, since this keys on that too.
     if (isEditingConnection) return;
     const connection = status?.connection;
-    // The server Dyad set up wins, because that is the case where the field is
+    // The server Crackerbox set up wins, because that is the case where the field is
     // pinned and nothing else can fill it in. It is also the one address that
     // is right there: a stored token names the instance it opens, which is not
-    // necessarily the machine whose account Dyad is holding.
+    // necessarily the machine whose account Crackerbox is holding.
     setInstanceUrl(
       status?.serverUrl ?? connection?.instanceUrl ?? status?.instanceUrl ?? "",
     );
@@ -163,7 +163,7 @@ export function CoolifyConnector({ appId }: { appId: number | null }) {
     setIsEditingConnection(false);
   }, [appId, status?.hasToken]);
 
-  // On both screens below. A server Dyad installed but could not mint a token
+  // On both screens below. A server Crackerbox installed but could not mint a token
   // for is named by its admin account and nothing else, and these are the two
   // states that leaves the user in.
   const newServerCredentials = <CoolifyCredentials showTitle />;
@@ -248,7 +248,7 @@ export function CoolifyConnector({ appId }: { appId: number | null }) {
     >
       {newServerCredentials}
 
-      {/* Last, under anything Dyad already knows about a Coolify: this is the
+      {/* Last, under anything Crackerbox already knows about a Coolify: this is the
           exit for the people the installer does not apply to, not another
           control on it. */}
       <div className="border-t pt-3">
@@ -413,8 +413,8 @@ export function CoolifyConnector({ appId }: { appId: number | null }) {
   );
 
   // --- Step 1: get a Coolify, or connect to one ---
-  // The one control that makes Dyad forget a Coolify: the address, the token,
-  // and the admin account for a server it set up. Available wherever Dyad
+  // The one control that makes Crackerbox forget a Coolify: the address, the token,
+  // and the admin account for a server it set up. Available wherever Crackerbox
   // holds any of those, because holding an account without a token is still
   // holding a Coolify — and it is what has to be given up to reach a
   // different one.
@@ -456,7 +456,7 @@ export function CoolifyConnector({ appId }: { appId: number | null }) {
     // which is a question about a Coolify that already exists. Landing on it
     // told everyone else they were in the wrong place.
     if (!isEnteringToken) {
-      // Dyad already has a server. Setting up another would replace the only
+      // Crackerbox already has a server. Setting up another would replace the only
       // copy of its password, so the way to one is through giving this one up
       // deliberately rather than through starting again over the top of it.
       //
@@ -472,7 +472,7 @@ export function CoolifyConnector({ appId }: { appId: number | null }) {
               className="rounded-md border p-3 text-sm"
               data-testid="coolify-already-has-server"
             >
-              <p className="font-medium">Dyad already set up a server</p>
+              <p className="font-medium">Crackerbox already set up a server</p>
               <p className="text-muted-foreground">
                 Its details are below. Finish connecting to it, or sign out to
                 set up a different one — signing out forgets these.
@@ -490,7 +490,7 @@ export function CoolifyConnector({ appId }: { appId: number | null }) {
         <div className="space-y-3" data-testid="coolify-connector">
           {terminalNotice}
           {serverSetup}
-          {/* Installing again is refused while Dyad still holds an admin
+          {/* Installing again is refused while Crackerbox still holds an admin
               password, and that refusal says to sign out first. Behind the
               failure report is the one place it could be said without the way
               to do it being on screen. */}
@@ -532,7 +532,7 @@ export function CoolifyConnector({ appId }: { appId: number | null }) {
             data-testid="coolify-instance-url"
             placeholder="https://coolify.example.com"
             value={instanceUrl}
-            // Fixed to the server Dyad set up while it holds that server's
+            // Fixed to the server Crackerbox set up while it holds that server's
             // account. A token typed against another address would leave the
             // account describing one machine and the token another, which is
             // a pairing nothing downstream can tell apart from a way in.
@@ -547,7 +547,7 @@ export function CoolifyConnector({ appId }: { appId: number | null }) {
           />
           {status.serverUrl && (
             <p className="text-muted-foreground text-xs">
-              The server Dyad set up. Sign out to connect to a different
+              The server Crackerbox set up. Sign out to connect to a different
               Coolify.
             </p>
           )}
@@ -571,7 +571,7 @@ export function CoolifyConnector({ appId }: { appId: number | null }) {
           <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
             <p>
               This address is not encrypted, so anything on the network between
-              you and the server can read what Dyad sends over it. That is not
+              you and the server can read what Crackerbox sends over it. That is not
               only the API token: deploying also uploads the SSH private key
               Coolify uses to clone your repository, and your database
               connection string with its password. Giving Coolify a domain and
@@ -623,7 +623,7 @@ export function CoolifyConnector({ appId }: { appId: number | null }) {
 
         {/* Back to the installer, for someone who came here by mistake, and
             the only way back to a failure it is reporting. Not offered while
-            Dyad holds a server's account and has nothing to report: that
+            Crackerbox holds a server's account and has nothing to report: that
             screen refuses to set up another anyway, and signing out is the
             way there. */}
         {status.serverUrl && !isReportingFailure ? (
@@ -631,11 +631,11 @@ export function CoolifyConnector({ appId }: { appId: number | null }) {
         ) : (
           <div className="border-t pt-3">
             <p className="text-sm text-muted-foreground">
-              {/* The other way in here is a run that failed on a server Dyad
+              {/* The other way in here is a run that failed on a server Crackerbox
                   did set up. Offering to set one up "yet" over the top of it
                   describes somebody else's situation. */}
               {status.serverUrl
-                ? "Dyad set up a server here and the run has something to say about it. "
+                ? "Crackerbox set up a server here and the run has something to say about it. "
                 : "No Coolify server yet? "}
               <button
                 type="button"
@@ -705,7 +705,7 @@ export function CoolifyConnector({ appId }: { appId: number | null }) {
 
         <div className="flex items-center justify-between">
           <p className="text-xs text-muted-foreground">
-            Dyad cannot tell when servers or projects change in Coolify, so this
+            Crackerbox cannot tell when servers or projects change in Coolify, so this
             list is cached. Refresh after adding one.
           </p>
           {/* Outside the error card: rotating a token or moving to another
@@ -730,7 +730,7 @@ export function CoolifyConnector({ appId }: { appId: number | null }) {
         {isEditingConnection && movingHost && (
           <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
             Moving this app leaves the application on its current server
-            running, and Dyad stops tracking it. Deploying here builds a new
+            running, and Crackerbox stops tracking it. Deploying here builds a new
             one; removing the old one means going into Coolify.
           </div>
         )}
@@ -782,7 +782,7 @@ export function CoolifyConnector({ appId }: { appId: number | null }) {
           !discoveryError &&
           (discovery?.servers ?? []).length === 0 && (
             <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
-              This Coolify instance has no servers Dyad can see. Add one in
+              This Coolify instance has no servers Crackerbox can see. Add one in
               Coolify under Servers, then refresh.
             </div>
           )}
@@ -1104,13 +1104,13 @@ export function CoolifyConnector({ appId }: { appId: number | null }) {
                     {snapshot.type === "running"
                       ? "This also abandons the deployment currently running. "
                       : null}
-                    The application keeps running on your server, but Dyad
+                    The application keeps running on your server, but Crackerbox
                     forgets how to reach it. Connecting this app again builds a
                     second one beside it, and the two will compete for the same
                     domain. Removing the first means going into Coolify.
                   </p>
                   <p>
-                    If you have deployed this app, Dyad's deploy key stays in
+                    If you have deployed this app, Crackerbox's deploy key stays in
                     the GitHub repository, so your server keeps read access to
                     your code. You can remove the key by going to your
                     repository's Deploy Key settings on GitHub.

@@ -3,10 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Loader2, Upload, X, Sparkles, Lock, Link } from "lucide-react";
+import { Loader2, Upload, X, Sparkles, Lock } from "lucide-react";
 import {
   useGenerateThemePrompt,
-  useGenerateThemeFromUrl,
   useThemeGenerationModelOptions,
 } from "@/hooks/useCustomThemes";
 import { ipc } from "@/ipc/types";
@@ -14,10 +13,10 @@ import { showError } from "@/lib/toast";
 import { toast } from "sonner";
 import { useUserBudgetInfo } from "@/hooks/useUserBudgetInfo";
 import { AiAccessBanner } from "./ProBanner";
+import { PRO_BILLING_FEATURES_ENABLED } from "@/lib/proBillingFlags";
 import type {
   ThemeGenerationMode,
   ThemeGenerationModel,
-  ThemeInputSource,
 } from "@/ipc/types";
 
 // Image upload constants
@@ -64,14 +63,8 @@ export function AIGeneratorTab({
   // Track if dialog is open to prevent orphaned uploads from adding images after close
   const isDialogOpenRef = useRef(isDialogOpen);
 
-  // URL-based generation state
-  const [inputSource, setInputSource] = useState<ThemeInputSource>("images");
-  const [websiteUrl, setWebsiteUrl] = useState("");
-
   const generatePromptMutation = useGenerateThemePrompt();
-  const generateFromUrlMutation = useGenerateThemeFromUrl();
-  const isGenerating =
-    generatePromptMutation.isPending || generateFromUrlMutation.isPending;
+  const isGenerating = generatePromptMutation.isPending;
   const { userBudget } = useUserBudgetInfo();
   const { themeGenerationModelOptions, isLoadingThemeGenerationModelOptions } =
     useThemeGenerationModelOptions();
@@ -136,8 +129,6 @@ export function AIGeneratorTab({
       setAiKeywords("");
       setAiGenerationMode("inspired");
       setAiSelectedModel(themeGenerationModelOptions[0]?.id ?? "");
-      setInputSource("images");
-      setWebsiteUrl("");
     }
   }, [isDialogOpen, cleanupImages, themeGenerationModelOptions]);
 
@@ -257,59 +248,31 @@ export function AIGeneratorTab({
   );
 
   const handleGenerate = useCallback(async () => {
-    if (inputSource === "images") {
-      // Image-based generation
-      if (aiImages.length === 0) {
-        showError("Please upload at least one image");
-        return;
-      }
+    if (aiImages.length === 0) {
+      showError("Please upload at least one image");
+      return;
+    }
 
-      try {
-        const result = await generatePromptMutation.mutateAsync({
-          imagePaths: aiImages.map((img) => img.path),
-          keywords: aiKeywords,
-          generationMode: aiGenerationMode,
-          model: aiSelectedModel,
-        });
-        setAiGeneratedPrompt(result.prompt);
-        toast.success("Theme prompt generated successfully");
-      } catch (error) {
-        showError(
-          `Failed to generate theme: ${error instanceof Error ? error.message : "Unknown error"}`,
-        );
-      }
-    } else {
-      // URL-based generation
-      if (!websiteUrl.trim()) {
-        showError("Please enter a website URL");
-        return;
-      }
-
-      try {
-        const result = await generateFromUrlMutation.mutateAsync({
-          url: websiteUrl,
-          keywords: aiKeywords,
-          generationMode: aiGenerationMode,
-          model: aiSelectedModel,
-        });
-
-        setAiGeneratedPrompt(result.prompt);
-        toast.success("Theme prompt generated from website");
-      } catch (error) {
-        showError(
-          `Failed to generate theme: ${error instanceof Error ? error.message : "Unknown error"}`,
-        );
-      }
+    try {
+      const result = await generatePromptMutation.mutateAsync({
+        imagePaths: aiImages.map((img) => img.path),
+        keywords: aiKeywords,
+        generationMode: aiGenerationMode,
+        model: aiSelectedModel,
+      });
+      setAiGeneratedPrompt(result.prompt);
+      toast.success("Theme prompt generated successfully");
+    } catch (error) {
+      showError(
+        `Failed to generate theme: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
     }
   }, [
-    inputSource,
     aiImages,
-    websiteUrl,
     aiKeywords,
     aiGenerationMode,
     aiSelectedModel,
     generatePromptMutation,
-    generateFromUrlMutation,
     setAiGeneratedPrompt,
   ]);
 
@@ -330,7 +293,7 @@ export function AIGeneratorTab({
             Pro-only feature
           </p>
         </div>
-        <AiAccessBanner />
+        {PRO_BILLING_FEATURES_ENABLED && <AiAccessBanner />}
       </div>
     );
   }
@@ -357,46 +320,8 @@ export function AIGeneratorTab({
         />
       </div>
 
-      {/* Input Source Toggle */}
-      <div className="space-y-3">
-        <Label>Reference Source</Label>
-        <div className="grid grid-cols-2 gap-4">
-          <button
-            type="button"
-            onClick={() => setInputSource("images")}
-            className={`flex flex-col items-center rounded-lg border p-3 text-center transition-colors ${
-              inputSource === "images"
-                ? "border-primary bg-primary/5"
-                : "hover:bg-muted/50"
-            }`}
-          >
-            <Upload className="h-5 w-5 mb-1" />
-            <span className="font-medium text-sm">Upload Images</span>
-            <span className="text-xs text-muted-foreground mt-1">
-              Use screenshots from your device
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setInputSource("url")}
-            className={`flex flex-col items-center rounded-lg border p-3 text-center transition-colors ${
-              inputSource === "url"
-                ? "border-primary bg-primary/5"
-                : "hover:bg-muted/50"
-            }`}
-          >
-            <Link className="h-5 w-5 mb-1" />
-            <span className="font-medium text-sm">Website URL</span>
-            <span className="text-xs text-muted-foreground mt-1">
-              Extract design from a live website
-            </span>
-          </button>
-        </div>
-      </div>
-
-      {/* Image Upload Section - only shown when inputSource is "images" */}
-      {inputSource === "images" && (
-        <div className="space-y-2">
+      {/* Image Upload Section */}
+      <div className="space-y-2">
           <Label>Reference Images</Label>
           <div
             className={`border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 text-center cursor-pointer hover:border-muted-foreground/50 transition-colors ${isUploading ? "opacity-50 pointer-events-none" : ""}`}
@@ -453,25 +378,6 @@ export function AIGeneratorTab({
             </div>
           )}
         </div>
-      )}
-
-      {/* URL Input Section - only shown when inputSource is "url" */}
-      {inputSource === "url" && (
-        <div className="space-y-2">
-          <Label htmlFor="website-url">Website URL</Label>
-          <Input
-            id="website-url"
-            type="url"
-            placeholder="https://example.com"
-            value={websiteUrl}
-            onChange={(e) => setWebsiteUrl(e.target.value)}
-            disabled={isGenerating}
-          />
-          <p className="text-xs text-muted-foreground">
-            Enter a website URL to extract its design system
-          </p>
-        </div>
-      )}
 
       {/* Keywords Input */}
       <div className="space-y-2">
@@ -568,8 +474,7 @@ export function AIGeneratorTab({
           isLoadingThemeGenerationModelOptions ||
           !aiSelectedModel ||
           isGenerating ||
-          (inputSource === "images" && aiImages.length === 0) ||
-          (inputSource === "url" && !websiteUrl.trim())
+          aiImages.length === 0
         }
         variant="secondary"
         className="w-full"
@@ -577,9 +482,7 @@ export function AIGeneratorTab({
         {isGenerating ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            {inputSource === "url"
-              ? "Generating from website..."
-              : "Generating prompt..."}
+            Generating prompt...
           </>
         ) : (
           <>
@@ -603,9 +506,7 @@ export function AIGeneratorTab({
         ) : (
           <div className="min-h-[100px] border rounded-md p-4 flex items-center justify-center text-muted-foreground text-sm text-center">
             No prompt generated yet.{" "}
-            {inputSource === "images"
-              ? 'Upload images and click "Generate" to create a theme prompt.'
-              : 'Enter a website URL and click "Generate" to extract a theme.'}
+            Upload images and click "Generate" to create a theme prompt.
           </div>
         )}
       </div>

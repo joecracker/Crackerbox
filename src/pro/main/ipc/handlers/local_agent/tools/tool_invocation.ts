@@ -3,7 +3,7 @@
  * wrapper (`buildAgentToolSet` in `tool_definitions.ts`) and the sandbox
  * host-function bridge in `execute_sandbox_script.ts`. They live in their
  * own module so the sandbox tool can reuse the exact same consent,
- * tracking, and blueprint gating without a circular import —
+ * tracking, and blueprint gating without a circular import â€”
  * `tool_definitions.ts` imports every tool, including
  * `execute_sandbox_script.ts`.
  */
@@ -43,6 +43,7 @@ export const FILE_MUTATION_POLICIES = {
   delete_file: "path",
   rename_file: "paths",
   add_dependency: "always",
+  run_command: "tool",
   execute_sql: "tool",
   add_integration: "tool",
   enable_nitro: "always",

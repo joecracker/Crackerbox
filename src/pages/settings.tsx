@@ -16,6 +16,7 @@ import { SupabaseIntegration } from "@/components/SupabaseIntegration";
 import { CustomAppsFolderSelector } from "@/components/CustomAppsFolderSelector";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { AppBlueprintSwitch } from "@/components/AppBlueprintSwitch";
@@ -27,6 +28,7 @@ import { ChatEventNotificationSwitch } from "@/components/ChatEventNotificationS
 import { AutoUpdateSwitch } from "@/components/AutoUpdateSwitch";
 import { ReleaseChannelSelector } from "@/components/ReleaseChannelSelector";
 import { NeonIntegration } from "@/components/NeonIntegration";
+import { HomeAssistantSettings } from "@/components/HomeAssistantSettings";
 import { RuntimeModeSelector } from "@/components/RuntimeModeSelector";
 import { NodePathSelector } from "@/components/NodePathSelector";
 import { AgentToolsSettings } from "@/components/settings/AgentToolsSettings";
@@ -92,6 +94,43 @@ function SettingsSection({
   );
 }
 
+/**
+ * Free-text field for CB's global memory of Tim -- unlike everything else on
+ * this page, this isn't scoped to one chat or one app; it's read into every
+ * system prompt (see constructSystemPrompt in src/prompts/system_prompt.ts).
+ * Saves on blur rather than per keystroke to avoid spamming the settings IPC
+ * call while Tim is still typing.
+ */
+function CbMemoryField({
+  value,
+  onSave,
+}: {
+  value: string;
+  onSave: (value: string) => void;
+}) {
+  const [draft, setDraft] = useState(value);
+
+  useEffect(() => {
+    setDraft(value);
+  }, [value]);
+
+  return (
+    <Textarea
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => {
+        if (draft !== value) {
+          onSave(draft);
+        }
+      }}
+      placeholder={
+        "e.g. I go by Tim, I'm building Crackerbox on Windows, keep answers terse and code-first, no fluff..."
+      }
+      className="min-h-[140px]"
+    />
+  );
+}
+
 export default function SettingsPage() {
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
@@ -139,9 +178,20 @@ export default function SettingsPage() {
           <AISettings />
 
           <SettingsSection
+            id="cb-memory"
+            title="CB's Memory"
+            description="Stuff CB should always remember about you -- carries across every chat and every app, not just this one."
+          >
+            <CbMemoryField
+              value={settings?.cbMemory ?? ""}
+              onSave={(value) => updateSettings({ cbMemory: value })}
+            />
+          </SettingsSection>
+
+          <SettingsSection
             id={SECTION_IDS.providers}
             title="Model Providers"
-            description="Connect the AI providers Dyad uses to build and run your apps."
+            description="Connect the AI providers Crackerbox uses to build and run your apps."
           >
             <ProviderSettingsGrid />
           </SettingsSection>
@@ -149,7 +199,7 @@ export default function SettingsPage() {
           <SettingsSection
             id={SECTION_IDS.telemetry}
             title="Telemetry"
-            description="Anonymous usage data that helps improve Dyad."
+            description="Anonymous usage data that helps improve Crackerbox."
           >
             <div id={SETTING_IDS.telemetry} className="space-y-1.5">
               <TelemetrySwitch />
@@ -169,7 +219,7 @@ export default function SettingsPage() {
           <SettingsSection
             id={SECTION_IDS.integrations}
             title="Integrations"
-            description="Link Dyad to the services you deploy and store data with."
+            description="Link Crackerbox to the services you deploy and store data with."
           >
             <div id={SETTING_IDS.github}>
               <GitHubIntegration />
@@ -185,6 +235,10 @@ export default function SettingsPage() {
             </div>
             <div id={SETTING_IDS.neon}>
               <NeonIntegration />
+            </div>
+            <div id={SETTING_IDS.homeAssistant} className="space-y-1.5">
+              <Label className="text-sm font-medium">Home Assistant</Label>
+              <HomeAssistantSettings />
             </div>
           </SettingsSection>
 
@@ -444,7 +498,7 @@ export function GeneralSettings({ appVersion }: { appVersion: string | null }) {
     <SettingsSection
       id={SECTION_IDS.general}
       title="General"
-      description="Appearance, language, and how Dyad runs on your machine."
+      description="Appearance, language, and how Crackerbox runs on your machine."
     >
       <div id={SETTING_IDS.theme} className="flex items-center gap-4">
         <label className="text-sm font-medium text-foreground">Theme</label>
@@ -510,7 +564,7 @@ export function WorkflowSettings() {
     <SettingsSection
       id={SECTION_IDS.workflow}
       title="Workflow"
-      description="How Dyad handles code changes, previews, and notifications."
+      description="How Crackerbox handles code changes, previews, and notifications."
     >
       <div id={SETTING_IDS.defaultChatMode}>
         <DefaultChatModeSelector />

@@ -53,6 +53,7 @@ import {
 } from "lucide-react";
 import { ProviderIcon } from "@/components/ProviderIcon";
 import { SubscriptionModelMenu } from "@/components/SubscriptionModelMenu";
+import { PRO_BILLING_FEATURES_ENABLED } from "@/lib/proBillingFlags";
 import { useSubscriptionAccount } from "@/hooks/useSubscriptionAccount";
 import { usesChatGPTSubscription } from "@/lib/subscriptionModels";
 import {
@@ -563,6 +564,14 @@ export function ModelPicker() {
     selectedModel.provider === "claude-code"
       ? `${selectedClaudeModelName} (Claude Code)`
       : getModelDisplayName();
+  // Compact label for the trigger button: drop a "provider/" prefix (e.g.
+  // "deepseek/deepseek-v4.1-flash" -> "deepseek-v4.1-flash") -- it's exactly
+  // what was pushing the row wide enough to overflow on narrow phone
+  // screens. The full name is still shown via the title tooltip and
+  // everywhere else (the dropdown list itself is unaffected).
+  const modelDisplayNameCompact = modelDisplayName.includes("/")
+    ? modelDisplayName.slice(modelDisplayName.indexOf("/") + 1)
+    : modelDisplayName;
   const trialAutoModel = autoModels.find((model) => model.apiName === "auto");
   const trialAutoEffortSettings = getEffortSettings(trialAutoModel);
   const trialAutoEffort = createModelSelection({
@@ -1563,7 +1572,7 @@ export function ModelPicker() {
       <DropdownMenu open={open} onOpenChange={handleOpenChange}>
         <DropdownMenuTrigger
           disabled={isChatRoute && chatId != null && chatLoading}
-          className="inline-flex items-center justify-center whitespace-nowrap rounded-lg text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border-none bg-transparent shadow-none text-foreground/80 hover:text-foreground hover:bg-muted/60 h-7 max-w-[220px] px-2 gap-1.5 cursor-pointer"
+          className="inline-flex items-center justify-center whitespace-nowrap rounded-lg text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border-none bg-transparent shadow-none text-foreground/80 hover:text-foreground hover:bg-muted/60 h-7 max-w-[130px] sm:max-w-[220px] px-2 gap-1.5 cursor-pointer min-w-0"
           data-testid="model-picker"
           title={modelDisplayName}
         >
@@ -1575,7 +1584,7 @@ export function ModelPicker() {
                 </span>{" "}
               </>
             )}
-            {modelDisplayName}
+            {modelDisplayNameCompact}
           </span>
         </DropdownMenuTrigger>
         <DropdownMenuContent className={MODEL_MENU_WIDTH_CLASS} align="start">
@@ -1612,6 +1621,7 @@ export function ModelPicker() {
                 : undefined
             }
           />
+          {PRO_BILLING_FEATURES_ENABLED && (
           <SubscriptionModelMenu>
             <DropdownMenuSeparator />
             {/* Trial user upgrade banner */}
@@ -1922,6 +1932,7 @@ export function ModelPicker() {
               </>
             )}
           </SubscriptionModelMenu>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 

@@ -47,8 +47,8 @@ const logger = log.scope("settings");
 export const DEFAULT_SETTINGS: UserSettings = {
   chatgptFastMode: false,
   selectedModel: {
-    name: "auto",
-    provider: "auto",
+    name: "deepseek/deepseek-v4.1-flash",
+    provider: "openrouter",
   },
   providerSettings: {},
   telemetryConsent: "unset",
@@ -60,6 +60,10 @@ export const DEFAULT_SETTINGS: UserSettings = {
   selectedChatMode: "build",
   enableAppBlueprint: true,
   enableTestingForNewApps: DEFAULT_ENABLE_TESTING_FOR_NEW_APPS,
+  // Disabled: this points at upstream dyad-sh/dyad's release feed, not
+  // Tim's fork. Re-enable once Step 11 (installer) wires it to Tim's own
+  // GitHub releases instead -- until then this would silently try to
+  // overwrite Crackerbox with stock Dyad.
   enableAutoUpdate: true,
   releaseChannel: "stable",
   selectedTemplateId: DEFAULT_TEMPLATE_ID,
@@ -86,6 +90,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   previewIdleTimeoutPolicy: "default",
   nodeRuntimePreference: "system",
   disablePreviewNodeAutoInstall: false,
+  cbMemory: "",
 };
 
 const CRASH_SENTINEL_FILE = "session.lock";
@@ -422,6 +427,18 @@ export function writeSettings(settings: Partial<UserSettings>): void {
         accessToken: encrypt(newSettings.coolify.accessToken.value),
       };
     }
+    if (newSettings.homeAssistant?.accessToken) {
+      newSettings.homeAssistant = {
+        ...newSettings.homeAssistant,
+        accessToken: encrypt(newSettings.homeAssistant.accessToken.value),
+      };
+    }
+    if (newSettings.homeAssistant?.sshPrivateKey) {
+      newSettings.homeAssistant = {
+        ...newSettings.homeAssistant,
+        sshPrivateKey: encrypt(newSettings.homeAssistant.sshPrivateKey.value),
+      };
+    }
     // Guarded on the password rather than the account, because the two do not
     // arrive together: the preservation pass above strips a password it means
     // to write back verbatim, leaving the account here with none.
@@ -741,6 +758,35 @@ function readExistingSettingsFile(
       // and throws away a password a repaired keychain could still open.
       const { password: _dropped, ...rest } = admin;
       combinedSettings.coolify = { ...combinedSettings.coolify, admin: rest };
+    }
+  }
+  const homeAssistant = combinedSettings.homeAssistant;
+  if (homeAssistant) {
+    if (homeAssistant.accessToken) {
+      const resolved = resolveStoredSecret(
+        homeAssistant.accessToken,
+        "Home Assistant access token",
+        ["homeAssistant", "accessToken"],
+        ctx,
+      );
+      if (resolved) {
+        homeAssistant.accessToken = resolved;
+      } else {
+        delete homeAssistant.accessToken;
+      }
+    }
+    if (homeAssistant.sshPrivateKey) {
+      const resolved = resolveStoredSecret(
+        homeAssistant.sshPrivateKey,
+        "Home Assistant SSH private key",
+        ["homeAssistant", "sshPrivateKey"],
+        ctx,
+      );
+      if (resolved) {
+        homeAssistant.sshPrivateKey = resolved;
+      } else {
+        delete homeAssistant.sshPrivateKey;
+      }
     }
   }
   for (const provider in combinedSettings.providerSettings) {

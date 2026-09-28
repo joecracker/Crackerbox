@@ -354,7 +354,7 @@ export function LexicalChatInput({
   onSubmit,
   onPaste,
   excludeCurrentApp,
-  placeholder = "Ask Dyad to build...",
+  placeholder = "Ask Crackerbox to build...",
   disabled = false,
   disableSendButton,
   messageHistory = [],

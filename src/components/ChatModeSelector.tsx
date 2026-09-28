@@ -63,7 +63,7 @@ export function ChatModeSelector() {
       selectedModel &&
       isFreeProBuildModeCombination(selectedModel, newMode)
     ) {
-      toast.error("Dyad Free is not available in Build mode.");
+      toast.error("Crackerbox Free is not available in Build mode.");
       return;
     }
     // An explicit pick outside a chat updates settings.selectedChatMode;
@@ -185,7 +185,7 @@ export function ChatModeSelector() {
               </div>
               <span className="text-xs text-muted-foreground ml-[22px]">
                 {buildUnavailableForDyadFree
-                  ? "Use Agent, Ask, or Plan with Dyad Free"
+                  ? "Use Agent, Ask, or Plan with Crackerbox Free"
                   : "Generate and edit code"}
               </span>
             </div>

@@ -158,7 +158,24 @@ function isSenderMainFrame(event: IpcMainInvokeEvent): boolean {
   );
 }
 
+// Narrow, explicit trust exception for the LAN-only phone bridge (Step 10
+// Milestone 1, src/main/phone_bridge_server.ts). A synthetic IpcMainInvokeEvent
+// relayed over a WebSocket has no real Electron senderFrame and can never
+// satisfy the checks below -- that is by design, not a gap. Rather than try
+// to spoof senderFrame (which would mean monkeypatching Electron internals),
+// the phone bridge attaches this exact Symbol to its fake event. Only code
+// that imports PHONE_BRIDGE_TRUST_MARKER from this module can set it, so this
+// is an intentional, auditable allowlist -- not a weakening of the check for
+// any real renderer IPC call. The actual trust boundary for the phone path
+// right now is "on the LAN and can reach the bridge's WebSocket port"; that
+// is a known, temporary state until Milestone 2 puts Cloudflare Access in
+// front of the tunnel.
+export const PHONE_BRIDGE_TRUST_MARKER = Symbol("phoneBridgeTrusted");
+
 export function assertTrustedRenderer(event: IpcMainInvokeEvent): void {
+  if ((event as unknown as Record<symbol, unknown>)[PHONE_BRIDGE_TRUST_MARKER] === true) {
+    return;
+  }
   if (trustPolicy.packagedRendererProtocol === null) {
     throw new DyadError(
       "Renderer trust policy is not configured. Call configureTrustedRenderer() before handling IPC.",

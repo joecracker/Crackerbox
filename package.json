@@ -130,6 +130,7 @@
     "lucide-react": "^0.487.0",
     "monaco-editor": "^0.52.2",
     "mustardscript": "^0.3.0",
+    "node-html-markdown": "^2.0.0",
     "node-pty": "^1.1.0",
     "perfect-freehand": "^1.2.2",
     "pg-schema-classifier": "file:packages/pg-schema-classifier",
@@ -157,8 +158,8 @@
     "update-electron-app": "^3.1.2",
     "use-sync-external-store": "^1.6.0",
     "uuid": "^11.1.0",
-    "yaml": "^2.8.1",
     "ws": "^8.19.0",
+    "yaml": "^2.8.1",
     "zod": "^4.3.6"
   },
   "optionalDependencies": {
@@ -220,5 +221,22 @@
   "engines": {
     "node": ">=24 <26"
   },
-  "productName": "dyad"
+  "productName": "Crackerbox",
+  "allowScripts": {
+    "@biomejs/biome@1.9.4": true,
+    "esbuild@0.25.9": true,
+    "esbuild@0.19.12": true,
+    "esbuild@0.21.5": true,
+    "esbuild@0.18.20": true,
+    "@tailwindcss/oxide@4.1.13": true,
+    "@vscode/ripgrep@1.17.0": true,
+    "better-sqlite3@12.6.2": true,
+    "core-js@3.45.1": true,
+    "dugite@3.0.0": true,
+    "electron@40.0.0": true,
+    "electron-winstaller@5.4.0": true,
+    "node-pty@1.1.0": true,
+    "sharp@0.34.3": true,
+    "ssh2@1.17.0": true
+  }
 }

@@ -16,6 +16,13 @@ function publishNativeThemeState(): void {
       systemEvents.nativeThemeUpdated.channel,
       state,
     );
+    if (process.platform === "win32" && !window.isDestroyed()) {
+      window.setTitleBarOverlay({
+        color: state.shouldUseDarkColors ? "#181818" : "#f1f0f7",
+        symbolColor: state.shouldUseDarkColors ? "#ffffff" : "#000000",
+        height: 36,
+      });
+    }
   }
 }
 

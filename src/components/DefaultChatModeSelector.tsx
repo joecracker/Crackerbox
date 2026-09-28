@@ -103,7 +103,7 @@ export function DefaultChatModeSelector() {
               <span className="font-medium">Build</span>
               <span className="text-xs text-muted-foreground">
                 {isDyadFreeSelected
-                  ? "Use Agent with Dyad Free"
+                  ? "Use Agent with Crackerbox Free"
                   : "Generate and edit code"}
               </span>
             </div>

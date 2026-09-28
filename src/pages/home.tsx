@@ -12,21 +12,20 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { HomeChatInput } from "@/components/chat/HomeChatInput";
 import { usePostHog } from "posthog-js/react";
 import { PrivacyBanner } from "@/components/TelemetryBanner";
-import { INSPIRATION_PROMPTS } from "@/prompts/inspiration_prompts";
 
-import { ImportAppButton } from "@/components/ImportAppButton";
 import { FeaturedAppShowcase } from "@/components/FeaturedAppShowcase";
 import { Button } from "@/components/ui/button";
 
 import type { FileAttachment } from "@/ipc/types";
 import type { ListedApp } from "@/ipc/types/app";
 import { hasDyadProKey, type ChatMode } from "@/lib/schemas";
+import { PRO_BILLING_FEATURES_ENABLED } from "@/lib/proBillingFlags";
 import {
   FREE_PRO_MODEL_FALLBACK_CHAT_MODE,
   isFreeProBuildModeCombination,
 } from "@/lib/freeProModel";
 import { useLanguageModelProviders } from "@/hooks/useLanguageModelProviders";
-import { RefreshCw, Sparkles, Zap } from "lucide-react";
+import { Sparkles, Zap } from "lucide-react";
 import { ipc } from "@/ipc/types";
 import {
   useFirstPromptSaga,
@@ -67,22 +66,6 @@ export default function HomePage() {
 
   // Get the appId from search params
   const appId = search.appId ? Number(search.appId) : null;
-
-  // State for random prompts
-  const [randomPrompts, setRandomPrompts] = useState<
-    typeof INSPIRATION_PROMPTS
-  >([]);
-
-  // Function to get random prompts
-  const getRandomPrompts = useCallback(() => {
-    const shuffled = [...INSPIRATION_PROMPTS].sort(() => 0.5 - Math.random());
-    return shuffled.slice(0, 3);
-  }, []);
-
-  // Initialize random prompts
-  useEffect(() => {
-    setRandomPrompts(getRandomPrompts());
-  }, [getRandomPrompts]);
 
   // Redirect to app details page if appId is present. Use `replace` so the
   // intermediate `/?appId=…` entry doesn't sit in history and trap the back
@@ -180,34 +163,21 @@ export default function HomePage() {
     <div className="flex min-h-full w-full flex-col pb-28">
       <div className="flex flex-col items-center justify-center max-w-3xl w-full m-auto p-8 relative">
         <div className="w-full">
-          <div className="mb-6 text-center">
-            <h1 className="text-4xl font-semibold tracking-tight text-foreground">
-              What do you want to build?
-            </h1>
-            <p className="mx-auto mt-3 max-w-2xl text-base leading-7 text-muted-foreground">
-              Describe your idea. Dyad will turn it into a working app.
-            </p>
-            <div className="mt-4 flex justify-center gap-3">
-              <ImportAppButton
-                className="px-0 pb-0"
-                variant="outline"
+          {PRO_BILLING_FEATURES_ENABLED && !hasDyadProApiKey && (
+            <div className="mb-4 flex justify-center">
+              <Button
                 size="sm"
-              />
-              {!hasDyadProApiKey && (
-                <Button
-                  size="sm"
-                  onClick={() =>
-                    ipc.system.openExternalUrl(
-                      "https://www.dyad.sh/pro?utm_source=dyad-app&utm_medium=app&utm_campaign=home-upgrade-to-pro",
-                    )
-                  }
-                >
-                  <Sparkles aria-hidden="true" />
-                  Upgrade to Pro
-                </Button>
-              )}
+                onClick={() =>
+                  ipc.system.openExternalUrl(
+                    "https://www.dyad.sh/pro?utm_source=dyad-app&utm_medium=app&utm_campaign=home-upgrade-to-pro",
+                  )
+                }
+              >
+                <Sparkles aria-hidden="true" />
+                Upgrade to Pro
+              </Button>
             </div>
-          </div>
+          )}
           <HomeChatInput
             onSubmit={handleSubmit}
             disabled={isCheckingProviders}
@@ -246,31 +216,6 @@ export default function HomePage() {
               </div>
             )}
 
-          <div className="mt-4 flex flex-wrap justify-center gap-2">
-            {randomPrompts.map((item) => (
-              <button
-                type="button"
-                key={item.label}
-                disabled={isCheckingProviders}
-                onClick={() => setInputValue(item.prompt)}
-                className="flex cursor-pointer items-center gap-2 rounded-full border border-border bg-background px-3.5 py-1.5 text-sm text-muted-foreground transition-colors hover:border-primary/30 hover:bg-accent hover:text-foreground disabled:cursor-default disabled:opacity-50"
-              >
-                <span aria-hidden="true" className="[&_svg]:size-4">
-                  {item.icon}
-                </span>
-                {item.label}
-              </button>
-            ))}
-            <button
-              type="button"
-              disabled={isCheckingProviders}
-              onClick={() => setRandomPrompts(getRandomPrompts())}
-              className="group flex cursor-pointer items-center gap-2 rounded-full border border-border bg-background px-3.5 py-1.5 text-sm text-muted-foreground transition-colors hover:border-primary/30 hover:bg-accent hover:text-foreground disabled:cursor-default disabled:opacity-50"
-            >
-              <RefreshCw className="size-4 transition-transform duration-200 group-hover:rotate-[-25deg]" />
-              {t("moreIdeas")}
-            </button>
-          </div>
         </div>
         <PrivacyBanner />
       </div>

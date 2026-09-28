@@ -174,7 +174,6 @@ const SUBAGENT_ALLOWED_TOOL_NAMES = [
   "restart_app",
   "read_guide",
   "web_search",
-  "web_crawl",
   "web_fetch",
 ] as const;
 const SUBAGENT_ALLOWED_TOOLS = new Set<string>(SUBAGENT_ALLOWED_TOOL_NAMES);

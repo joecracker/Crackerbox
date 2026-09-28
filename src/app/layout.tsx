@@ -34,6 +34,10 @@ import { ReleaseNotesDialog } from "@/components/ReleaseNotesDialog";
 import { ForceCloseDialog } from "@/components/ForceCloseDialog";
 import { HelpDialog } from "@/components/HelpDialog";
 import { SubscriptionStatusBanner } from "@/components/SubscriptionStatusBanner";
+import { PRO_BILLING_FEATURES_ENABLED } from "@/lib/proBillingFlags";
+import { MobileBottomNav, MOBILE_BOTTOM_NAV_HEIGHT_PX } from "@/components/mobile-bottom-nav";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 import { ImageGenerationProvider } from "@/image_generation/ImageGenerationProvider";
 import {
   FirstPromptProvider,
@@ -93,6 +97,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 
 function RootLayoutContent({ children }: { children: ReactNode }) {
   const appRunManager = useAppRunRemoteManager();
+  const isMobile = useIsMobile();
   const previewErrors = usePreviewErrorFacade();
   const screenshotManager = useScreenshotManager();
   // Subscribe to app output events once at the root level to avoid duplicates
@@ -197,9 +202,23 @@ function RootLayoutContent({ children }: { children: ReactNode }) {
             <DeepLinkProvider>
               <SidebarProvider defaultOpen={false}>
                 <TitleBar />
-                <AppSidebar />
-                <div className="flex h-screenish min-w-0 flex-1 flex-col overflow-hidden mt-[var(--layout-title-bar-offset)] border-l border-border bg-background">
-                  <SubscriptionStatusBanner />
+                {/* Below MOBILE_BOTTOM_NAV breakpoint: the desktop sidebar's
+                    hover-to-expand flyout has no touch equivalent (see
+                    use-mobile.ts / mobile-bottom-nav.tsx), so it's swapped
+                    for a fixed bottom tab bar instead of being squeezed in. */}
+                {isMobile ? <MobileBottomNav /> : <AppSidebar />}
+                <div
+                  className={cn(
+                    "flex h-screenish min-w-0 flex-1 flex-col overflow-hidden mt-[var(--layout-title-bar-offset)] bg-background",
+                    isMobile ? "border-0" : "border-l border-border",
+                  )}
+                  style={
+                    isMobile
+                      ? { paddingBottom: MOBILE_BOTTOM_NAV_HEIGHT_PX }
+                      : undefined
+                  }
+                >
+                  {PRO_BILLING_FEATURES_ENABLED && <SubscriptionStatusBanner />}
                   <div
                     id="layout-main-content-container"
                     className="flex min-h-0 w-full flex-1 overflow-x-hidden"

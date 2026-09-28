@@ -1,4 +1,5 @@
 import { SubscriptionConnectionStatus } from "@/components/SubscriptionConnectionStatus";
+import { PRO_BILLING_FEATURES_ENABLED } from "@/lib/proBillingFlags";
 import { useAtom, useAtomValue } from "jotai";
 import { selectedAppIdAtom } from "@/atoms/appAtoms";
 import { useLoadApps } from "@/hooks/useLoadApps";
@@ -6,8 +7,6 @@ import { useRouter } from "@tanstack/react-router";
 import { useSettings } from "@/hooks/useSettings";
 import { Button } from "@/components/ui/button";
 import { AppAvatar } from "@/components/AppAvatar";
-// @ts-ignore
-import logo from "../../assets/logo.svg";
 import { providerSettingsRoute } from "@/routes/settings/providers/$provider";
 import { cn } from "@/lib/utils";
 import { useDeepLink } from "@/contexts/DeepLinkContext";
@@ -44,7 +43,12 @@ export const TitleBar = () => {
   const queryClient = useQueryClient();
   const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false);
   const platform = useSystemPlatform();
-  const showWindowControls = platform !== null && platform !== "darwin";
+  const showWindowControls =
+    platform !== null && platform !== "darwin" && platform !== "win32";
+  // On Windows, titleBarOverlay (see main.ts) draws real native caption
+  // buttons instead -- that's required for the Windows 11 Snap Layout
+  // flyout to appear on hover, which a custom HTML button can never trigger.
+  const reserveWindowsOverlaySpace = platform === "win32";
 
   const { lastDeepLink, clearLastDeepLink } = useDeepLink();
   useEffect(() => {
@@ -96,9 +100,13 @@ export const TitleBar = () => {
          * main content area, breaking the "tab merges into content" affordance.
          */}
         <div className="flex items-center shrink-0">
-          <div className={`${showWindowControls ? "pl-2" : "pl-18"}`}></div>
+          <div
+            className={`${showWindowControls ? "pl-2" : reserveWindowsOverlaySpace ? "pl-2" : "pl-18"}`}
+          ></div>
 
-          <img src={logo} alt="Dyad" className="ml-2 w-5 h-5 shrink-0" />
+          <span className="ml-2 text-sm font-semibold text-primary shrink-0">
+            Crackerbox
+          </span>
 
           <Tooltip>
             <TooltipTrigger
@@ -148,7 +156,7 @@ export const TitleBar = () => {
         {showWindowControls && <WindowsControls />}
       </div>
 
-      <SubscriptionConnectionStatus />
+      {PRO_BILLING_FEATURES_ENABLED && <SubscriptionConnectionStatus />}
       <DyadProSuccessDialog
         isOpen={isSuccessDialogOpen}
         onClose={() => setIsSuccessDialogOpen(false)}

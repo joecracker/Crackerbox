@@ -204,7 +204,6 @@ async function json(url: string, init?: RequestInit) {
           reinstall_and_restart_app: "always",
           run_build: "always",
           web_search: "always",
-          web_crawl: "always",
         },
         providerSettings: {
           auto: { apiKey: { value: process.env.DYAD_PRO_API_KEY! } },

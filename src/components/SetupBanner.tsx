@@ -24,6 +24,7 @@ import logo from "../../assets/logo.svg";
 // @ts-ignore
 import openrouterLogo from "../../assets/ai-logos/openrouter-logo.png";
 import { SetupDyadProButton } from "./ProBanner";
+import { PRO_BILLING_FEATURES_ENABLED } from "@/lib/proBillingFlags";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSubscriptionAccount } from "@/hooks/useSubscriptionAccount";
 import { useSettings } from "@/hooks/useSettings";
@@ -245,7 +246,7 @@ export function SetupBanner({
         </div>
 
         <div className="mt-4 flex w-full flex-col items-center justify-around gap-2 text-xs sm:flex-row">
-          <SetupDyadProButton />
+          {PRO_BILLING_FEATURES_ENABLED && <SetupDyadProButton />}
           <button
             type="button"
             onClick={() => {

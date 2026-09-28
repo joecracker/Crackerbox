@@ -122,3 +122,12 @@ storybook-static/
 eval-results/
 benchmark-results/
 benchmarks/code-explorer/repos/
+
+# Local scratch/log files (not part of the app)
+dyad-dev-log.txt
+publish-log.txt
+start_time.txt
+start_time2.txt
+themes_handlers_dump.txt
+dev-latest.log
+dev*.log

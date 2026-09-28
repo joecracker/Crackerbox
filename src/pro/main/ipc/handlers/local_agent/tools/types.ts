@@ -49,7 +49,7 @@ export interface FileEditTracker {
  * Feeds `AgentContext.mutationCount` after successful execution (including
  * sandbox write_file host calls).
  * Turn-scoped bookkeeping tools (update_todos, plan/blueprint tools) and
- * run_tests itself are deliberately excluded — they can't change a test's
+ * run_tests itself are deliberately excluded â€” they can't change a test's
  * outcome.
  */
 export const APP_MUTATING_TOOL_NAMES = [
@@ -57,6 +57,7 @@ export const APP_MUTATING_TOOL_NAMES = [
   "delete_file",
   "rename_file",
   "add_dependency",
+  "run_command",
   "execute_sql",
   "add_integration",
   "enable_nitro",
@@ -144,7 +145,7 @@ export interface AgentContext {
    * the app or its data: file edits (including sandbox write_file host calls)
    * plus the tools in `APP_MUTATING_TOOL_NAMES`. This is the
    * signal for `run_tests`' require-a-change guards, which must see fixes made
-   * through ANY mutating tool — not just write_file/search_replace.
+   * through ANY mutating tool â€” not just write_file/search_replace.
    */
   mutationCount?: number;
   /** Propagates successful child-tool mutations to the owning root turn. */
@@ -276,7 +277,7 @@ export interface AgentContext {
    * `execute_sandbox_script` sandbox this turn. Set by the local-agent
    * handler based on read-only / plan-mode status and effective
    * sandbox-tool availability. When false or undefined, `execute_sandbox_script`
-   * skips MCP capability injection — preventing sandboxed scripts from
+   * skips MCP capability injection â€” preventing sandboxed scripts from
    * calling MCP tools in modes where MCP is intentionally not exposed.
    */
   mcpToolsEnabled?: boolean;
@@ -284,7 +285,7 @@ export interface AgentContext {
    * MCP tool definitions for the current turn, populated by the local-agent
    * handler. The handler uses these to build the dynamic
    * `execute_sandbox_script` description and the sandbox `execute()` path
-   * uses the same array to build the capability map — so the prompt and
+   * uses the same array to build the capability map â€” so the prompt and
    * the runtime surface are guaranteed to agree.
    */
   mcpToolDefs?: McpToolDef[];
@@ -438,7 +439,7 @@ export interface TestRunAttemptState {
   /**
    * `AgentContext.mutationCount` at the time each target last PASSED, keyed by
    * canonical target ("" = whole file). Rerunning a target that already passed
-   * with no file changes since is refused — some models otherwise loop
+   * with no file changes since is refused â€” some models otherwise loop
    * re-running already-green tests.
    */
   passedAtEditCount?: Record<string, number>;

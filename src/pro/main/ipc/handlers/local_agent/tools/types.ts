@@ -305,9 +305,8 @@ export interface AgentContext {
   enableAppBlueprint?: boolean;
   /**
    * True after planning_questionnaire successfully returns user answers during
-   * this or a prior persisted turn. The initial app blueprint requires this
-   * latch so an invalid or dismissed questionnaire cannot be skipped by the
-   * model without forcing duplicate questions across turns.
+   * this or a prior persisted turn. This avoids repeating answered questions;
+   * a questionnaire is not required to create an initial app blueprint.
    */
   appBlueprintQuestionnaireCompleted?: boolean;
   /** Whether planning_questionnaire is exposed in this turn's tool set. */

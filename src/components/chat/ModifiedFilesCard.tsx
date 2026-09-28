@@ -87,7 +87,7 @@ export function ModifiedFilesCard({
     isUndoLoading || isRetryLoading || isAnyVersionMutationPending;
 
   const footer = (
-    <div className="px-3 py-2 flex justify-end gap-2">
+    <div className="hidden px-3 py-2 justify-end gap-2 md:flex">
       <Button
         variant="outline"
         size="sm"

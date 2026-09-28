@@ -102,6 +102,7 @@ describe("local-agent default request (integration)", () => {
       "generate_image",
       "git_diff",
       "git_log",
+      "git_push",
       "git_restore_file",
       "git_show_commit",
       "git_show_file",

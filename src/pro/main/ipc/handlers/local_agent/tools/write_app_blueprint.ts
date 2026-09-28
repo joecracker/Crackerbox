@@ -2,17 +2,13 @@ import { z } from "zod";
 import crypto from "node:crypto";
 import log from "electron-log";
 import { ToolDefinition, AgentContext, escapeXmlAttr } from "./types";
-import {
-  getAppBlueprintForChat,
-  setAppBlueprintForChat,
-} from "@/ipc/handlers/app_blueprint_handlers";
+import { setAppBlueprintForChat } from "@/ipc/handlers/app_blueprint_handlers";
 import { AppBlueprintVisualTypeSchema } from "@/ipc/types/app_blueprint";
 import { broadcastToRegisteredWindows } from "@/ipc/utils/window_broadcast";
 import { readSettings } from "@/main/settings";
 import { localTemplatesData } from "@/shared/templates";
 import { themesData } from "@/shared/themes";
 import type { UserSettings } from "@/lib/schemas";
-import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
 
 // Only accept template/theme IDs the model could plausibly know about — the
 // built-in catalogs. Unknown IDs (hallucinated names, API-only template IDs,
@@ -133,11 +129,11 @@ The app blueprint is a lightweight configuration step — it captures key decisi
 This tool returns immediately and ends the current turn. The user reviews the blueprint card and, on approval, the system applies the chosen name/template/theme and starts a new turn with a follow-up message that contains the approved blueprint — that's when you proceed with implementation.
 
 <when_to_use>
-For the initial blueprint, use this tool only after planning_questionnaire successfully returns the user's answers. A concrete initial prompt does not replace that required questionnaire. When updating an existing unapproved blueprint, another questionnaire is optional unless preferences are still missing. Call the tool with all fields populated, including the planned visuals.
+For the initial blueprint, use the user's full description, including any later freeform answers. Ask a focused question only if the app's purpose is unclear. A completed planning_questionnaire is not required. When updating an existing unapproved blueprint, ask only if essential preferences are still missing. Call the tool with all fields populated, including the planned visuals.
 </when_to_use>
 
 <guidelines>
-- app_name: Generate a creative, memorable name that reflects the app's purpose. Keep it short (1-3 words).
+- app_name: Preserve the user's chosen name when provided. Otherwise generate a short, memorable name that reflects the app's purpose.
 - template_id: Omit by default — the user's settings choice is used. ONLY set when the user explicitly names a tech stack (e.g. "use Next.js" → "next", "use React" → "react"). Don't infer from the app idea.
 - theme_id: Omit by default — the user's settings choice is used. ONLY set when the user explicitly names a built-in theme. Don't infer from the design direction.
 - design_direction: Analyze the industry, target users, and purpose to determine the right visual approach. Be specific but concise (1-2 sentences).
@@ -197,29 +193,6 @@ export const writeAppBlueprintTool: ToolDefinition<
   },
 
   execute: async (args, ctx: AgentContext) => {
-    const existingBlueprint = getAppBlueprintForChat(ctx.chatId);
-    if (
-      ctx.enableAppBlueprint !== false &&
-      !existingBlueprint &&
-      !ctx.appBlueprintQuestionnaireCompleted &&
-      ctx.planningQuestionnaireAvailable === false
-    ) {
-      throw new DyadError(
-        "The initial app blueprint requires planning_questionnaire, but that tool is disabled in Settings → Build and Agent Permissions. Set planning_questionnaire to Ask or Always allow, then retry this request.",
-        DyadErrorKind.Precondition,
-      );
-    }
-    if (
-      ctx.enableAppBlueprint !== false &&
-      !existingBlueprint &&
-      !ctx.appBlueprintQuestionnaireCompleted
-    ) {
-      throw new DyadError(
-        "The initial app blueprint requires a successfully completed planning_questionnaire. Call planning_questionnaire, wait for the user's answers, then retry write_app_blueprint.",
-        DyadErrorKind.Precondition,
-      );
-    }
-
     logger.log(`Writing app blueprint: ${args.app_name}`);
 
     const settings = readSettings();

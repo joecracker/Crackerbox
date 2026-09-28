@@ -192,8 +192,17 @@ export default function HomePage() {
 
   // Main Home Page Content
   return (
-    <div className="flex min-h-full w-full flex-col pb-28">
-      <div className="flex flex-col items-center justify-center max-w-3xl w-full m-auto p-8 relative">
+    <div className="relative flex min-h-full w-full flex-col overflow-hidden pb-28">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 flex select-none items-center justify-center overflow-hidden text-[var(--brand-wordmark)] opacity-[0.08]"
+        data-testid="home-watermark"
+      >
+        <span className="whitespace-nowrap text-[clamp(5rem,17vw,17rem)] font-black tracking-[-0.09em] [transform:scale(1.15,2.5)]">
+          Crackerbox
+        </span>
+      </div>
+      <div className="relative flex flex-col items-center justify-center max-w-3xl w-full m-auto p-8">
         <div className="w-full">
           {PRO_BILLING_FEATURES_ENABLED && !hasDyadProApiKey && (
             <div className="mb-4 flex justify-center">
@@ -224,7 +233,9 @@ export default function HomePage() {
         </div>
         <PrivacyBanner />
       </div>
-      <FeaturedAppShowcase />
+      <div className="relative">
+        <FeaturedAppShowcase />
+      </div>
     </div>
   );
 }

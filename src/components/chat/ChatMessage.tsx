@@ -477,7 +477,7 @@ const ChatMessage = ({
         {/* Timestamp and commit info for assistant messages - only visible on hover */}
         {message.role === "assistant" && message.createdAt && (
           <div className="mt-1 flex flex-wrap items-center justify-start space-x-2 text-xs text-gray-500 dark:text-gray-400 ">
-            <div className="flex items-center space-x-1">
+            <div className="hidden items-center space-x-1 md:flex">
               <Clock className="h-3 w-3" />
               <span>{formatTimestamp(message.createdAt)}</span>
             </div>

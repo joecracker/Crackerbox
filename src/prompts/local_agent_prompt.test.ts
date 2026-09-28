@@ -425,28 +425,12 @@ describe("local_agent_prompt", () => {
     expect(prompt).toMatchSnapshot();
     expect(prompt).toContain('<app_blueprint mode="required">');
     expect(prompt).toContain("Required App Blueprint Gate");
-    expect(prompt).toContain(
-      "Blueprint mode is enabled for this turn. Dyad has already determined",
-    );
+    expect(prompt).toContain("Use the user's full description");
     expect(prompt).toContain("write_app_blueprint");
     expect(prompt).toContain("planning_questionnaire");
-    expect(prompt).toContain("Ask 1-5 focused questions (usually 2-3)");
-    expect(prompt).toContain(
-      "Every radio or checkbox question must have 1-3 options",
-    );
-    expect(prompt).toContain(
-      "It must successfully return the user's answers before you continue",
-    );
-    expect(prompt).toContain(
-      "user-facing product requirements and high-level architectural needs",
-    );
-    expect(prompt).toContain("whether the app needs user accounts");
-    expect(prompt).toContain(
-      "whether it needs a database to store persistent app data",
-    );
-    expect(prompt).toContain(
-      "Do not ask the user to choose implementation details such as frameworks, libraries, hosting platforms, database providers, authentication providers, or other technology-specific options",
-    );
+    expect(prompt).toContain("A prior unanswered questionnaire does not invalidate details the user provided later");
+    expect(prompt).toContain("A completed questionnaire is useful context, not a prerequisite");
+    expect(prompt).toContain("Preserve an app name the user chose");
     expect(prompt).not.toContain("**Clarify (when needed):**");
     expect(prompt).not.toContain("**Implement:**");
   });
@@ -678,25 +662,25 @@ describe("local_agent_prompt", () => {
     });
 
     expect(prompt).toContain("initial questionnaire was already completed");
-    expect(prompt).toContain("questionnaire answers already recorded");
+    expect(prompt).toContain(
+      "questionnaire answers and the user's full description already recorded",
+    );
     expect(prompt).toContain("Do not call `planning_questionnaire` again");
     expect(prompt).not.toContain(
       "You MUST call this tool even when the initial request seems concrete",
     );
   });
 
-  it("surfaces an actionable recovery when the initial questionnaire is disabled", () => {
+  it("allows a freeform brief when the questionnaire is disabled", () => {
     const prompt = constructLocalAgentPrompt(undefined, undefined, {
       enableAppBlueprint: true,
       planningQuestionnaireAvailable: false,
     });
 
-    expect(prompt).toContain('state="questionnaire-disabled"');
-    expect(prompt).toContain("Settings → Build and Agent Permissions");
-    expect(prompt).toContain(
-      "set `planning_questionnaire` to Ask or Always allow",
-    );
-    expect(prompt).toContain("Do not call `write_app_blueprint`");
+    expect(prompt).toContain('mode="required"');
+    expect(prompt).toContain("Use the full conversation");
+    expect(prompt).toContain("Keep the user's chosen app name");
+    expect(prompt).not.toContain('state="questionnaire-disabled"');
   });
 });
 

@@ -62,10 +62,9 @@ const DESCRIPTION = `Present a structured questionnaire to gather requirements f
 
 <when_to_use>
 Use this tool when:
-- Blueprint mode is enabled for a new app; in that case this tool is mandatory even when the request is concrete
-- The request is vague or open-ended
-- There are multiple reasonable interpretations
-Skip only when blueprint mode is not enabled and the request is a specific, concrete change.
+- An essential detail is missing and a structured answer would genuinely help
+- There are multiple reasonable interpretations that would lead to different products
+Skip it when the user's freeform description already explains the app. Blueprint mode does not require a questionnaire. Ask only what you need to move forward; do not collect optional style or feature preferences merely to fill a form.
 </when_to_use>
 
 <input_schema>
@@ -81,19 +80,13 @@ Each question object has these fields:
 </input_schema>
 
 <correct_example>
-Reasoning: The user asked to "build me a todo app". I need to clarify the look and feel and key product features. I'll use radio for single-choice and checkbox for multi-choice.
+Reasoning: The user named a new app but did not say what it does. Ask for its purpose without assuming a category.
 
 {
   "questions": [
     {
-      "type": "radio",
-      "question": "What visual style do you prefer?",
-      "options": ["Minimal & clean", "Colorful & playful", "Dark & modern"]
-    },
-    {
-      "type": "checkbox",
-      "question": "Which features do you want?",
-      "options": ["Due dates", "Categories/tags", "Priority levels"]
+      "type": "text",
+      "question": "What should this app help people do?"
     }
   ]
 }

@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 
 import { z } from "zod";
@@ -71,6 +72,32 @@ function completeStatus(
   );
 }
 
+/**
+ * On Windows the shared spawn helper assumes every bare command name is an
+ * npm-style `.cmd` shim and appends `.cmd`, which breaks real programs like
+ * `node`, `git`, `where` and `cmd`. For this tool only, if a bare name is a
+ * real .exe/.com on PATH, use that name so the `.cmd` rule is skipped. Anything
+ * else (npm, npx, pnpm, ...) is left alone and still resolves as before.
+ */
+export function resolveWindowsExeName(
+  command: string,
+  platform: NodeJS.Platform = process.platform,
+  pathEnv: string = process.env.PATH ?? "",
+): string {
+  if (platform !== "win32" || command.includes(".") || /[\\/]/.test(command)) {
+    return command;
+  }
+  const dirs = pathEnv.split(path.delimiter).filter(Boolean);
+  for (const ext of [".exe", ".com"]) {
+    for (const dir of dirs) {
+      if (fs.existsSync(path.join(dir, command + ext))) {
+        return command + ext;
+      }
+    }
+  }
+  return command;
+}
+
 export const runCommandTool: ToolDefinition<RunCommandArgs> = {
   name: "run_command",
   description: `Run an arbitrary command-line command in the current app's project folder. Use this when no named tool (add_dependency, run_tests, run_build, run_type_checks, execute_sql, git tools, etc.) already covers what's needed - those are safer and better-verified, so prefer them first.
@@ -81,7 +108,7 @@ Do NOT use this to edit files (use write_file / search_replace), to restart or r
 
 The command runs with the current user's permissions, scoped to the app's project folder (cwd cannot escape it). It has no confirmation step of its own beyond the tool consent prompt - treat it as executing for real, not a dry run.`,
   inputSchema: runCommandSchema,
-  defaultConsent: "always",
+  defaultConsent: "ask",
   modifiesState: true,
 
   getConsentPreview: (args) => {
@@ -151,7 +178,7 @@ The command runs with the current user's permissions, scoped to the app's projec
     let result;
     try {
       result = await spawnStreaming({
-        command: args.command,
+        command: resolveWindowsExeName(args.command),
         args: args.args ?? [],
         cwd,
         signal: ctx.abortSignal,

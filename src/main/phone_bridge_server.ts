@@ -6,6 +6,7 @@
 //
 // No login yet (LAN only, trusted network assumed). Milestone 2 puts this
 // behind Cloudflare Access before it's reachable from the open internet.
+import { EventEmitter } from "node:events";
 import * as http from "node:http";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -41,19 +42,40 @@ function isValidSendChannel(channel: string): boolean {
 
 // ---------------------------------------------------------------------------
 // Per-connection fake sender/event, standing in for a real WebContents.
-// chat_stream_handlers.ts (the file milestone 1 needs to work) only ever
-// reads `event.sender` and calls `.send(...)` on it -- see SafeSender in
-// src/ipc/utils/safe_sender.ts -- so that's all this needs to satisfy.
+// Originally scoped to chat_stream_handlers.ts's needs (just `.send(...)` --
+// see SafeSender in src/ipc/utils/safe_sender.ts), but other main-process
+// code now treats event.sender as a real WebContents too -- e.g.
+// first_prompt_creation_service.ts's `.once("destroyed", ...)` /
+// `.once("render-process-gone", ...)`/`.removeListener(...)` calls, used to
+// cancel/clean up an in-flight "New app" creation if its owning window goes
+// away. Without a real EventEmitter here that threw synchronously the moment
+// a phone client created a new app (`sender.once is not a function`) --
+// caught by createTypedHandler and surfaced as a normal error, not a hang,
+// but it still broke "New app" from the phone. Fixed: a real EventEmitter,
+// firing "destroyed"/"render-process-gone" when the socket closes so a phone
+// disconnect mid-creation cancels/cleans up like a closed window would.
 // ---------------------------------------------------------------------------
+let nextPhoneConnectionId = 1;
+
 class PhoneConnection {
   readonly sender: {
+    id: number;
     isDestroyed: () => boolean;
     isCrashed: () => boolean;
     send: (channel: string, ...args: unknown[]) => void;
+    once: (event: string, listener: (...args: unknown[]) => void) => void;
+    removeListener: (
+      event: string,
+      listener: (...args: unknown[]) => void,
+    ) => void;
   };
 
+  private readonly emitter = new EventEmitter();
+
   constructor(private readonly ws: WebSocket) {
+    const senderId = nextPhoneConnectionId++;
     this.sender = {
+      id: senderId,
       isDestroyed: () => this.ws.readyState !== WebSocket.OPEN,
       isCrashed: () => false,
       send: (channel: string, ...args: unknown[]) => {
@@ -66,7 +88,15 @@ class PhoneConnection {
           );
         }
       },
+      once: (event, listener) => this.emitter.once(event, listener),
+      removeListener: (event, listener) =>
+        this.emitter.removeListener(event, listener),
     };
+  }
+
+  notifyClosed(): void {
+    this.emitter.emit("destroyed");
+    this.emitter.emit("render-process-gone");
   }
 
   fakeEvent(): IpcMainInvokeEvent & IpcMainEvent {
@@ -140,7 +170,9 @@ function onSocketMessage(conn: PhoneConnection, ws: WebSocket, raw: RawData) {
       msg.type === "invokeEnvelope",
     ).then((response) => {
       if (ws.readyState !== WebSocket.OPEN) return;
-      ws.send(JSON.stringify({ type: "invoke-result", id: msg.id, ...response }));
+      ws.send(
+        JSON.stringify({ type: "invoke-result", id: msg.id, ...response }),
+      );
     });
   } else if (msg?.type === "send") {
     handleSend(conn, msg.channel, Array.isArray(msg.args) ? msg.args : []);
@@ -329,8 +361,13 @@ const STATIC_CONTENT_TYPES: Record<string, string> = {
   ".woff2": "font/woff2",
 };
 
-function serveStaticProd(rendererRoot: string, res: http.ServerResponse, pathname: string) {
-  const relative = pathname === "/" ? "index.html" : pathname.replace(/^\//, "");
+function serveStaticProd(
+  rendererRoot: string,
+  res: http.ServerResponse,
+  pathname: string,
+) {
+  const relative =
+    pathname === "/" ? "index.html" : pathname.replace(/^\//, "");
   let filePath = path.join(rendererRoot, relative);
   // SPA fallback: anything without a file extension is a client route.
   if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
@@ -354,7 +391,11 @@ function serveStaticProd(rendererRoot: string, res: http.ServerResponse, pathnam
   });
 }
 
-function proxyToDevServer(devServerUrl: string, req: http.IncomingMessage, res: http.ServerResponse) {
+function proxyToDevServer(
+  devServerUrl: string,
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+) {
   const target = new URL(devServerUrl);
   const proxyReq = http.request(
     {
@@ -370,7 +411,9 @@ function proxyToDevServer(devServerUrl: string, req: http.IncomingMessage, res: 
         const chunks: Buffer[] = [];
         proxyRes.on("data", (chunk) => chunks.push(chunk));
         proxyRes.on("end", () => {
-          const html = injectShimIntoHtml(Buffer.concat(chunks).toString("utf-8"));
+          const html = injectShimIntoHtml(
+            Buffer.concat(chunks).toString("utf-8"),
+          );
           const headers = { ...proxyRes.headers };
           delete headers["content-length"];
           headers["content-length"] = Buffer.byteLength(html).toString();
@@ -438,7 +481,10 @@ export function startPhoneBridgeServer(devServerUrl: string | undefined) {
     const conn = new PhoneConnection(ws);
     logger.info("Phone client connected");
     ws.on("message", (raw) => onSocketMessage(conn, ws, raw));
-    ws.on("close", () => logger.info("Phone client disconnected"));
+    ws.on("close", () => {
+      logger.info("Phone client disconnected");
+      conn.notifyClosed();
+    });
     ws.on("error", (error) => logger.warn("Phone WebSocket error:", error));
   });
 
@@ -446,7 +492,9 @@ export function startPhoneBridgeServer(devServerUrl: string | undefined) {
     const urls = getLanUrls(PHONE_BRIDGE_PORT);
     logger.info(
       `Phone bridge listening on port ${PHONE_BRIDGE_PORT} (LAN only, no login yet). Try on your phone: ${
-        urls.length ? urls.join(", ") : `http://<this computer's LAN IP>:${PHONE_BRIDGE_PORT}`
+        urls.length
+          ? urls.join(", ")
+          : `http://<this computer's LAN IP>:${PHONE_BRIDGE_PORT}`
       }`,
     );
   });

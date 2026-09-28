@@ -85,6 +85,7 @@ import { writeAppBlueprintTool } from "./tools/write_app_blueprint";
 import {
   gitDiffTool,
   gitLogTool,
+  gitPushTool,
   gitRestoreFileTool,
   gitShowCommitTool,
   gitShowFileTool,
@@ -160,6 +161,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinition[] = [
   gitStatusTool,
   gitDiffTool,
   gitLogTool,
+  gitPushTool,
   gitShowCommitTool,
   gitShowFileTool,
   gitRestoreFileTool,

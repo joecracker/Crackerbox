@@ -15,6 +15,10 @@ import {
   restoreAgentGitFile,
 } from "@/ipc/utils/git_utils";
 import { assertMutationPathAllowed, safeJoin } from "@/ipc/utils/path_utils";
+import { handlePushToGithub } from "@/ipc/handlers/github_handlers";
+import { db } from "@/db";
+import { apps } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { getFileWriteKey, withLock } from "@/ipc/utils/lock_utils";
 import {
   AgentContext,
@@ -515,5 +519,45 @@ export const gitRestoreFileTool: ToolDefinition<
     }
 
     return successMessage;
+  },
+};
+
+const gitPushSchema = z.object({});
+
+export const gitPushTool: ToolDefinition<z.infer<typeof gitPushSchema>> = {
+  name: "git_push",
+  description:
+    "Push the current app's committed work to its connected GitHub repo, same as the Push button on the app page. Call this only when the user asks to push or deploy. Pulls remote changes first, never force-pushes, and refuses if there are uncommitted changes. Returns a clear message if the app is not connected to GitHub yet.",
+  inputSchema: gitPushSchema,
+  defaultConsent: "ask",
+  modifiesState: true,
+  shouldTrackMutation: () => false,
+  getConsentPreview: () =>
+    "Push this app's committed work to its connected GitHub repo",
+  buildXml: (_args, isComplete) => buildGitPreview("push", {}, isComplete),
+  execute: async (_args, ctx: AgentContext) => {
+    const app = await db.query.apps.findFirst({
+      where: eq(apps.id, ctx.appId),
+    });
+    if (!app?.githubOrg || !app?.githubRepo) {
+      return "Not pushed: this app is not connected to a GitHub repo yet. Tell the user to open the app's page and click Connect to GitHub once, then ask again.";
+    }
+
+    const status = await getAgentGitStatus({ path: ctx.appPath });
+    const dirtyCount =
+      new Set([...status.staged, ...status.unstaged]).size +
+      status.untracked.length +
+      status.conflicted.length;
+    if (dirtyCount > 0) {
+      return "Not pushed: there are " + dirtyCount + " uncommitted change(s) in the app. They are committed automatically when this reply finishes, so tell the user to ask for the push again in their next message.";
+    }
+
+    await handlePushToGithub(ctx.event, { appId: ctx.appId });
+
+    const branch = app.githubBranch || "main";
+    ctx.onXmlComplete(
+      gitXml("push", { repo: app.githubOrg + "/" + app.githubRepo, branch }),
+    );
+    return "Pushed to GitHub: " + app.githubOrg + "/" + app.githubRepo + " (branch " + branch + ").";
   },
 };

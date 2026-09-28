@@ -80,65 +80,61 @@ describe("app blueprint tools", () => {
     safeSend.mockReset();
   });
 
-  it("requires a successful questionnaire before creating the initial blueprint", async () => {
+  it("creates the initial blueprint from a freeform brief", async () => {
     const ctx = createAgentContext(1004);
     ctx.appBlueprintQuestionnaireCompleted = false;
 
-    await expect(
-      writeAppBlueprintTool.execute(
-        {
-          app_name: "Blocked Blueprint",
-          user_prompt: "Build me an app",
-          attachments: [],
-          design_direction: "Clean and minimal.",
-          primary_color: "#2563EB",
-          visuals: [
-            {
-              type: "logo",
-              description: "App logo",
-              prompt: "Minimal logo",
-            },
-          ],
-        },
-        ctx,
-      ),
-    ).rejects.toThrow(
-      "The initial app blueprint requires a successfully completed planning_questionnaire",
+    await writeAppBlueprintTool.execute(
+      {
+        app_name: "Blocked Blueprint",
+        user_prompt: "Build me an app",
+        attachments: [],
+        design_direction: "Clean and minimal.",
+        primary_color: "#2563EB",
+        visuals: [
+          {
+            type: "logo",
+            description: "App logo",
+            prompt: "Minimal logo",
+          },
+        ],
+      },
+      ctx,
     );
 
-    expect(getAppBlueprintForChat(ctx.chatId)).toBeUndefined();
-    expect(ctx.appBlueprintWrittenThisTurn).not.toBe(true);
+    expect(getAppBlueprintForChat(ctx.chatId)?.appName).toBe(
+      "Blocked Blueprint",
+    );
+    expect(ctx.appBlueprintWrittenThisTurn).toBe(true);
   });
 
-  it("explains how to recover when the required questionnaire is disabled", async () => {
+  it("creates the initial blueprint even when the questionnaire is disabled", async () => {
     const ctx = createAgentContext(1006);
     ctx.appBlueprintQuestionnaireCompleted = false;
     ctx.planningQuestionnaireAvailable = false;
 
-    await expect(
-      writeAppBlueprintTool.execute(
-        {
-          app_name: "Blocked Blueprint",
-          user_prompt: "Build me an app",
-          attachments: [],
-          design_direction: "Clean and minimal.",
-          primary_color: "#2563EB",
-          visuals: [
-            {
-              type: "logo",
-              description: "App logo",
-              prompt: "Minimal logo",
-            },
-          ],
-        },
-        ctx,
-      ),
-    ).rejects.toThrow(
-      "disabled in Settings → Build and Agent Permissions. Set planning_questionnaire to Ask or Always allow",
+    await writeAppBlueprintTool.execute(
+      {
+        app_name: "Blocked Blueprint",
+        user_prompt: "Build me an app",
+        attachments: [],
+        design_direction: "Clean and minimal.",
+        primary_color: "#2563EB",
+        visuals: [
+          {
+            type: "logo",
+            description: "App logo",
+            prompt: "Minimal logo",
+          },
+        ],
+      },
+      ctx,
     );
 
-    expect(getAppBlueprintForChat(ctx.chatId)).toBeUndefined();
-    expect(ctx.appBlueprintWrittenThisTurn).not.toBe(true);
+    expect(getAppBlueprintForChat(ctx.chatId)?.appName).toBe(
+      "Blocked Blueprint",
+    );
+    expect(ctx.appBlueprintWrittenThisTurn).toBe(true);
   });
 
   it("allows an existing unapproved blueprint to be updated without another questionnaire", async () => {

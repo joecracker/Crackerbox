@@ -207,6 +207,7 @@ export function ModelPicker() {
     (ModelSelectParams & { recentModels: LargeLanguageModel[] }) | null
   >(null);
   const [open, setOpen] = useState(false);
+  const [providerSearch, setProviderSearch] = useState("");
   const claudeStatus = useQuery({
     enabled:
       !!settings?.enableClaudeCodeSubscription &&
@@ -375,6 +376,8 @@ export function ModelPicker() {
   const handleOpenChange = (nextOpen: boolean) => {
     setOpen(nextOpen);
     if (nextOpen) {
+      setProviderSearch("");
+      void refetchModelsByProviders();
       posthog.capture("model-picker:open", {
         isDyadPro: settings ? isDyadProEnabled(settings) : false,
       });
@@ -386,6 +389,7 @@ export function ModelPicker() {
     data: modelsByProviders,
     isLoading: modelsByProvidersLoading,
     error: modelsByProvidersError,
+    refetch: refetchModelsByProviders,
   } = useLanguageModelsByProviders();
 
   const {
@@ -605,7 +609,12 @@ export function ModelPicker() {
     const provider = providers?.find(
       (candidate) => candidate.id === providerId,
     );
-    return provider?.secondary === true || provider?.type === "custom";
+    return (
+      providerId === "openrouter" ||
+      providerId === "google" ||
+      provider?.secondary === true ||
+      provider?.type === "custom"
+    );
   };
   const primaryModelEntries = providerEntries
     .filter(([providerId]) => !isOtherProvider(providerId))
@@ -1253,6 +1262,15 @@ export function ModelPicker() {
     }
     const provider = providers?.find((p) => p.id === providerId);
     const providerDisplayName = getProviderDisplayName(providerId);
+    const searchTerm = providerSearch.trim().toLowerCase();
+    const matchingModels =
+      visibleModels.length > 20 && searchTerm
+        ? visibleModels.filter((model) =>
+            `${model.displayName} ${model.apiName}`
+              .toLowerCase()
+              .includes(searchTerm),
+          )
+        : visibleModels;
     const providerState =
       provider?.type === "custom"
         ? "Custom provider"
@@ -1300,8 +1318,24 @@ export function ModelPicker() {
             {providerDisplayName + " Models"}
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          {visibleModels.map((model) =>
+          {visibleModels.length > 20 && (
+            <input
+              aria-label={`Search ${providerDisplayName} models`}
+              type="search"
+              value={providerSearch}
+              onChange={(event) => setProviderSearch(event.target.value)}
+              onKeyDown={(event) => event.stopPropagation()}
+              placeholder="Search models"
+              className="mx-2 mb-2 w-[calc(100%-1rem)] rounded-md border border-border bg-background px-2 py-1.5 text-sm outline-none focus:border-primary"
+            />
+          )}
+          {matchingModels.map((model) =>
             renderCloudModelItem({ providerId, model }),
+          )}
+          {matchingModels.length === 0 && (
+            <div className="px-2 py-3 text-sm text-muted-foreground">
+              No matching models
+            </div>
           )}
         </DropdownMenuSubContent>
       </DropdownMenuSub>
@@ -1572,11 +1606,16 @@ export function ModelPicker() {
       <DropdownMenu open={open} onOpenChange={handleOpenChange}>
         <DropdownMenuTrigger
           disabled={isChatRoute && chatId != null && chatLoading}
-          className="inline-flex items-center justify-center whitespace-nowrap rounded-lg text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border-none bg-transparent shadow-none text-foreground/80 hover:text-foreground hover:bg-muted/60 h-7 max-w-[130px] sm:max-w-[220px] px-2 gap-1.5 cursor-pointer min-w-0"
+          className="inline-flex items-center justify-center whitespace-nowrap rounded-lg text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border-none bg-transparent shadow-none text-foreground/80 hover:text-foreground hover:bg-muted/60 h-7 max-w-[170px] sm:max-w-[220px] px-2 gap-1.5 cursor-pointer min-w-0"
           data-testid="model-picker"
+          aria-label={modelDisplayName}
           title={modelDisplayName}
         >
-          <span className="truncate">
+          <span
+            aria-hidden="true"
+            className="truncate text-[0px] before:text-xs before:content-[attr(data-mobile-label)] sm:text-xs sm:before:content-none"
+            data-mobile-label={modelDisplayNameCompact.replace(/^[^:]+:\s*/, "")}
+          >
             {getModelDisplayName() === "Auto" && (
               <>
                 <span className="text-xs text-muted-foreground/70">
@@ -1588,40 +1627,44 @@ export function ModelPicker() {
           </span>
         </DropdownMenuTrigger>
         <DropdownMenuContent className={MODEL_MENU_WIDTH_CLASS} align="start">
-          <ClaudeCodeSubscriptionMenu
-            enabled={
-              !!settings.enableClaudeCodeSubscription &&
-              settings.proModelUsage !== "pro"
-            }
-            onEnabledChange={(enabled) =>
-              updateSettings({
-                enableClaudeCodeSubscription: enabled,
-                ...(enabled ? { proModelUsage: "subscription" as const } : {}),
-              })
-            }
-            connected={
-              !!claudeStatus.data?.connected && !!claudeStatus.data?.compatible
-            }
-            detail={
-              claudeStatus.data?.detail ?? "Checking Claude Code connection…"
-            }
-            onRefresh={() => {
-              void queryClient
-                .fetchQuery({
-                  queryKey: queryKeys.system.claudeCodeStatus,
-                  queryFn: () => ipc.chat.claudeCodeStatus({ force: true }),
-                  staleTime: 0,
-                })
-                .catch((error) => showError(error));
-              void claudeModels.refetch();
-            }}
-            catalogMessage={
-              claudeModels.isError
-                ? "Could not load Claude Code suggestions. Try refreshing."
-                : undefined
-            }
-          />
           {PRO_BILLING_FEATURES_ENABLED && (
+            <ClaudeCodeSubscriptionMenu
+              enabled={
+                !!settings.enableClaudeCodeSubscription &&
+                settings.proModelUsage !== "pro"
+              }
+              onEnabledChange={(enabled) =>
+                updateSettings({
+                  enableClaudeCodeSubscription: enabled,
+                  ...(enabled
+                    ? { proModelUsage: "subscription" as const }
+                    : {}),
+                })
+              }
+              connected={
+                !!claudeStatus.data?.connected &&
+                !!claudeStatus.data?.compatible
+              }
+              detail={
+                claudeStatus.data?.detail ?? "Checking Claude Code connection…"
+              }
+              onRefresh={() => {
+                void queryClient
+                  .fetchQuery({
+                    queryKey: queryKeys.system.claudeCodeStatus,
+                    queryFn: () => ipc.chat.claudeCodeStatus({ force: true }),
+                    staleTime: 0,
+                  })
+                  .catch((error) => showError(error));
+                void claudeModels.refetch();
+              }}
+              catalogMessage={
+                claudeModels.isError
+                  ? "Could not load Claude Code suggestions. Try refreshing."
+                  : undefined
+              }
+            />
+          )}
           <SubscriptionModelMenu>
             <DropdownMenuSeparator />
             {/* Trial user upgrade banner */}
@@ -1914,7 +1957,7 @@ export function ModelPicker() {
             )}
 
             {/* Upgrade footer for non-Pro users */}
-            {!isTrial && !dyadProEnabled && (
+            {PRO_BILLING_FEATURES_ENABLED && !isTrial && !dyadProEnabled && (
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
@@ -1932,7 +1975,6 @@ export function ModelPicker() {
               </>
             )}
           </SubscriptionModelMenu>
-          )}
         </DropdownMenuContent>
       </DropdownMenu>
 

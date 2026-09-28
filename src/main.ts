@@ -53,6 +53,7 @@ import { db, getDatabasePath, initializeDatabase } from "./db";
 import { apps } from "./db/schema";
 import { eq } from "drizzle-orm";
 import { reconcileOrphanTestBranches } from "./ipc/utils/neon_test_branch";
+import { reconcileCloudSandboxes } from "./ipc/utils/cloud_sandbox_provider";
 import { reconcileOrphanTestUsers } from "./ipc/utils/supabase_test_user";
 import { reconcileOrphanE2eTestWorkspaces } from "./ipc/services/e2e_test_workspace";
 import { stopAllAppTestsSync } from "./ipc/handlers/tests_handlers";
@@ -514,6 +515,10 @@ export async function onReady() {
 
   const settings = await readEffectiveSettings();
 
+  void reconcileCloudSandboxes().catch((error) => {
+    logger.warn("Failed to reconcile cloud sandboxes on startup:", error);
+  });
+
   // Add crackerbox-apps directory to git safe.directory (required for Windows).
   // The trailing /* allows access to all repositories under the named directory.
   // See: https://git-scm.com/docs/git-config#Documentation/git-config.txt-safedirectory
@@ -658,7 +663,8 @@ export async function onReady() {
     // update-electron-app's StaticStorage source) can read that layout
     // straight off GitHub's own "latest release" download URL � no update
     // server of our own required.
-    const baseUrl = "https://github.com/joecracker/dyad/releases/latest/download";
+    const baseUrl =
+      "https://github.com/joecracker/dyad/releases/latest/download";
     logger.info("Auto-update source=", baseUrl);
     // update-electron-app logs updater errors at info level, which the
     // warn-filtered bug-report logs drop � leaving only the orphaned stack
@@ -914,7 +920,9 @@ const createWindow = ({
       process.platform === "win32"
         ? {
             color: nativeTheme.shouldUseDarkColors ? "#181818" : "#f1f0f7",
-            symbolColor: nativeTheme.shouldUseDarkColors ? "#ffffff" : "#000000",
+            symbolColor: nativeTheme.shouldUseDarkColors
+              ? "#ffffff"
+              : "#000000",
             height: 36,
           }
         : false,
@@ -932,6 +940,9 @@ const createWindow = ({
     // backgroundColor: "#00000001",
     // frame: false,
   });
+  if (windowSessionId === PRIMARY_WINDOW_SESSION_ID) {
+    browserWindow.maximize();
+  }
   mainWindow = browserWindow;
   deepLinkWindowReadiness.setTarget(browserWindow);
   crashRecoveryWindowReadiness.setTarget(browserWindow);

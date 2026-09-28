@@ -564,7 +564,7 @@ export function ChatTabs({ selectedChatId }: ChatTabsProps) {
       previewHistoryPosition: 0,
       previewRouteSource: "none",
       previewMode: "preview",
-      isPreviewOpen: true,
+      isPreviewOpen: false,
       isChatPanelHidden: false,
       terminalOpen: store.get(terminalOpenByChatIdAtom).get(chatId) ?? false,
       selectedComponents: [],

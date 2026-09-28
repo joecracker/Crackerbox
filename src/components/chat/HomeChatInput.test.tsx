@@ -6,6 +6,7 @@ import { HomeChatInput } from "./HomeChatInput";
 const mocks = vi.hoisted(() => ({
   apps: [{ id: 1, name: "Existing" }],
   appsLoading: false,
+  isMobile: false,
   setInputValue: vi.fn(),
   setSelectedApp: vi.fn(),
   transcription: null as null | ((text: string) => void),
@@ -43,6 +44,9 @@ vi.mock("@/hooks/useLoadApps", () => ({
     apps: mocks.apps,
     loading: mocks.appsLoading,
   }),
+}));
+vi.mock("@/hooks/use-mobile", () => ({
+  useIsMobile: () => mocks.isMobile,
 }));
 vi.mock("@/hooks/useAttachments", () => ({
   useAttachments: () => ({
@@ -101,6 +105,18 @@ vi.mock("./LexicalChatInput", () => ({
 vi.mock("../ChatInputControls", () => ({
   ChatInputControls: () => <button type="button">Change mode</button>,
 }));
+vi.mock("../ChatModeSelector", () => ({
+  ChatModeSelector: () => <button type="button">Basic Agent</button>,
+}));
+vi.mock("../ModelPicker", () => ({
+  ModelPicker: () => <button type="button">DeepSeek V4.1 Flash</button>,
+}));
+vi.mock("../ImportAppButton", () => ({
+  ImportAppButton: () => <button type="button">Import app</button>,
+}));
+vi.mock("@/components/ImportAppDialog", () => ({
+  ImportAppDialog: () => null,
+}));
 vi.mock("./AuxiliaryActionsMenu", () => ({
   AuxiliaryActionsMenu: () => <button type="button">More actions</button>,
 }));
@@ -114,6 +130,7 @@ describe("HomeChatInput", () => {
   beforeEach(() => {
     mocks.apps = [{ id: 1, name: "Existing" }];
     mocks.appsLoading = false;
+    mocks.isMobile = false;
     mocks.setInputValue.mockReset();
     mocks.setSelectedApp.mockReset();
     mocks.transcription = null;
@@ -131,13 +148,6 @@ describe("HomeChatInput", () => {
         .disabled,
     ).toBe(true);
     expect(
-      (
-        screen.getByRole("button", {
-          name: "Voice to text",
-        }) as HTMLButtonElement
-      ).disabled,
-    ).toBe(true);
-    expect(
       (screen.getByTestId("home-app-selector") as HTMLButtonElement).disabled,
     ).toBe(true);
     expect(
@@ -145,6 +155,55 @@ describe("HomeChatInput", () => {
     ).toBe(true);
     expect(
       composer?.contains(screen.getByRole("button", { name: "More actions" })),
+    ).toBe(true);
+  });
+
+  it("keeps desktop app shortcuts alongside the composer controls", () => {
+    render(<HomeChatInput onSubmit={vi.fn()} />);
+
+    const actions = screen.getByTestId("home-chat-actions");
+    expect(actions.className).toContain("contents");
+    expect(
+      actions.contains(screen.getByRole("button", { name: "Import app" })),
+    ).toBe(true);
+    expect(
+      actions.contains(screen.getByRole("button", { name: "More actions" })),
+    ).toBe(true);
+  });
+
+  it("keeps the phone model beside the plus and mode below the composer", () => {
+    mocks.isMobile = true;
+    render(
+      <HomeChatInput
+        onSubmit={vi.fn()}
+        setupAction={<button type="button">Manage AI setup</button>}
+      />,
+    );
+
+    const composer = screen
+      .getByTestId("home-chat-input-container")
+      .querySelector('[aria-disabled="false"]')!;
+    expect(
+      composer.contains(screen.getByRole("button", { name: "Editor" })),
+    ).toBe(true);
+    expect(
+      composer.contains(screen.getByRole("button", { name: "Send message" })),
+    ).toBe(true);
+    expect(
+      composer.contains(screen.getByRole("button", { name: "More actions" })),
+    ).toBe(true);
+    expect(
+      composer.contains(screen.getByRole("button", { name: "Basic Agent" })),
+    ).toBe(false);
+    expect(
+      composer.contains(
+        screen.getByRole("button", { name: "DeepSeek V4.1 Flash" }),
+      ),
+    ).toBe(true);
+    expect(
+      screen
+        .getByTestId("home-chat-mobile-controls")
+        .contains(screen.getByRole("button", { name: "Manage AI setup" })),
     ).toBe(true);
   });
 

@@ -3,6 +3,11 @@ import { createContext, useContext, useEffect, useState } from "react";
 
 import { ipc } from "@/ipc/types";
 import { queryKeys } from "@/lib/queryKeys";
+import {
+  applyWorkspaceColors,
+  type WorkspaceColorKey,
+  type WorkspaceColors,
+} from "@/lib/workspaceColors";
 
 type Theme = "system" | "light" | "dark";
 
@@ -10,6 +15,9 @@ interface ThemeContextType {
   theme: Theme;
   isDarkMode: boolean;
   setTheme: (theme: Theme) => void;
+  workspaceColors: WorkspaceColors;
+  setWorkspaceColor: (key: WorkspaceColorKey, color: string | null) => void;
+  setWorkspaceColors: (colors: WorkspaceColors) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -21,6 +29,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const savedTheme = localStorage.getItem("theme") as Theme;
     return savedTheme || "system";
   });
+  const [workspaceColors, setWorkspaceColors] = useState<WorkspaceColors>(() =>
+    JSON.parse(localStorage.getItem("workspaceColors") || "{}"),
+  );
+  const setWorkspaceColor = (key: WorkspaceColorKey, color: string | null) => {
+    setWorkspaceColors((current) => {
+      const next = { ...current };
+      if (color) next[key] = color;
+      else delete next[key];
+      return next;
+    });
+  };
   const [systemThemeFallback] = useState(
     () => window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false,
   );
@@ -64,8 +83,22 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     root.classList.add(isDarkMode ? "dark" : "light");
   }, [isDarkMode, theme]);
 
+  useEffect(() => {
+    localStorage.setItem("workspaceColors", JSON.stringify(workspaceColors));
+    applyWorkspaceColors(workspaceColors, document.documentElement);
+  }, [workspaceColors]);
+
   return (
-    <ThemeContext.Provider value={{ theme, isDarkMode, setTheme }}>
+    <ThemeContext.Provider
+      value={{
+        theme,
+        isDarkMode,
+        setTheme,
+        workspaceColors,
+        setWorkspaceColor,
+        setWorkspaceColors,
+      }}
+    >
       {children}
     </ThemeContext.Provider>
   );

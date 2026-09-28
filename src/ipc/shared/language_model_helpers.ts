@@ -13,6 +13,7 @@ import {
   PROVIDER_TO_ENV_VAR,
 } from "./language_model_constants";
 import { getBuiltinLanguageModelCatalog } from "./remote_language_model_catalog";
+import { getProviderModels } from "./provider_model_catalog";
 
 const logger = log.scope("language_model_helpers");
 /**
@@ -174,6 +175,10 @@ export async function getLanguageModels({
         `Provider "${providerId}" is cloud type but not found in builtin catalog or MODEL_OPTIONS.`,
       );
     }
+  }
+
+  if (providerId === "openrouter" || providerId === "google") {
+    hardcodedModels = await getProviderModels(providerId, hardcodedModels);
   }
 
   return [...hardcodedModels, ...customModels];

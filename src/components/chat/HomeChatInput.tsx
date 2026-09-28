@@ -14,6 +14,7 @@ import { useSettings } from "@/hooks/useSettings";
 import { homeChatInputValueAtom, homeSelectedAppAtom } from "@/atoms/chatAtoms";
 import { useAtom } from "jotai";
 import { useState } from "react";
+import type { ReactNode } from "react";
 import { useStreamChat } from "@/hooks/useStreamChat";
 import { useAttachments } from "@/hooks/useAttachments";
 import { AttachmentsList } from "./AttachmentsList";
@@ -21,10 +22,14 @@ import { DragDropOverlay } from "./DragDropOverlay";
 import { FileAttachmentTypeDialog } from "./FileAttachmentTypeDialog";
 import { HomeSubmitOptions } from "@/pages/home";
 import { ChatInputControls } from "../ChatInputControls";
+import { ChatModeSelector } from "../ChatModeSelector";
+import { ModelPicker } from "../ModelPicker";
 import { LexicalChatInput } from "./LexicalChatInput";
 import { useChatModeToggle } from "@/hooks/useChatModeToggle";
 import { AuxiliaryActionsMenu } from "./AuxiliaryActionsMenu";
 import { ImportAppButton } from "@/components/ImportAppButton";
+import { ImportAppDialog } from "@/components/ImportAppDialog";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { useLoadApps } from "@/hooks/useLoadApps";
 import { AppSearchDialog } from "../AppSearchDialog";
@@ -32,9 +37,11 @@ import { AppSearchDialog } from "../AppSearchDialog";
 export function HomeChatInput({
   onSubmit,
   disabled = false,
+  setupAction,
 }: {
   onSubmit: (options?: HomeSubmitOptions) => boolean | Promise<boolean>;
   disabled?: boolean;
+  setupAction?: ReactNode;
 }) {
   const [inputValue, setInputValue] = useAtom(homeChatInputValueAtom);
   const [selectedApp, setSelectedApp] = useAtom(homeSelectedAppAtom);
@@ -45,12 +52,16 @@ export function HomeChatInput({
   useChatModeToggle();
 
   const [appSearchOpen, setAppSearchOpen] = useState(false);
+  const [importAppOpen, setImportAppOpen] = useState(false);
+  const isMobile = useIsMobile();
   const { apps, loading: appsLoading } = useLoadApps();
   const canSelectApp = !appsLoading && apps.length > 0;
 
   const placeholder = selectedApp
     ? `Send a message to ${selectedApp.name}...`
-    : "Ask Crackerbox to build something...";
+    : isMobile
+      ? "Message Crackerbox..."
+      : "Ask Crackerbox to build something...";
 
   // Use the attachments hook
   const {
@@ -106,14 +117,14 @@ export function HomeChatInput({
 
   return (
     <>
-      <div className="p-4" data-testid="home-chat-input-container">
+      <div className="px-3 py-3 sm:p-4" data-testid="home-chat-input-container">
         <div
           aria-disabled={disabled}
           inert={disabled}
           className={cn(
             "relative flex flex-col border border-border rounded-2xl bg-(--background-lighter) transition-colors duration-200",
             "hover:border-primary/30",
-            "focus-within:border-primary/30 focus-within:ring-1 focus-within:ring-primary/20",
+            "focus-within:border-[var(--brand-pinstripe)] focus-within:ring-1 focus-within:ring-[var(--brand-pinstripe-soft)]",
             isDraggingOver && "ring-2 ring-blue-500 border-blue-500",
             disabled && "pointer-events-none opacity-70",
           )}
@@ -187,63 +198,109 @@ export function HomeChatInput({
               </Tooltip>
             )}
           </div>
-          <div className="px-2 flex items-center flex-wrap gap-1.5 pb-1 pt-0.5">
-            <ChatInputControls />
-
-            {canSelectApp && (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <button
-                      onClick={() => {
-                        if (!disabled) setAppSearchOpen(true);
-                      }}
-                      disabled={disabled}
-                      className={cn(
-                        "cursor-pointer h-7 px-2 text-xs font-medium rounded-lg transition-colors flex items-center gap-1",
-                        selectedApp
-                          ? "bg-primary/10 text-primary hover:bg-primary/15"
-                          : "text-foreground/80 hover:text-foreground hover:bg-muted/60",
+          {isMobile ? (
+            <div className="flex min-w-0 items-center gap-1 px-3 pb-2 pt-1">
+              <AuxiliaryActionsMenu
+                compact
+                onFileSelect={handleFileSelect}
+                onSelectApp={
+                  canSelectApp ? () => setAppSearchOpen(true) : undefined
+                }
+                onImportApp={() => setImportAppOpen(true)}
+              />
+              <ModelPicker />
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-1.5 px-2 pb-1 pt-0.5">
+              <ChatInputControls />
+              <div className="contents" data-testid="home-chat-actions">
+                {canSelectApp && (
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <button
+                          onClick={() => {
+                            if (!disabled) setAppSearchOpen(true);
+                          }}
+                          disabled={disabled}
+                          className={cn(
+                            "cursor-pointer h-7 px-2 text-xs font-medium rounded-lg transition-colors flex items-center gap-1",
+                            selectedApp
+                              ? "bg-primary/10 text-primary hover:bg-primary/15"
+                              : "text-foreground/80 hover:text-foreground hover:bg-muted/60",
+                          )}
+                          data-testid="home-app-selector"
+                        />
+                      }
+                    >
+                      <FolderOpenIcon size={14} />
+                      {selectedApp && (
+                        <>
+                          <span className="truncate max-w-[90px]">
+                            {selectedApp.name}
+                          </span>
+                          <button
+                            type="button"
+                            disabled={disabled}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedApp(null);
+                            }}
+                            className="hover:bg-primary/20 rounded-sm p-0.5 transition-colors"
+                            aria-label="Deselect app"
+                            data-testid="home-app-selector-clear"
+                          >
+                            <XIcon size={12} />
+                          </button>
+                        </>
                       )}
-                      data-testid="home-app-selector"
-                    />
-                  }
-                >
-                  <FolderOpenIcon size={14} />
-                  {selectedApp && (
-                    <>
-                      <span className="truncate max-w-[90px]">
-                        {selectedApp.name}
-                      </span>
-                      <button
-                        type="button"
-                        disabled={disabled}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedApp(null);
-                        }}
-                        className="hover:bg-primary/20 rounded-sm p-0.5 transition-colors"
-                        aria-label="Deselect app"
-                        data-testid="home-app-selector-clear"
-                      >
-                        <XIcon size={12} />
-                      </button>
-                    </>
-                  )}
-                </TooltipTrigger>
-                <TooltipContent>
-                  {selectedApp
-                    ? "Change selected app"
-                    : "Select an existing app"}
-                </TooltipContent>
-              </Tooltip>
-            )}
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {selectedApp
+                        ? "Change selected app"
+                        : "Select an existing app"}
+                    </TooltipContent>
+                  </Tooltip>
+                )}
 
-            <ImportAppButton className="px-0 pb-0" variant="ghost" size="sm" />
-            <AuxiliaryActionsMenu onFileSelect={handleFileSelect} />
-          </div>
+                <ImportAppButton
+                  className="px-0 pb-0"
+                  variant="ghost"
+                  size="sm"
+                />
+                <AuxiliaryActionsMenu onFileSelect={handleFileSelect} />
+              </div>
+            </div>
+          )}
         </div>
+        {isMobile && (
+          <div
+            className="mt-2 flex items-center justify-between gap-2 px-2"
+            data-testid="home-chat-mobile-controls"
+          >
+            <ChatModeSelector />
+            {selectedApp && (
+              <button
+                type="button"
+                className="flex min-w-0 items-center gap-1 truncate text-xs text-muted-foreground"
+                onClick={() => setSelectedApp(null)}
+                aria-label={`Deselect ${selectedApp.name}`}
+              >
+                <span className="truncate">{selectedApp.name}</span>
+                <XIcon size={12} className="shrink-0" />
+              </button>
+            )}
+            {setupAction}
+          </div>
+        )}
       </div>
+
+      {importAppOpen && (
+        <ImportAppDialog
+          isOpen={importAppOpen}
+          onClose={() => setImportAppOpen(false)}
+        />
+      )}
 
       {appSearchOpen && canSelectApp && (
         <AppSearchDialog

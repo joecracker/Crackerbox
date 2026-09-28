@@ -92,7 +92,7 @@ export const TitleBar = () => {
 
   return (
     <>
-      <div className="@container z-11 w-full h-[calc(var(--layout-title-bar-offset)+1px)] pt-1 bg-(--sidebar) absolute top-0 left-0 app-region-drag flex items-center">
+      <div className="@container z-11 w-full h-[calc(var(--layout-title-bar-offset)+1px)] pt-1 bg-[var(--brand-header)] absolute top-0 left-0 app-region-drag flex items-center">
         {/*
          * Left region matches the sidebar's expanded width so chat tabs always
          * start past the sidebar panel's right edge. Without this, an active

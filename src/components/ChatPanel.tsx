@@ -266,7 +266,7 @@ export function ChatPanel({
               {!showTerminalDrawer && (
                 <motion.div
                   key="chat"
-                  className="absolute inset-0 flex min-h-0 flex-col"
+                  className="absolute inset-0 flex min-h-0 flex-col bg-[var(--brand-chat-canvas)]"
                   initial={
                     reducedMotion ? { opacity: 0 } : { opacity: 0, y: 24 }
                   }
@@ -277,6 +277,15 @@ export function ChatPanel({
                   transition={chatLayerTransition}
                 >
                   <div className="flex-1 relative overflow-hidden">
+                    <div
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-0 flex select-none items-center justify-center overflow-hidden text-[var(--brand-wordmark)]"
+                      data-testid="chat-watermark"
+                    >
+                      <span className="whitespace-nowrap text-[clamp(2.5rem,8vw,7rem)] font-extrabold tracking-[-0.055em]">
+                        Crackerbox
+                      </span>
+                    </div>
                     <MessagesList
                       chatId={chatId ?? null}
                       messages={messages}

@@ -1,6 +1,9 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import HomePage from "./home";
+import { PRO_BILLING_FEATURES_ENABLED } from "@/lib/proBillingFlags";
+
+const proBillingIt = PRO_BILLING_FEATURES_ENABLED ? it : it.skip;
 
 const mocks = vi.hoisted(() => ({
   attachments: [] as any[],
@@ -135,15 +138,18 @@ describe("HomePage first-prompt projection", () => {
     mocks.updateSettings.mockReset();
   });
 
-  it("opens the Pro page with home upgrade tracking from the upgrade button", () => {
-    render(<HomePage />);
+  proBillingIt(
+    "opens the Pro page with home upgrade tracking from the upgrade button",
+    () => {
+      render(<HomePage />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Upgrade to Pro" }));
+      fireEvent.click(screen.getByRole("button", { name: "Upgrade to Pro" }));
 
-    expect(mocks.openExternalUrl).toHaveBeenCalledWith(
-      "https://www.dyad.sh/pro?utm_source=dyad-app&utm_medium=app&utm_campaign=home-upgrade-to-pro",
-    );
-  });
+      expect(mocks.openExternalUrl).toHaveBeenCalledWith(
+        "https://www.dyad.sh/pro?utm_source=dyad-app&utm_medium=app&utm_campaign=home-upgrade-to-pro",
+      );
+    },
+  );
 
   it("does not prompt existing Pro users to upgrade", () => {
     mocks.hasDyadProApiKey = true;

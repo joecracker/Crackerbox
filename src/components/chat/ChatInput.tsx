@@ -912,7 +912,7 @@ export function ChatInput({ chatId }: { chatId?: number }) {
         <div
           className={cn(
             "relative flex flex-col border border-border rounded-2xl bg-(--background-lighter) transition-colors duration-200",
-            "focus-within:border-primary/30 focus-within:ring-1 focus-within:ring-primary/20",
+            "focus-within:border-[var(--brand-pinstripe)] focus-within:ring-1 focus-within:ring-[var(--brand-pinstripe-soft)]",
             isDraggingOver && "ring-2 ring-blue-500 border-blue-500",
             (showBanner || showPromo || isCancellationRequested) &&
               "rounded-t-none border-t-0",
@@ -1079,66 +1079,72 @@ export function ChatInput({ chatId }: { chatId?: number }) {
             />
 
             {/* Voice-to-text button */}
-            {PRO_BILLING_FEATURES_ENABLED && (isProEnabled ? (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <button
-                      onClick={toggleRecording}
-                      disabled={isTranscribing}
-                      aria-label={
-                        isRecording
-                          ? t("stopRecording", "Stop recording")
-                          : isTranscribing
-                            ? t("transcribing", "Transcribing...")
-                            : t("voiceToText", "Voice to text")
-                      }
-                      className={cn(
-                        "px-2 py-2 mb-0.5 text-muted-foreground rounded-lg transition-colors duration-150 cursor-pointer disabled:cursor-default disabled:opacity-30",
-                        isRecording &&
-                          "text-red-500 hover:text-red-600 animate-pulse",
-                        !isRecording && !isTranscribing && "hover:text-primary",
-                      )}
-                    />
-                  }
-                >
-                  {isTranscribing ? (
-                    <Loader2 size={20} className="animate-spin" />
-                  ) : isRecording ? (
-                    <MicOff size={20} />
-                  ) : (
+            {PRO_BILLING_FEATURES_ENABLED &&
+              (isProEnabled ? (
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <button
+                        onClick={toggleRecording}
+                        disabled={isTranscribing}
+                        aria-label={
+                          isRecording
+                            ? t("stopRecording", "Stop recording")
+                            : isTranscribing
+                              ? t("transcribing", "Transcribing...")
+                              : t("voiceToText", "Voice to text")
+                        }
+                        className={cn(
+                          "px-2 py-2 mb-0.5 text-muted-foreground rounded-lg transition-colors duration-150 cursor-pointer disabled:cursor-default disabled:opacity-30",
+                          isRecording &&
+                            "text-red-500 hover:text-red-600 animate-pulse",
+                          !isRecording &&
+                            !isTranscribing &&
+                            "hover:text-primary",
+                        )}
+                      />
+                    }
+                  >
+                    {isTranscribing ? (
+                      <Loader2 size={20} className="animate-spin" />
+                    ) : isRecording ? (
+                      <MicOff size={20} />
+                    ) : (
+                      <Mic size={20} />
+                    )}
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {isRecording
+                      ? t("stopRecording", "Stop recording")
+                      : isTranscribing
+                        ? t("transcribing", "Transcribing...")
+                        : t("voiceToText", "Voice to text")}
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <button
+                        onClick={() =>
+                          ipc.system.openExternalUrl("https://dyad.sh/pro")
+                        }
+                        aria-label={t("voiceToTextPro", "Voice to text (Pro)")}
+                        className="px-2 py-2 mb-0.5 text-muted-foreground hover:text-primary rounded-lg transition-colors duration-150 cursor-pointer relative"
+                      />
+                    }
+                  >
                     <Mic size={20} />
-                  )}
-                </TooltipTrigger>
-                <TooltipContent>
-                  {isRecording
-                    ? t("stopRecording", "Stop recording")
-                    : isTranscribing
-                      ? t("transcribing", "Transcribing...")
-                      : t("voiceToText", "Voice to text")}
-                </TooltipContent>
-              </Tooltip>
-            ) : (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <button
-                      onClick={() =>
-                        ipc.system.openExternalUrl("https://dyad.sh/pro")
-                      }
-                      aria-label={t("voiceToTextPro", "Voice to text (Pro)")}
-                      className="px-2 py-2 mb-0.5 text-muted-foreground hover:text-primary rounded-lg transition-colors duration-150 cursor-pointer relative"
-                    />
-                  }
-                >
-                  <Mic size={20} />
-                  <Lock size={10} className="absolute -top-0.5 -right-0.5" />
-                </TooltipTrigger>
-                <TooltipContent>
-                  {t("voiceToTextRequiresPro", "Voice to text (requires Pro)")}
-                </TooltipContent>
-              </Tooltip>
-            ))}
+                    <Lock size={10} className="absolute -top-0.5 -right-0.5" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {t(
+                      "voiceToTextRequiresPro",
+                      "Voice to text (requires Pro)",
+                    )}
+                  </TooltipContent>
+                </Tooltip>
+              ))}
 
             {isStreaming ? (
               // Cancelling is not instant — an in-flight tool has to unwind

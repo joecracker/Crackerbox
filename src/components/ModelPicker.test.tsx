@@ -9,6 +9,9 @@ import {
 } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ModelPicker } from "./ModelPicker";
+import { PRO_BILLING_FEATURES_ENABLED } from "@/lib/proBillingFlags";
+
+const proBillingIt = PRO_BILLING_FEATURES_ENABLED ? it : it.skip;
 vi.mock("./SubscriptionModelMenu", () => ({
   SubscriptionModelMenu: ({ children }: { children: React.ReactNode }) =>
     children,
@@ -32,6 +35,7 @@ const mocks = vi.hoisted(() => ({
   subscriptionLoading: false,
   subscriptionConnected: true,
   invalidateQueries: vi.fn(),
+  refetchModelsByProviders: vi.fn(),
   anthropicModels: [] as import("@/ipc/types").LanguageModel[],
   claudeModels: [{ value: "sonnet", displayName: "sonnet", description: "" }] as
     | Array<{
@@ -285,6 +289,7 @@ vi.mock("@/hooks/useFreeModelQuota", () => ({
 
 vi.mock("@/hooks/useLanguageModelsByProviders", () => ({
   useLanguageModelsByProviders: () => ({
+    refetch: mocks.refetchModelsByProviders,
     isLoading: mocks.catalogLoading,
     error: mocks.catalogError,
     data: mocks.catalogUnavailable
@@ -621,6 +626,7 @@ describe("ModelPicker", () => {
     mocks.subscriptionConnected = true;
     mocks.settings.proModelUsage = "subscription";
     mocks.invalidateQueries.mockReset();
+    mocks.refetchModelsByProviders.mockReset();
     mocks.setChatMode.mockReset();
     mocks.setChatMode.mockResolvedValue(undefined);
     mocks.setChatModelSelection.mockReset();
@@ -1652,7 +1658,7 @@ describe("ModelPicker", () => {
     expect(mocks.openExternalUrl).not.toHaveBeenCalled();
   });
 
-  it("shows the unlock-all footer only for non-Pro users", () => {
+  proBillingIt("shows the unlock-all footer only for non-Pro users", () => {
     mocks.settings.enableDyadPro = false;
     mocks.settings.providerSettings.auto.apiKey.value = "";
 
@@ -1930,7 +1936,7 @@ describe("Claude Code subscription picker", () => {
       expect(trigger.getAttribute("title")).toBe(`${shortName} (Claude Code)`);
     },
   );
-  it.each(["loading", "error", "empty"])(
+  proBillingIt.each(["loading", "error", "empty"])(
     "shows the %s catalog state without hardcoded choices",
     (state) => {
       mocks.claudeModels = state === "empty" ? [] : undefined;
@@ -1948,7 +1954,7 @@ describe("Claude Code subscription picker", () => {
         ).toBeTruthy();
     },
   );
-  it("refreshes both the connection and the model catalog", () => {
+  proBillingIt("refreshes both the connection and the model catalog", () => {
     render(<ModelPicker />);
     fireEvent.click(screen.getByRole("button", { name: "Refresh connection" }));
     expect(mocks.refetchClaudeModels).toHaveBeenCalledOnce();
@@ -2051,17 +2057,20 @@ describe("Claude Code subscription picker", () => {
       }),
     );
   });
-  it("places Claude Code status and usage in a branded subscription submenu", () => {
-    mocks.renderSubContent = false;
-    render(<ModelPicker />);
-    const trigger = screen.getByRole("button", {
-      name: "Claude Code subscription. Experimental. Open submenu.",
-    });
-    expect(trigger.querySelector("svg")).not.toBeNull();
-    expect(screen.queryByText("Connected")).toBeNull();
-    expect(screen.queryByText("Refresh connection")).toBeNull();
-    expect(screen.queryByText("Claude Code — sonnet")).toBeNull();
-  });
+  proBillingIt(
+    "places Claude Code status and usage in a branded subscription submenu",
+    () => {
+      mocks.renderSubContent = false;
+      render(<ModelPicker />);
+      const trigger = screen.getByRole("button", {
+        name: "Claude Code subscription. Experimental. Open submenu.",
+      });
+      expect(trigger.querySelector("svg")).not.toBeNull();
+      expect(screen.queryByText("Connected")).toBeNull();
+      expect(screen.queryByText("Refresh connection")).toBeNull();
+      expect(screen.queryByText("Claude Code — sonnet")).toBeNull();
+    },
+  );
   it("keeps Claude Code catalog choices available during a Dyad trial", () => {
     mocks.isTrial = true;
     render(<ModelPicker />);
@@ -2158,32 +2167,35 @@ describe("Claude Code subscription picker", () => {
     await waitFor(() => expect(mocks.setChatSelection).toHaveBeenCalled());
     expect(mocks.createChat).not.toHaveBeenCalled();
   });
-  it("shows the experiment toggle when disabled while hiding Claude Code model choices", async () => {
-    Object.assign(mocks.settings, {
-      enableClaudeCodeSubscription: false,
-      proModelUsage: "pro",
-      recentModels: [{ provider: "claude-code", name: "sonnet" }],
-    });
-    render(<ModelPicker />);
-    expect(
-      screen.getByRole("button", {
-        name: "Claude Code subscription. Experimental. Open submenu.",
-      }),
-    ).toBeTruthy();
-    expect(screen.queryByText("Claude Code — sonnet")).toBeNull();
-    expect(screen.queryByText("Checking Claude Code connection…")).toBeNull();
-    fireEvent.click(
-      screen.getByRole("menuitemcheckbox", {
-        name: "Use Claude subscription",
-      }),
-    );
-    await waitFor(() =>
-      expect(mocks.updateSettings).toHaveBeenCalledWith({
-        enableClaudeCodeSubscription: true,
-        proModelUsage: "subscription",
-      }),
-    );
-  });
+  proBillingIt(
+    "shows the experiment toggle when disabled while hiding Claude Code model choices",
+    async () => {
+      Object.assign(mocks.settings, {
+        enableClaudeCodeSubscription: false,
+        proModelUsage: "pro",
+        recentModels: [{ provider: "claude-code", name: "sonnet" }],
+      });
+      render(<ModelPicker />);
+      expect(
+        screen.getByRole("button", {
+          name: "Claude Code subscription. Experimental. Open submenu.",
+        }),
+      ).toBeTruthy();
+      expect(screen.queryByText("Claude Code — sonnet")).toBeNull();
+      expect(screen.queryByText("Checking Claude Code connection…")).toBeNull();
+      fireEvent.click(
+        screen.getByRole("menuitemcheckbox", {
+          name: "Use Claude subscription",
+        }),
+      );
+      await waitFor(() =>
+        expect(mocks.updateSettings).toHaveBeenCalledWith({
+          enableClaudeCodeSubscription: true,
+          proModelUsage: "subscription",
+        }),
+      );
+    },
+  );
   it("preserves the existing chat when backend switching is cancelled", () => {
     render(<ModelPicker />);
     fireEvent.click(

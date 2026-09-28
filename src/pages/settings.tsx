@@ -48,6 +48,7 @@ import { activeSettingsSectionAtom } from "@/atoms/viewAtoms";
 import { SECTION_IDS, SETTING_IDS } from "@/lib/settingsSearchIndex";
 import { SubagentSettings } from "@/components/settings/SubagentSettings";
 import { RunTypeScriptForWholeProjectSwitch } from "@/components/RunTypeScriptForWholeProjectSwitch";
+import { WorkspaceColorSettings } from "@/components/settings/WorkspaceColorSettings";
 
 const hint = "text-[13px] leading-relaxed text-muted-foreground";
 
@@ -520,6 +521,8 @@ export function GeneralSettings({ appVersion }: { appVersion: string | null }) {
           ))}
         </div>
       </div>
+
+      <WorkspaceColorSettings />
 
       <LanguageSelector />
 

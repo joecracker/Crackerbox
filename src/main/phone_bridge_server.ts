@@ -230,6 +230,27 @@ const PHONE_SHIM_SCRIPT = `(function () {
     console.warn("[phone bridge] connection to Crackerbox lost -- reload to reconnect");
   });
 
+  // Mobile browsers freeze/kill the WebSocket (and drop it silently, no
+  // "close" event) whenever the tab is backgrounded -- phone locked, app
+  // switched away from, etc. Without this, coming back shows whatever state
+  // was on screen when it froze, with no indication anything's stale. A full
+  // reload is the simplest robust fix (mirrors what manually reopening the
+  // page already does) -- only reload if the socket actually isn't open, so
+  // a brief tab-switch that didn't kill the connection doesn't reload
+  // needlessly and lose in-progress typing.
+  function reloadIfDisconnected() {
+    if (socket.readyState !== WebSocket.OPEN) {
+      location.reload();
+    }
+  }
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "visible") reloadIfDisconnected();
+  });
+  window.addEventListener("pageshow", function (evt) {
+    if (evt.persisted) reloadIfDisconnected();
+  });
+  window.addEventListener("focus", reloadIfDisconnected);
+
   function trimTrailingUndefined(arr) {
     // JSON can't represent undefined -- inside an array it silently becomes
     // null, unlike real Electron IPC (structured clone) which preserves

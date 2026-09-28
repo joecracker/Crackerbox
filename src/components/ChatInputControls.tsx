@@ -3,7 +3,7 @@ import { ChatModeSelector } from "./ChatModeSelector";
 
 export function ChatInputControls() {
   return (
-    <div className="flex items-center">
+    <div className="flex max-w-full min-w-0 items-center">
       <ChatModeSelector />
       <div className="w-1.5"></div>
       <ModelPicker />

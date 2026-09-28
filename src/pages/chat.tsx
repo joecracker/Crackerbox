@@ -109,11 +109,14 @@ export default function ChatPage() {
   }, [chatId, routeAppId, chats, setSelectedAppId]);
 
   useEffect(() => {
-    if (isPreviewOpen) {
-      ref.current?.expand();
-    } else {
-      ref.current?.collapse();
-    }
+    const frame = requestAnimationFrame(() => {
+      if (isPreviewOpen) {
+        ref.current?.expand();
+      } else {
+        ref.current?.collapse();
+      }
+    });
+    return () => cancelAnimationFrame(frame);
   }, [isPreviewOpen]);
   const ref = useRef<ImperativePanelHandle>(null);
   const chatPanelRef = useRef<ImperativePanelHandle>(null);
@@ -121,7 +124,7 @@ export default function ChatPage() {
   // Keep chat panel size in sync with hidden state (from toolbar button / other views)
   useEffect(() => {
     if (!chatPanelRef.current) return;
-    // Skip the initial mount to preserve persisted panel size from autoSaveId
+    // The preview effect closes the initial split without discarding its saved width.
     if (isInitialMountRef.current) {
       isInitialMountRef.current = false;
       return;
@@ -146,6 +149,7 @@ export default function ChatPage() {
         id="chat-panel"
         ref={chatPanelRef}
         collapsible
+        defaultSize={100}
         minSize={1}
         className={cn(!isResizing && "transition-all duration-100 ease-in-out")}
       >
@@ -195,6 +199,7 @@ export default function ChatPage() {
         collapsible
         ref={ref}
         id="preview-panel"
+        defaultSize={0}
         minSize={20}
         className={cn(!isResizing && "transition-all duration-100 ease-in-out")}
       >

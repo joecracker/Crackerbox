@@ -10,6 +10,8 @@ import {
   PlusCircle,
   MoreHorizontal,
   ImageIcon,
+  FolderOpen,
+  Upload,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -46,6 +48,9 @@ interface AuxiliaryActionsMenuProps {
   toggleShowTokenBar?: () => void;
   appId?: number;
   onGenerateImage?: () => void;
+  onSelectApp?: () => void;
+  onImportApp?: () => void;
+  compact?: boolean;
 }
 
 export function AuxiliaryActionsMenu({
@@ -54,6 +59,9 @@ export function AuxiliaryActionsMenu({
   toggleShowTokenBar,
   appId,
   onGenerateImage,
+  onSelectApp,
+  onImportApp,
+  compact = false,
 }: AuxiliaryActionsMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [customThemeDialogOpen, setCustomThemeDialogOpen] = useState(false);
@@ -132,11 +140,16 @@ export function AuxiliaryActionsMenu({
     <>
       <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
         <DropdownMenuTrigger
-          className="inline-flex items-center justify-center whitespace-nowrap rounded-full text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-primary/20 hover:scale-105 bg-primary/10 text-primary cursor-pointer h-8 w-8 mb-1"
+          aria-label="More actions"
+          className={
+            compact
+              ? "inline-flex size-7 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+              : "inline-flex items-center justify-center whitespace-nowrap rounded-full text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-primary/20 hover:scale-105 bg-primary/10 text-primary cursor-pointer h-8 w-8 mb-1"
+          }
           data-testid="auxiliary-actions-menu"
         >
           <Plus
-            size={20}
+            size={compact ? 18 : 20}
             className={`transition-transform duration-200 ${isOpen ? "rotate-45" : "rotate-0"}`}
           />
         </DropdownMenuTrigger>
@@ -156,6 +169,30 @@ export function AuxiliaryActionsMenu({
               />
             </DropdownMenuSubContent>
           </DropdownMenuSub>
+
+          {(onSelectApp || onImportApp) && <DropdownMenuSeparator />}
+          {onSelectApp && (
+            <DropdownMenuItem
+              onClick={() => {
+                setIsOpen(false);
+                onSelectApp();
+              }}
+            >
+              <FolderOpen size={16} className="mr-2" />
+              Choose app
+            </DropdownMenuItem>
+          )}
+          {onImportApp && (
+            <DropdownMenuItem
+              onClick={() => {
+                setIsOpen(false);
+                onImportApp();
+              }}
+            >
+              <Upload size={16} className="mr-2" />
+              Import app
+            </DropdownMenuItem>
+          )}
 
           {/* Themes Submenu */}
           <DropdownMenuSub>

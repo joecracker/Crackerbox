@@ -158,6 +158,38 @@ export default function HomePage() {
     );
   }
 
+  const setupAction =
+    !isSettingsLoading &&
+    !isLoadingLanguageModelProviders &&
+    !hasDyadProApiKey ? (
+      <button
+        type="button"
+        onClick={() => {
+          posthog.capture("home:setup-pill:click");
+          sendFirstPrompt({
+            type: "ARM_FOR_SETUP",
+            payload: {
+              prompt: inputValue,
+              attachments,
+              selectedApp: selectedApp ?? undefined,
+              chatMode: homeSubmitChatMode,
+              isChatModeExplicit: hasManuallySelectedChatMode,
+            },
+          });
+        }}
+        className={
+          hasConfiguredAiProvider
+            ? "flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground hover:underline"
+            : "flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/10 hover:underline"
+        }
+      >
+        <Zap aria-hidden="true" className="size-3.5" />
+        {hasConfiguredAiProvider
+          ? "Manage AI setup"
+          : "Connect AI to build — takes a minute"}
+      </button>
+    ) : null;
+
   // Main Home Page Content
   return (
     <div className="flex min-h-full w-full flex-col pb-28">
@@ -181,41 +213,14 @@ export default function HomePage() {
           <HomeChatInput
             onSubmit={handleSubmit}
             disabled={isCheckingProviders}
+            setupAction={setupAction}
           />
 
-          {!isSettingsLoading &&
-            !isLoadingLanguageModelProviders &&
-            !hasDyadProApiKey && (
-              <div className="-mt-2 flex justify-end px-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    posthog.capture("home:setup-pill:click");
-                    sendFirstPrompt({
-                      type: "ARM_FOR_SETUP",
-                      payload: {
-                        prompt: inputValue,
-                        attachments,
-                        selectedApp: selectedApp ?? undefined,
-                        chatMode: homeSubmitChatMode,
-                        isChatModeExplicit: hasManuallySelectedChatMode,
-                      },
-                    });
-                  }}
-                  className={
-                    hasConfiguredAiProvider
-                      ? "flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground hover:underline"
-                      : "flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/10 hover:underline"
-                  }
-                >
-                  <Zap aria-hidden="true" className="size-3.5" />
-                  {hasConfiguredAiProvider
-                    ? "Manage AI setup"
-                    : "Connect AI to build — takes a minute"}
-                </button>
-              </div>
-            )}
-
+          {setupAction && (
+            <div className="-mt-2 hidden justify-end px-4 md:flex">
+              {setupAction}
+            </div>
+          )}
         </div>
         <PrivacyBanner />
       </div>

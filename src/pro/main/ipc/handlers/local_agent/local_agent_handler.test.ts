@@ -1728,6 +1728,12 @@ describe("handleLocalAgentStream", () => {
                 update.data.model === "ChatGPT subscription (resolved-model)",
             ),
           ).toBe(true);
+        } else {
+          expect(
+            dbOperations.updates.some(
+              (update) => update.data.model === "Auto · resolved-model",
+            ),
+          ).toBe(true);
         }
       },
     );

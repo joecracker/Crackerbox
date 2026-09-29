@@ -757,6 +757,7 @@ let pendingForceCloseData: any = null;
 let pendingActiveChatId: number | null = null;
 let pendingCrashDetected = false;
 let isAppQuitting = false;
+let pendingSecondInstanceFocus = false;
 let safeStorageKeychainUnlockRetryScheduled = false;
 const lifecycleLogger = log.scope("app_lifecycle");
 const lifecycleStartedAt = Date.now();
@@ -944,6 +945,10 @@ const createWindow = ({
     browserWindow.maximize();
   }
   mainWindow = browserWindow;
+  if (pendingSecondInstanceFocus) {
+    pendingSecondInstanceFocus = false;
+    focusPrimaryWindow();
+  }
   deepLinkWindowReadiness.setTarget(browserWindow);
   crashRecoveryWindowReadiness.setTarget(browserWindow);
   productWindows.set(windowSessionId, browserWindow);
@@ -1224,6 +1229,16 @@ const createWindow = ({
   return { windowSessionId, browserWindow, rendererLoad: initialLoad };
 };
 
+function focusPrimaryWindow(): boolean {
+  const window =
+    mainWindow ?? productWindows.get(PRIMARY_WINDOW_SESSION_ID) ?? null;
+  if (!window || window.isDestroyed()) return false;
+  if (window.isMinimized()) window.restore();
+  window.show();
+  window.focus();
+  return true;
+}
+
 // Shows a cracker-cube tray icon for as long as the app is running, with a
 // quick way to bring the main window to front or quit. Left-click (Windows)
 // / click (macOS) toggles focus on the primary window; right-click opens the
@@ -1237,20 +1252,11 @@ function createAppTray(): void {
   appTray = new Tray(trayIcon);
   appTray.setToolTip("Crackerbox");
 
-  const focusPrimaryWindow = () => {
-    const window =
-      mainWindow ?? productWindows.get(PRIMARY_WINDOW_SESSION_ID) ?? null;
-    if (!window || window.isDestroyed()) return;
-    if (window.isMinimized()) window.restore();
-    window.show();
-    window.focus();
-  };
-
-  appTray.on("click", focusPrimaryWindow);
+  appTray.on("click", () => focusPrimaryWindow());
 
   appTray.setContextMenu(
     Menu.buildFromTemplate([
-      { label: "Open Crackerbox", click: focusPrimaryWindow },
+      { label: "Open Crackerbox", click: () => focusPrimaryWindow() },
       { type: "separator" },
       {
         label: "Quit Crackerbox",
@@ -1463,16 +1469,15 @@ if (IS_TEST_BUILD) {
   } else {
     app.on("second-instance", (_event, commandLine, _workingDirectory) => {
       const url = commandLine.find((arg) => arg.startsWith("dyad://"));
+      logLifecycle("app:second-instance", { hasDeepLink: !!url });
       if (isAppQuitting) {
         requestRelaunchAfterQuit(url);
         return;
       }
 
-      // Someone tried to run a second instance, we should focus our window.
-      if (mainWindow) {
-        if (mainWindow.isMinimized()) mainWindow.restore();
-        mainWindow.focus();
-      }
+      // A second launch during slow startup arrives before there is a window.
+      // Reveal the window once it exists instead of silently discarding the click.
+      if (!focusPrimaryWindow()) pendingSecondInstanceFocus = true;
       if (url) {
         deepLinkQueue.handle(url);
       }
@@ -1492,7 +1497,14 @@ app.on("open-url", (event, url) => {
 });
 
 function startAppWhenReady() {
-  app.whenReady().then(onReady);
+  void app.whenReady().then(onReady).catch((error) => {
+    logger.error("Crackerbox failed to finish startup:", error);
+    dialog.showErrorBox(
+      "Crackerbox Could Not Start",
+      `Startup failed: ${getErrorMessage(error)}\n\nPlease try opening Crackerbox again.`,
+    );
+    app.quit();
+  });
 }
 
 function getErrorMessage(error: unknown): string {

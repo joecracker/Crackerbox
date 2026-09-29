@@ -371,19 +371,24 @@ export async function getModelClient(
           DyadErrorKind.NotFound,
         );
       }
+      const fallback = createFallback({
+        models: FREE_OPENROUTER_MODEL_NAMES.map(
+          (name: string) =>
+            getRegularModelClient(
+              { provider: "openrouter", name },
+              settings,
+              openRouterProvider,
+            ).modelClient.model,
+        ),
+      });
       return {
         modelClient: {
-          model: createFallback({
-            models: FREE_OPENROUTER_MODEL_NAMES.map(
-              (name: string) =>
-                getRegularModelClient(
-                  { provider: "openrouter", name },
-                  settings,
-                  openRouterProvider,
-                ).modelClient.model,
-            ),
-          }),
+          model: fallback,
           builtinProviderId: "openrouter",
+          getRuntimeModel: () => ({
+            provider: "openrouter",
+            name: fallback.modelId,
+          }),
         },
         runtimeModel: model,
         isEngineEnabled: false,
@@ -464,18 +469,20 @@ function getOpenRouterAutoFallbackModelClient({
     new Set([primaryModelName, OPENROUTER_FREE_MODEL_NAME]),
   );
 
+  const fallback = createFallback({
+    models: modelNames.map(
+      (name) =>
+        getRegularModelClient(
+          { provider: "openrouter", name },
+          settings,
+          providerConfig,
+        ).modelClient.model,
+    ),
+  });
   return {
-    model: createFallback({
-      models: modelNames.map(
-        (name) =>
-          getRegularModelClient(
-            { provider: "openrouter", name },
-            settings,
-            providerConfig,
-          ).modelClient.model,
-      ),
-    }),
+    model: fallback,
     builtinProviderId: "openrouter",
+    getRuntimeModel: () => ({ provider: "openrouter", name: fallback.modelId }),
   };
 }
 

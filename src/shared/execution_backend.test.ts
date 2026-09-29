@@ -1,6 +1,7 @@
 import { expect, it } from "vitest";
 import {
   modelForChatBackend,
+  resolvedAutoModelLabel,
   requiresNewChatForModel,
 } from "./execution_backend";
 
@@ -29,6 +30,27 @@ it("treats legacy populated chats as Dyad", () => {
   expect(
     requiresNewChatForModel({ messages: [{}] }, { provider: "claude-code" }),
   ).toBe(true);
+});
+
+it("labels a resolved Auto reply without claiming a model before resolution", () => {
+  expect(
+    resolvedAutoModelLabel(
+      { provider: "auto" },
+      { provider: "openrouter", name: "qwen/qwen3" },
+    ),
+  ).toBe("Auto · qwen/qwen3");
+  expect(
+    resolvedAutoModelLabel(
+      { provider: "auto" },
+      { provider: "auto", name: "auto" },
+    ),
+  ).toBeUndefined();
+  expect(
+    resolvedAutoModelLabel(
+      { provider: "openrouter" },
+      { provider: "openrouter", name: "qwen/qwen3" },
+    ),
+  ).toBeUndefined();
 });
 it("keeps legacy Dyad chats on their backend when the global default is Claude", () => {
   const selectedModel = { provider: "claude-code", name: "sonnet" };

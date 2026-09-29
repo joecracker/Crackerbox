@@ -37,6 +37,15 @@ export function assistantAttribution(
     : model || "";
 }
 
+export function resolvedAutoModelLabel(
+  selected: Pick<LargeLanguageModel, "provider">,
+  resolved: Pick<LargeLanguageModel, "provider" | "name">,
+): string | undefined {
+  return selected.provider === "auto" && resolved.provider !== "auto"
+    ? `Auto · ${resolved.name}`
+    : undefined;
+}
+
 /** Legacy chats must not inherit a default from a different execution backend. */
 export function modelForChatBackend(
   chat:

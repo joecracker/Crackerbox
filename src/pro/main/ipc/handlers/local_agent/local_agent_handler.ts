@@ -1,4 +1,5 @@
 import { SubscriptionBillingError } from "@/shared/subscription_billing_error";
+import { resolvedAutoModelLabel } from "@/shared/execution_backend";
 import {
   getInferenceSource,
   type InferenceSource,
@@ -1593,10 +1594,15 @@ export async function handleLocalAgentStream(
             onStepFinish: async (step) => {
               const actualModel =
                 modelClient.getRuntimeModel?.() ?? runtimeModel;
+              const autoModelLabel = resolvedAutoModelLabel(
+                selectedModel,
+                actualModel,
+              );
               await db
                 .update(messages)
                 .set({
                   inferenceSource: currentInferenceSource(),
+                  ...(autoModelLabel ? { model: autoModelLabel } : {}),
                   ...(actualModel.connection === "subscription" &&
                   actualModel.provider !== "claude-code"
                     ? {

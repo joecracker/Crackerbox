@@ -75,6 +75,7 @@ import {
 } from "@/lib/freeProModel";
 import { useRouterState } from "@tanstack/react-router";
 import { useChatMode } from "@/hooks/useChatMode";
+import { useChatMessages } from "@/hooks/useChatMessages";
 import {
   createModelSelection,
   formatCompactEffortLevel,
@@ -193,6 +194,7 @@ export function ModelPicker() {
     selectedMode,
     setChatSelection,
   } = useChatMode(isChatRoute ? chatId : null);
+  const chatMessages = useChatMessages(isChatRoute ? chatId : null);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const posthog = usePostHog();
@@ -564,18 +566,25 @@ export function ModelPicker() {
   )
     .replace(/\s*\([^)]*\)/g, "")
     .trim();
+  const latestChatMessage = chatMessages.at(-1) ?? chat?.messages.at(-1);
   const modelDisplayName =
     selectedModel.provider === "claude-code"
       ? `${selectedClaudeModelName} (Claude Code)`
-      : getModelDisplayName();
+      : selectedModel.provider === "auto" &&
+          latestChatMessage?.role === "assistant" &&
+          latestChatMessage.model?.startsWith("Auto · ")
+        ? latestChatMessage.model
+        : getModelDisplayName();
   // Compact label for the trigger button: drop a "provider/" prefix (e.g.
   // "deepseek/deepseek-v4.1-flash" -> "deepseek-v4.1-flash") -- it's exactly
   // what was pushing the row wide enough to overflow on narrow phone
   // screens. The full name is still shown via the title tooltip and
   // everywhere else (the dropdown list itself is unaffected).
-  const modelDisplayNameCompact = modelDisplayName.includes("/")
-    ? modelDisplayName.slice(modelDisplayName.indexOf("/") + 1)
-    : modelDisplayName;
+  const modelDisplayNameCompact = modelDisplayName.startsWith("Auto · ")
+    ? `Auto · ${modelDisplayName.slice(7).split("/").at(-1)}`
+    : modelDisplayName.includes("/")
+      ? modelDisplayName.slice(modelDisplayName.indexOf("/") + 1)
+      : modelDisplayName;
   const trialAutoModel = autoModels.find((model) => model.apiName === "auto");
   const trialAutoEffortSettings = getEffortSettings(trialAutoModel);
   const trialAutoEffort = createModelSelection({
@@ -1614,7 +1623,10 @@ export function ModelPicker() {
           <span
             aria-hidden="true"
             className="truncate text-[0px] before:text-xs before:content-[attr(data-mobile-label)] sm:text-xs sm:before:content-none"
-            data-mobile-label={modelDisplayNameCompact.replace(/^[^:]+:\s*/, "")}
+            data-mobile-label={modelDisplayNameCompact.replace(
+              /^[^:]+:\s*/,
+              "",
+            )}
           >
             {getModelDisplayName() === "Auto" && (
               <>

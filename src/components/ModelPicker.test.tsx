@@ -37,7 +37,9 @@ const mocks = vi.hoisted(() => ({
   invalidateQueries: vi.fn(),
   refetchModelsByProviders: vi.fn(),
   anthropicModels: [] as import("@/ipc/types").LanguageModel[],
-  claudeModels: [{ value: "sonnet", displayName: "sonnet", description: "" }] as
+  claudeModels: [
+    { value: "sonnet", displayName: "sonnet", description: "" },
+  ] as
     | Array<{
         value: string;
         resolvedModel?: string;
@@ -79,11 +81,20 @@ const mocks = vi.hoisted(() => ({
   settingsAvailable: true,
   settingsLoading: false,
   chatLoading: false,
+  liveMessages: [] as Array<{
+    id: number;
+    role?: "user" | "assistant";
+    model?: string;
+  }>,
   chat: null as null | {
     id: number;
     appId?: number;
     executionBackend?: "dyad" | "claude-code";
-    messages: Array<{ id: number }>;
+    messages: Array<{
+      id: number;
+      role?: "user" | "assistant";
+      model?: string;
+    }>;
     modelSelection?: {
       provider: string;
       name: string;
@@ -156,6 +167,10 @@ const mocks = vi.hoisted(() => ({
     selectedChatMode: "build",
     defaultChatMode: "build",
   },
+}));
+
+vi.mock("@/hooks/useChatMessages", () => ({
+  useChatMessages: () => mocks.liveMessages,
 }));
 
 vi.mock("@/hooks/useSelectChat", () => ({
@@ -422,7 +437,7 @@ vi.mock("@/hooks/useLanguageModelProviders", () => ({
       if (provider === "openrouter") {
         return Boolean(
           mocks.settings.providerSettings.openrouter.apiKey.value ||
-          mocks.envVars.OPENROUTER_API_KEY,
+            mocks.envVars.OPENROUTER_API_KEY,
         );
       }
       return false;
@@ -654,6 +669,7 @@ describe("ModelPicker", () => {
     mocks.settingsAvailable = true;
     mocks.settingsLoading = false;
     mocks.chatLoading = false;
+    mocks.liveMessages = [];
     mocks.chat = null;
     mocks.claudeStatus.connected = true;
     mocks.claudeStatus.compatible = true;
@@ -1204,6 +1220,61 @@ describe("ModelPicker", () => {
     );
     expect(screen.getByTestId("model-picker").textContent).not.toContain(
       "auto-sidekick",
+    );
+  });
+
+  it("shows the model used by the latest Auto reply", () => {
+    mocks.pathname = "/chat";
+    mocks.search = { id: 7 };
+    mocks.chat = {
+      id: 7,
+      appId: 9,
+      messages: [{ id: 1, role: "assistant", model: "Auto · qwen/qwen3" }],
+      modelSelection: { provider: "auto", name: "auto", effortLevel: "medium" },
+    };
+
+    render(<ModelPicker />);
+
+    const trigger = screen.getByTestId("model-picker");
+    expect(trigger.getAttribute("title")).toBe("Auto · qwen/qwen3");
+    expect(trigger.textContent).toContain("Model:");
+    expect(trigger.textContent).toContain("Auto · qwen3");
+  });
+
+  it("updates the Auto label from live chat messages", () => {
+    mocks.pathname = "/chat";
+    mocks.search = { id: 7 };
+    mocks.chat = {
+      id: 7,
+      appId: 9,
+      messages: [{ id: 1, role: "assistant", model: "auto" }],
+      modelSelection: { provider: "auto", name: "auto", effortLevel: "medium" },
+    };
+    mocks.liveMessages = [
+      { id: 1, role: "assistant", model: "Auto · qwen/qwen3" },
+    ];
+
+    render(<ModelPicker />);
+
+    expect(screen.getByTestId("model-picker").getAttribute("title")).toBe(
+      "Auto · qwen/qwen3",
+    );
+  });
+
+  it("keeps Auto unlabeled until the current chat has a resolved reply", () => {
+    mocks.pathname = "/chat";
+    mocks.search = { id: 7 };
+    mocks.chat = {
+      id: 7,
+      appId: 9,
+      messages: [{ id: 1, role: "assistant", model: "auto" }],
+      modelSelection: { provider: "auto", name: "auto", effortLevel: "medium" },
+    };
+
+    render(<ModelPicker />);
+
+    expect(screen.getByTestId("model-picker").getAttribute("title")).toBe(
+      "Auto",
     );
   });
 

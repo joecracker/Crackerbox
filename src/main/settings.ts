@@ -47,8 +47,8 @@ const logger = log.scope("settings");
 export const DEFAULT_SETTINGS: UserSettings = {
   chatgptFastMode: false,
   selectedModel: {
-    name: "deepseek/deepseek-v4.1-flash",
-    provider: "openrouter",
+    name: "auto",
+    provider: "auto",
   },
   providerSettings: {},
   telemetryConsent: "unset",

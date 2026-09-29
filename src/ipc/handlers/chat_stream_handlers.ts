@@ -1,5 +1,8 @@
 import { SubscriptionBillingError } from "@/shared/subscription_billing_error";
-import { modelForChatBackend } from "@/shared/execution_backend";
+import {
+  modelForChatBackend,
+  resolvedAutoModelLabel,
+} from "@/shared/execution_backend";
 import { isDotenvFilePath } from "@/utils/dotenv_redaction";
 import type { ExternalModelAdmission } from "../services/external_model_admission";
 import { awaitTurnPreflight } from "../services/await_turn_preflight";
@@ -2632,6 +2635,18 @@ This conversation includes one or more image attachments. When the user uploads 
             tools,
             messages: chatMessages.filter((m) => m.content),
             onFinish: async (response) => {
+              const actualModel =
+                modelClient.getRuntimeModel?.() ?? runtimeModel;
+              const autoModelLabel = resolvedAutoModelLabel(
+                selectedModel,
+                actualModel,
+              );
+              if (autoModelLabel) {
+                await db
+                  .update(messages)
+                  .set({ model: autoModelLabel })
+                  .where(eq(messages.id, placeholderAssistantMessage.id));
+              }
               const totalTokens = response.usage?.totalTokens;
 
               if (typeof totalTokens === "number") {

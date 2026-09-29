@@ -98,6 +98,7 @@ describe("readSettings", () => {
 
       const result = readSettings();
 
+      expect(result.selectedModel).toEqual({ provider: "auto", name: "auto" });
       expect(mockFs.existsSync).toHaveBeenCalledWith(mockSettingsPath);
       expect(mockFs.writeFileSync).toHaveBeenCalledWith(
         mockSettingsPath,
@@ -108,6 +109,7 @@ describe("readSettings", () => {
           "autoApproveNonSchemaSql": true,
           "autoExpandPreviewPanel": true,
           "autoFixReviewIssues": false,
+          "cbMemory": "",
           "chatgptFastMode": false,
           "disablePreviewNodeAutoInstall": false,
           "disableSandboxedE2eTests": false,
@@ -552,6 +554,7 @@ describe("readSettings", () => {
           "autoApproveNonSchemaSql": true,
           "autoExpandPreviewPanel": true,
           "autoFixReviewIssues": false,
+          "cbMemory": "",
           "chatgptFastMode": false,
           "disablePreviewNodeAutoInstall": false,
           "disableSandboxedE2eTests": false,

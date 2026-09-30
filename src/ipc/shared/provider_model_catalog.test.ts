@@ -44,6 +44,7 @@ describe("provider model catalog", () => {
       expect.objectContaining({
         apiName: "vendor/chat:free",
         dollarSigns: 0,
+        inputModalities: ["text"],
         maxOutputTokens: 2048,
       }),
     ]);

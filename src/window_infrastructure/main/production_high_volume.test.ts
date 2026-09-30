@@ -67,4 +67,24 @@ describe("production high-volume fan-out", () => {
     );
     expect(unrelated.send).not.toHaveBeenCalled();
   });
+
+  it("keeps a phone producer distinct from a desktop window", () => {
+    const desktop = endpoint(endpointIds[0]);
+    const phone = endpoint(-1);
+    windowRegistry.register(desktop, randomUUID() as WindowSessionId);
+    windowRegistry.register(phone, randomUUID() as WindowSessionId);
+
+    sendChatChunk(phone as unknown as WebContents, {
+      chatId: 12,
+      streamingPreview: { content: "live on phone" },
+    });
+
+    expect(phone.send).toHaveBeenCalledWith(
+      "chat:response:chunk",
+      expect.objectContaining({ chatId: 12 }),
+    );
+    expect(desktop.send).not.toHaveBeenCalled();
+
+    windowRegistry.unregister(phone.id);
+  });
 });

@@ -373,6 +373,29 @@ const ChatMessage = ({
                 )}
               </div>
             )}
+            {message.role === "user" && hasUserText && (
+              <div className="mt-2 flex justify-start">
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <button
+                        data-testid="copy-user-message-button"
+                        onClick={handleCopyFormatted}
+                        aria-label={copied ? "Copied" : "Copy message"}
+                        className="flex h-7 w-7 items-center justify-center rounded text-gray-500 transition-colors duration-200 hover:bg-black/10 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-gray-200"
+                      />
+                    }
+                  >
+                    {copied ? (
+                      <Check className="h-4 w-4 text-green-500" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </TooltipTrigger>
+                  <TooltipContent>{copied ? "Copied!" : "Copy"}</TooltipContent>
+                </Tooltip>
+              </div>
+            )}
             {selectedChatId != null &&
               isChatMessageAnnotatable({
                 role: message.role,

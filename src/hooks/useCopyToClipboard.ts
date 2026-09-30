@@ -15,6 +15,13 @@ const CUSTOM_TAG_NAMES = [
   "dyad-chat-summary",
   "dyad-edit",
   "dyad-codebase-context",
+  "dyad-read",
+  "dyad-grep",
+  "dyad-list-files",
+  "dyad-read-logs",
+  "dyad-read-guide",
+  "dyad-read-chat",
+  "dyad-code-search-result",
   "dyad-script",
   "think",
   "dyad-command",
@@ -114,7 +121,14 @@ export const useCopyToClipboard = () => {
 
     switch (tag) {
       case "think":
-        return `### Thinking\n\n${content}\n\n`;
+      case "dyad-read":
+      case "dyad-grep":
+      case "dyad-list-files":
+      case "dyad-read-logs":
+      case "dyad-read-guide":
+      case "dyad-read-chat":
+      case "dyad-code-search-result":
+        return "";
 
       case "dyad-write": {
         const writePath = attributes.path || "file";

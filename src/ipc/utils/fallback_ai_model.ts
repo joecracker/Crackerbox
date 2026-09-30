@@ -33,6 +33,8 @@ export interface FallbackModelCallOptions {
 
 interface FallbackSettings {
   models: Array<LanguageModel>;
+  /** Auto with personal API keys moves to another provider on quota limits. */
+  fallbackOnRateLimit?: boolean;
   /** False keeps a source failure from silently switching billing sources. */
   allowFallback?: boolean[];
   /**
@@ -272,6 +274,25 @@ export function getFallbackFailureAction(
   }
 }
 
+function isRateLimitFailure(error: unknown): boolean {
+  if (!error) return false;
+  const { statusCode, errorString } = getErrorDetails(error);
+  if (errorString.includes("exceededbudget:")) return false;
+  if (
+    statusCode === 429 ||
+    errorString.includes("quota exceeded") ||
+    errorString.includes("rate limit") ||
+    errorString.includes("rate_limit") ||
+    errorString.includes("too many requests")
+  )
+    return true;
+  if (!isRecord(error)) return false;
+  return (
+    isRateLimitFailure(error.lastError) ||
+    (Array.isArray(error.errors) && error.errors.some(isRateLimitFailure))
+  );
+}
+
 function getHeader(
   headers: Record<string, string> | undefined,
   name: string,
@@ -391,11 +412,8 @@ class FallbackModel implements LanguageModelV3 {
   readonly specificationVersion = "v3" as const;
   private readonly settings: FallbackSettings;
   private currentModelIndex: number = 0;
-  private lastModelReset: number = Date.now();
-  private readonly modelResetInterval: number;
   private readonly maxAttemptsPerModel: number;
   private readonly maxAttempts: number;
-  private isRetrying: boolean = false;
 
   constructor(settings: FallbackSettings) {
     // Validate settings
@@ -407,7 +425,6 @@ class FallbackModel implements LanguageModelV3 {
     }
 
     this.settings = settings;
-    this.modelResetInterval = 3 * 60 * 1000; // Default: 3 minutes
     this.maxAttemptsPerModel = 2;
     this.maxAttempts = settings.models.length * this.maxAttemptsPerModel;
   }
@@ -514,20 +531,6 @@ class FallbackModel implements LanguageModelV3 {
           }
         : {}),
     };
-  }
-
-  private checkAndResetModel(): void {
-    // Only reset if we're not currently in a retry cycle
-    if (this.isRetrying) return;
-
-    const now = Date.now();
-    if (
-      this.currentModelIndex !== 0 &&
-      now - this.lastModelReset >= this.modelResetInterval
-    ) {
-      this.currentModelIndex = 0;
-      this.lastModelReset = now;
-    }
   }
 
   private startAttempt(state: RetryState): void {
@@ -644,71 +647,66 @@ class FallbackModel implements LanguageModelV3 {
       errors: [],
     };
 
-    this.isRetrying = true;
+    while (state.attemptNumber < this.maxAttempts) {
+      throwIfAborted(abortSignal);
+      this.startAttempt(state);
 
-    try {
-      while (state.attemptNumber < this.maxAttempts) {
-        throwIfAborted(abortSignal);
-        this.startAttempt(state);
-
-        try {
-          return await operation(state);
-        } catch (error) {
-          const failedModelId = this.modelId;
-          state.errors.push({ modelId: failedModelId, error });
-          const action = getFallbackFailureAction(error);
-          if (action === "fail") {
-            logger.warn(
-              `Request error from model ${failedModelId}; not retrying or falling back (requestId=${requestId}, stage=initial-request, attempt=${state.attemptNumber}/${this.maxAttempts}, error="${formatFallbackErrorForLog(error)}")`,
-            );
-            if (error instanceof DyadError) throw error;
-            // The caller's AI SDK also retries APICallError.isRetryable. Keep
-            // the billing message, but prevent that outer retry layer too.
-            if (
-              getErrorDetails(error).errorString.includes("exceededbudget:")
-            ) {
-              throw new DyadError(
-                error instanceof Error
-                  ? error.message
-                  : "ExceededBudget: You're out of AI credits.",
-                DyadErrorKind.Precondition,
-                { cause: error },
-              );
-            }
-            throw error;
-          }
-
-          const decision = this.prepareRecovery(action, state);
-          if (!decision) {
-            logger.error(
-              `All ${this.settings.models.length} models exhausted for ${operationName} after ${state.attemptNumber} attempts (requestId=${requestId}, error="${formatFallbackErrorForLog(error)}")`,
-            );
-            throw this.exhaustedError(operationName, error);
-          }
-          this.logRecovery({
-            decision,
-            state,
-            requestId,
-            stage: "initial-request",
-            error,
-          });
-          await this.waitBeforeSameModelRetry(
-            decision,
-            state,
-            error,
-            abortSignal,
+      try {
+        return await operation(state);
+      } catch (error) {
+        const failedModelId = this.modelId;
+        state.errors.push({ modelId: failedModelId, error });
+        const action =
+          this.settings.fallbackOnRateLimit && isRateLimitFailure(error)
+            ? "fallback-next"
+            : getFallbackFailureAction(error);
+        if (action === "fail") {
+          logger.warn(
+            `Request error from model ${failedModelId}; not retrying or falling back (requestId=${requestId}, stage=initial-request, attempt=${state.attemptNumber}/${this.maxAttempts}, error="${formatFallbackErrorForLog(error)}")`,
           );
+          if (error instanceof DyadError) throw error;
+          // The caller's AI SDK also retries APICallError.isRetryable. Keep
+          // the billing message, but prevent that outer retry layer too.
+          if (getErrorDetails(error).errorString.includes("exceededbudget:")) {
+            throw new DyadError(
+              error instanceof Error
+                ? error.message
+                : "ExceededBudget: You're out of AI credits.",
+              DyadErrorKind.Precondition,
+              { cause: error },
+            );
+          }
+          throw error;
         }
-      }
 
-      // Should never reach here, but just in case
-      throw new DyadError(
-        `Max attempts (${this.maxAttempts}) exceeded for ${operationName}`,
-        DyadErrorKind.Internal,
-      );
-    } finally {
-      this.isRetrying = false;
+        const decision = this.prepareRecovery(action, state);
+        if (!decision) {
+          logger.error(
+            `All ${this.settings.models.length} models exhausted for ${operationName} after ${state.attemptNumber} attempts (requestId=${requestId}, error="${formatFallbackErrorForLog(error)}")`,
+          );
+          throw this.exhaustedError(operationName, error);
+        }
+        this.logRecovery({
+          decision,
+          state,
+          requestId,
+          stage: "initial-request",
+          error,
+        });
+        await this.waitBeforeSameModelRetry(
+          decision,
+          state,
+          error,
+          abortSignal,
+        );
+      }
     }
+
+    // Should never reach here, but just in case
+    throw new DyadError(
+      `Max attempts (${this.maxAttempts}) exceeded for ${operationName}`,
+      DyadErrorKind.Internal,
+    );
   }
 
   async doGenerate(): Promise<any> {
@@ -719,7 +717,6 @@ class FallbackModel implements LanguageModelV3 {
   }
 
   async doStream(options: LanguageModelV3CallOptions): Promise<StreamResult> {
-    this.checkAndResetModel();
     const requestId = getRequestId(options);
 
     return this.retry(
@@ -771,7 +768,11 @@ class FallbackModel implements LanguageModelV3 {
               // Check for early errors before streaming content
               if (!attemptHasStreamedContent && value && "error" in value) {
                 const error = value.error;
-                const action = getFallbackFailureAction(error);
+                const action =
+                  fallbackModel.settings.fallbackOnRateLimit &&
+                  isRateLimitFailure(error)
+                    ? "fallback-next"
+                    : getFallbackFailureAction(error);
                 if (action !== "fail") {
                   throw error;
                 }
@@ -812,7 +813,11 @@ class FallbackModel implements LanguageModelV3 {
             modelId: failedModelId,
             error: pendingError,
           });
-          const action = getFallbackFailureAction(pendingError);
+          const action =
+            fallbackModel.settings.fallbackOnRateLimit &&
+            isRateLimitFailure(pendingError)
+              ? "fallback-next"
+              : getFallbackFailureAction(pendingError);
           if (action === "fail" || hasStreamedContent) {
             logger.warn(
               `Stream error from model ${failedModelId}; not retrying or falling back (requestId=${getRequestId(options)}, hasStreamedContent=${hasStreamedContent}, attempt=${retryState.attemptNumber}/${fallbackModel.maxAttempts}, error="${formatFallbackErrorForLog(pendingError)}")`,

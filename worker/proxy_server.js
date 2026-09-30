@@ -6,13 +6,18 @@ const { parentPort, workerData } = require("worker_threads");
 
 const http = require("http");
 const https = require("https");
+const net = require("net");
 
 const { URL } = require("url");
 const fs = require("fs");
 const path = require("path");
 
 /* ──────────────────────────── worker code ─────────────────────────────── */
-const LISTEN_HOST = "localhost";
+// Preview traffic normally stays on the desktop, but Crackerbox's phone UI
+// also embeds this proxy over the trusted LAN bridge. Listen on every local
+// interface while continuing to advertise localhost to desktop renderers.
+const LISTEN_HOST = "0.0.0.0";
+const ADVERTISED_HOST = "localhost";
 const LISTEN_PORT = workerData.port;
 let rememberedOrigin = null; // e.g. "http://localhost:5173"
 let rememberedBaseUrl = null;
@@ -603,7 +608,7 @@ const FALLBACK_PORT_START = workerData?.fallbackPortStart || LISTEN_PORT + 1;
 const MAX_PORT_ATTEMPTS = workerData?.maxPortAttempts || 50;
 
 function listenWithFallback(port, nextFallback, attemptsLeft) {
-  function onError(err) {
+  function tryNextOrReport(err) {
     if (err && err.code === "EADDRINUSE" && attemptsLeft > 1) {
       parentPort?.postMessage(
         `[proxy-worker] port ${port} in use, trying ${nextFallback}`,
@@ -616,13 +621,28 @@ function listenWithFallback(port, nextFallback, attemptsLeft) {
     );
   }
 
-  server.once("error", onError);
-  server.listen(port, LISTEN_HOST, () => {
-    server.removeListener("error", onError);
-    const boundPort = server.address()?.port ?? port;
-    parentPort?.postMessage(
-      `proxy-server-start url=http://${LISTEN_HOST}:${boundPort}`,
-    );
+  // On Windows, a service bound specifically to localhost can coexist with a
+  // second service bound to 0.0.0.0 on the same port. Desktop navigation would
+  // then reach the wrong service. Probe localhost first so the established
+  // deterministic-port fallback behavior remains intact.
+  const probe = net.createServer();
+  probe.once("error", tryNextOrReport);
+  probe.listen(port, ADVERTISED_HOST, () => {
+    probe.close(() => {
+      function onError(err) {
+        server.removeListener("error", onError);
+        tryNextOrReport(err);
+      }
+
+      server.once("error", onError);
+      server.listen(port, LISTEN_HOST, () => {
+        server.removeListener("error", onError);
+        const boundPort = server.address()?.port ?? port;
+        parentPort?.postMessage(
+          `proxy-server-start url=http://${ADVERTISED_HOST}:${boundPort}`,
+        );
+      });
+    });
   });
 }
 

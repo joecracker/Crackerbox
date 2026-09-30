@@ -47,6 +47,7 @@ export const LanguageModelSchema = z.object({
   tagColor: z.string().optional(),
   maxOutputTokens: z.number().optional(),
   contextWindow: z.number().optional(),
+  inputModalities: z.array(z.string()).optional(),
   temperature: z.number().optional(),
   dollarSigns: z.number().optional(),
   effortSettings: EffortSettingsSchema.optional(),

@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { cloneElement, type ReactElement, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HomeChatInput } from "./HomeChatInput";
@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   isMobile: false,
   setInputValue: vi.fn(),
   setSelectedApp: vi.fn(),
+  selectedApp: null as null | { id: number; name: string },
   transcription: null as null | ((text: string) => void),
 }));
 
@@ -16,7 +17,7 @@ vi.mock("jotai", async (importOriginal) => ({
   ...(await importOriginal<typeof import("jotai")>()),
   useAtom: (atom: { debugLabel?: string }) =>
     atom.debugLabel === "homeSelectedAppAtom"
-      ? [null, mocks.setSelectedApp]
+      ? [mocks.selectedApp, mocks.setSelectedApp]
       : ["Build a notes app", mocks.setInputValue],
 }));
 
@@ -133,6 +134,7 @@ describe("HomeChatInput", () => {
     mocks.isMobile = false;
     mocks.setInputValue.mockReset();
     mocks.setSelectedApp.mockReset();
+    mocks.selectedApp = null;
     mocks.transcription = null;
   });
 
@@ -171,7 +173,7 @@ describe("HomeChatInput", () => {
     ).toBe(true);
   });
 
-  it("keeps the phone model beside the plus and mode below the composer", () => {
+  it("keeps the phone model beside the plus and exposes the one-turn build action", () => {
     mocks.isMobile = true;
     render(
       <HomeChatInput
@@ -193,8 +195,9 @@ describe("HomeChatInput", () => {
       composer.contains(screen.getByRole("button", { name: "More actions" })),
     ).toBe(true);
     expect(
-      composer.contains(screen.getByRole("button", { name: "Basic Agent" })),
-    ).toBe(false);
+      composer.contains(screen.getByRole("button", { name: "Build this" })),
+    ).toBe(true);
+    expect(screen.queryByRole("button", { name: "Basic Agent" })).toBeNull();
     expect(
       composer.contains(
         screen.getByRole("button", { name: "DeepSeek V4.1 Flash" }),
@@ -228,5 +231,35 @@ describe("HomeChatInput", () => {
     mocks.apps = [];
     view.rerender(<HomeChatInput onSubmit={vi.fn()} />);
     expect(screen.queryByTestId("home-app-selector")).toBeNull();
+  });
+
+  it("sends chat and build as explicit one-turn capabilities", async () => {
+    mocks.selectedApp = { id: 1, name: "Existing" };
+    const onSubmit = vi.fn().mockResolvedValue(true);
+    render(<HomeChatInput onSubmit={onSubmit} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Send message" }));
+    expect(onSubmit).toHaveBeenLastCalledWith(
+      expect.objectContaining({ requestedChatMode: "ask" }),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Build this" }));
+    expect(onSubmit).toHaveBeenLastCalledWith(
+      expect.objectContaining({ requestedChatMode: "local-agent" }),
+    );
+  });
+
+  it("starts a read-only idea chat when no app is selected", () => {
+    const onSubmit = vi.fn().mockResolvedValue(true);
+    render(<HomeChatInput onSubmit={onSubmit} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Send message" }));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selectedApp: undefined,
+        requestedChatMode: "ask",
+      }),
+    );
   });
 });

@@ -191,6 +191,34 @@ async function drain(stream: ReadableStream<LanguageModelV3StreamPart>) {
 }
 
 describe("fallback failure policy", () => {
+  it("switches connected Auto models on quota errors without retrying the exhausted model", async () => {
+    const calls: string[] = [];
+    const quota = apiCallError({
+      message: "Quota exceeded",
+      statusCode: 429,
+      isRetryable: true,
+    });
+    const model = createFallback({
+      models: [
+        sequencedModel({
+          modelId: "google",
+          outcomes: [{ type: "throw", error: quota }],
+          calls,
+        }),
+        sequencedModel({
+          modelId: "openrouter",
+          outcomes: [{ type: "succeed" }],
+          calls,
+        }),
+      ],
+      fallbackOnRateLimit: true,
+    }) as LanguageModelV3;
+    const result = await model.doStream({ prompt: [] });
+    const reader = result.stream.getReader();
+    while (!(await reader.read()).done) {}
+    expect(calls).toEqual(["google", "openrouter"]);
+    expect(model.modelId).toBe("openrouter");
+  });
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -897,10 +925,10 @@ describe("fallback model call options", () => {
     expect(fallbackSeen[0].maxOutputTokens).toBeUndefined();
   });
 
-  it("drops temperature on a sticky non-primary index without a same-request failover", async () => {
-    // After a failover the index stays on the fallback for modelResetInterval;
-    // a FRESH request's first call then already targets the fallback while its
-    // options were still computed for the primary selection.
+  it("keeps a fallback sticky for the wrapper lifetime, including long tool turns", async () => {
+    // One wrapper represents one accepted user turn. Every follow-up after a
+    // tool result must stay on the same provider because provider-specific
+    // reasoning metadata in the conversation is not portable.
     const primarySeen: LanguageModelV3CallOptions[] = [];
     const fallbackSeen: LanguageModelV3CallOptions[] = [];
     const model = createFallback({
@@ -927,12 +955,17 @@ describe("fallback model call options", () => {
     } as unknown as LanguageModelV3CallOptions);
     await drain(first.stream);
 
-    // Second request starts on the sticky fallback index.
+    const nowSpy = vi
+      .spyOn(Date, "now")
+      .mockReturnValue(Date.now() + 10 * 60 * 1000);
+
+    // A later tool follow-up still starts on the sticky fallback index.
     const second = await model.doStream({
       prompt: [],
       temperature: 1,
     } as unknown as LanguageModelV3CallOptions);
     await drain(second.stream);
+    nowSpy.mockRestore();
 
     expect(fallbackSeen).toHaveLength(2);
     expect(fallbackSeen[1].temperature).toBeUndefined();

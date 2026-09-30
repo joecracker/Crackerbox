@@ -44,7 +44,7 @@ interface ImportAppDialogProps {
   onClose: () => void;
 }
 export const AI_RULES_PROMPT =
-  "Generate an AI_RULES.md file for this app. Describe the tech stack in 5-10 bullet points and describe clear rules about what libraries to use for what.";
+  "Inspect this existing app before creating AI_RULES.md. Read its package manifests, configuration, entry points, representative source files, and existing documentation. Then write a concise, project-specific AI_RULES.md that records only verified facts: the actual stack and versions, architecture and important entry points, available scripts, persistence and external integrations, deployment constraints, established conventions, and rules future agents must preserve. Do not assume Crackerbox's starter template, do not claim a library or folder convention unless the repository proves it, and do not modify any other file or app behavior. If something cannot be verified, omit it or label it unknown instead of guessing.";
 export function ImportAppDialog({ isOpen, onClose }: ImportAppDialogProps) {
   const { t } = useTranslation(["home", "common"]);
   const queryClient = useQueryClient();

@@ -16,6 +16,7 @@ import {
   ChevronsUpDown,
   ChevronsDownUp,
   SendHorizontalIcon,
+  Hammer,
   Lock,
   Mic,
   MicOff,
@@ -70,7 +71,6 @@ import { AgentConsentBanner } from "./AgentConsentBanner";
 import { CancellationBanner } from "./CancellationBanner";
 import { useCancellationRequestLatch } from "./useCancellationRequestLatch";
 import { TodoList } from "./TodoList";
-import { QuestionnaireInput } from "./QuestionnaireInput";
 import { QueuedMessagesList } from "./QueuedMessagesList";
 import { TestAssertionsInput } from "./TestAssertionsInput";
 import {
@@ -91,7 +91,6 @@ import { ChatImageGenerationStrip } from "./ChatImageGenerationStrip";
 import { dismissedImageGenerationJobIdsAtom } from "@/atoms/imageGenerationAtoms";
 import { useChatImageGenerationJobs } from "@/image_generation/hooks";
 import { ImageGeneratorDialog } from "@/components/ImageGeneratorDialog";
-import { useChatModeToggle } from "@/hooks/useChatModeToggle";
 import { VisualEditingChangesDialog } from "@/components/preview_panel/VisualEditingChangesDialog";
 import { useUserBudgetInfo } from "@/hooks/useUserBudgetInfo";
 import { useQueryClient } from "@tanstack/react-query";
@@ -162,11 +161,8 @@ export function ChatInput({ chatId }: { chatId?: number }) {
   const { settings } = useSettings();
   const {
     chat: activeChat,
-    selectedMode: chatMode,
     selectedMode,
-    storedChatMode,
     selectedModel,
-    isLoading: isChatModeLoading,
     setChatMode,
   } = useChatMode(chatId);
   const appId = useAtomValue(selectedAppIdAtom);
@@ -299,8 +295,6 @@ export function ChatInput({ chatId }: { chatId?: number }) {
     refreshProposal,
   } = useProposal(chatId, { isStreaming });
   const { proposal, messageId } = proposalResult ?? {};
-  useChatModeToggle();
-
   const lastMessage = messages.at(-1);
   const disableSendButton =
     lastMessage?.role === "assistant" &&
@@ -525,7 +519,9 @@ export function ChatInput({ chatId }: { chatId?: number }) {
     [editingQueuedMessageId, removeQueuedMessage, resetEditingState],
   );
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (
+    requestedChatMode: "ask" | "local-agent" = "ask",
+  ) => {
     if (
       !hasComposerPayload ||
       !chatId ||
@@ -638,6 +634,7 @@ export function ChatInput({ chatId }: { chatId?: number }) {
         prompt: currentInput,
         attachments,
         selectedComponents: componentsToSend,
+        requestedChatMode,
       });
       if (queued) {
         // Only clear input, attachments, and components on successful queue
@@ -716,7 +713,7 @@ export function ChatInput({ chatId }: { chatId?: number }) {
         ],
       ),
       selectedComponents: componentsToSend,
-      requestedChatMode: isChatModeLoading ? null : storedChatMode,
+      requestedChatMode,
       onAccepted: () => {
         wasAccepted = true;
         isAwaitingTurnAcceptanceRef.current = false;
@@ -736,7 +733,7 @@ export function ChatInput({ chatId }: { chatId?: number }) {
         }
       },
     });
-    posthog.capture("chat:submit", { chatMode });
+    posthog.capture("chat:submit", { chatMode: requestedChatMode });
   };
 
   const handleCancel = () => {
@@ -913,9 +910,6 @@ export function ChatInput({ chatId }: { chatId?: number }) {
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
         >
-          {/* Show active questionnaire if exists */}
-          <QuestionnaireInput />
-
           {chatId && <ChatAnnotationsTray chatId={chatId} />}
 
           {/* Show the recorded-test plan waiting on a review, if any */}
@@ -1058,7 +1052,7 @@ export function ChatInput({ chatId }: { chatId?: number }) {
             onCancel={cancelPendingFiles}
           />
 
-          <div className="flex items-end gap-1">
+          <div className="flex min-w-0 items-end gap-1 overflow-hidden">
             <LexicalChatInput
               value={inputValue}
               onChange={setInputValue}
@@ -1176,21 +1170,38 @@ export function ChatInput({ chatId }: { chatId?: number }) {
                 </TooltipContent>
               </Tooltip>
             ) : (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <button
-                      onClick={handleSubmit}
-                      disabled={!hasComposerPayload || disableSendButton}
-                      aria-label={t("sendMessage")}
-                      className="px-2 py-2 mb-0.5 mr-1 text-muted-foreground hover:text-primary rounded-lg transition-colors duration-150 disabled:opacity-30 disabled:hover:text-muted-foreground cursor-pointer disabled:cursor-default"
-                    />
-                  }
-                >
-                  <SendHorizontalIcon size={20} />
-                </TooltipTrigger>
-                <TooltipContent>{t("sendMessage")}</TooltipContent>
-              </Tooltip>
+              <div className="mb-0.5 mr-1 flex items-center">
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <button
+                        onClick={() => handleSubmit("local-agent")}
+                        disabled={!hasComposerPayload || disableSendButton}
+                        aria-label="Build this"
+                        className="px-2 py-2 text-muted-foreground hover:text-[var(--brand-pinstripe)] rounded-lg transition-colors duration-150 disabled:opacity-30 disabled:hover:text-muted-foreground cursor-pointer disabled:cursor-default"
+                      />
+                    }
+                  >
+                    <Hammer size={18} />
+                  </TooltipTrigger>
+                  <TooltipContent>Build this</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <button
+                        onClick={() => handleSubmit("ask")}
+                        disabled={!hasComposerPayload || disableSendButton}
+                        aria-label={t("sendMessage")}
+                        className="px-2 py-2 text-muted-foreground hover:text-primary rounded-lg transition-colors duration-150 disabled:opacity-30 disabled:hover:text-muted-foreground cursor-pointer disabled:cursor-default"
+                      />
+                    }
+                  >
+                    <SendHorizontalIcon size={20} />
+                  </TooltipTrigger>
+                  <TooltipContent>Send without changing files</TooltipContent>
+                </Tooltip>
+              </div>
             )}
           </div>
           <div className="px-2 flex items-center flex-wrap gap-1.5 pb-1 pt-0.5">

@@ -50,6 +50,7 @@ import {
   ChevronRightIcon,
   LockIcon,
   SparklesIcon,
+  StarIcon,
 } from "lucide-react";
 import { ProviderIcon } from "@/components/ProviderIcon";
 import { SubscriptionModelMenu } from "@/components/SubscriptionModelMenu";
@@ -159,6 +160,26 @@ const PRICE_TIERS: Tier[] = [
 const isFreeOpenRouterModelName = (apiName: string) =>
   apiName.endsWith(":free") || apiName.endsWith("/free");
 
+const OPENROUTER_FAVORITES_KEY = "crackerbox.openrouter.favorite-models";
+
+type OpenRouterCostFilter = "all" | "free" | "paid";
+
+function readFavoriteOpenRouterModels() {
+  try {
+    const value = JSON.parse(
+      window.localStorage.getItem(OPENROUTER_FAVORITES_KEY) ?? "[]",
+    );
+    return Array.isArray(value)
+      ? value.filter((model): model is string => typeof model === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+const openRouterModelMaker = (apiName: string) =>
+  apiName.includes("/") ? apiName.split("/", 1)[0] : "other";
+
 const formatModelCount = (count: number) =>
   `${count} model${count === 1 ? "" : "s"}`;
 
@@ -210,6 +231,21 @@ export function ModelPicker() {
   >(null);
   const [open, setOpen] = useState(false);
   const [providerSearch, setProviderSearch] = useState("");
+  const [openRouterMaker, setOpenRouterMaker] = useState("all");
+  const [openRouterCost, setOpenRouterCost] =
+    useState<OpenRouterCostFilter>("all");
+  const [openRouterVisionOnly, setOpenRouterVisionOnly] = useState(false);
+  const [openRouterFavoritesOnly, setOpenRouterFavoritesOnly] = useState(false);
+  const [favoriteOpenRouterModels, setFavoriteOpenRouterModels] = useState(
+    readFavoriteOpenRouterModels,
+  );
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      OPENROUTER_FAVORITES_KEY,
+      JSON.stringify(favoriteOpenRouterModels),
+    );
+  }, [favoriteOpenRouterModels]);
   const claudeStatus = useQuery({
     enabled:
       !!settings?.enableClaudeCodeSubscription &&
@@ -946,6 +982,14 @@ export function ModelPicker() {
     setOpen(false);
   };
 
+  const toggleFavoriteOpenRouterModel = (apiName: string) => {
+    setFavoriteOpenRouterModels((current) =>
+      current.includes(apiName)
+        ? current.filter((model) => model !== apiName)
+        : [...current, apiName],
+    );
+  };
+
   const renderCloudModelItem = ({
     providerId,
     model,
@@ -1014,6 +1058,9 @@ export function ModelPicker() {
       subscription.data ?? { connected: false, models: [] },
     );
     const subscriptionEligible = isClaudeCode || chatGPTSubscriptionEligible;
+    const isFavoriteOpenRouterModel =
+      providerId === "openrouter" &&
+      favoriteOpenRouterModels.includes(model.apiName);
     const subscriptionLabel = isClaudeCode ? "Claude Code" : "ChatGPT plan";
     const unlockedAriaLabel = [
       model.displayName,
@@ -1057,6 +1104,38 @@ export function ModelPicker() {
           </span>
         </span>
         <span className="flex min-w-fit items-center gap-1.5">
+          {providerId === "openrouter" && (
+            <span
+              role="button"
+              tabIndex={0}
+              aria-label={
+                isFavoriteOpenRouterModel
+                  ? `Remove ${model.displayName} from favorites`
+                  : `Add ${model.displayName} to favorites`
+              }
+              aria-pressed={isFavoriteOpenRouterModel}
+              className="flex size-6 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation();
+                toggleFavoriteOpenRouterModel(model.apiName);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  toggleFavoriteOpenRouterModel(model.apiName);
+                }
+              }}
+            >
+              <StarIcon
+                className={cn(
+                  "size-3.5",
+                  isFavoriteOpenRouterModel && "fill-amber-400 text-amber-500",
+                )}
+              />
+            </span>
+          )}
           {subscriptionEligible && (
             <Tooltip>
               <TooltipTrigger
@@ -1272,14 +1351,46 @@ export function ModelPicker() {
     const provider = providers?.find((p) => p.id === providerId);
     const providerDisplayName = getProviderDisplayName(providerId);
     const searchTerm = providerSearch.trim().toLowerCase();
-    const matchingModels =
-      visibleModels.length > 20 && searchTerm
-        ? visibleModels.filter((model) =>
-            `${model.displayName} ${model.apiName}`
-              .toLowerCase()
-              .includes(searchTerm),
-          )
-        : visibleModels;
+    const isOpenRouterCatalog = providerId === "openrouter";
+    const openRouterMakers = isOpenRouterCatalog
+      ? Array.from(
+          new Set(
+            visibleModels.map((model) => openRouterModelMaker(model.apiName)),
+          ),
+        ).sort((a, b) => a.localeCompare(b))
+      : [];
+    const matchingModels = visibleModels.filter((model) => {
+      if (
+        visibleModels.length > 20 &&
+        searchTerm &&
+        !`${model.displayName} ${model.apiName}`
+          .toLowerCase()
+          .includes(searchTerm)
+      ) {
+        return false;
+      }
+      if (!isOpenRouterCatalog) return true;
+      if (
+        openRouterMaker !== "all" &&
+        openRouterModelMaker(model.apiName) !== openRouterMaker
+      ) {
+        return false;
+      }
+      const isFree =
+        model.dollarSigns === 0 || isFreeOpenRouterModelName(model.apiName);
+      if (openRouterCost === "free" && !isFree) return false;
+      if (openRouterCost === "paid" && isFree) return false;
+      if (openRouterVisionOnly && !model.inputModalities?.includes("image")) {
+        return false;
+      }
+      if (
+        openRouterFavoritesOnly &&
+        !favoriteOpenRouterModels.includes(model.apiName)
+      ) {
+        return false;
+      }
+      return true;
+    });
     const providerState =
       provider?.type === "custom"
         ? "Custom provider"
@@ -1328,15 +1439,92 @@ export function ModelPicker() {
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           {visibleModels.length > 20 && (
-            <input
-              aria-label={`Search ${providerDisplayName} models`}
-              type="search"
-              value={providerSearch}
-              onChange={(event) => setProviderSearch(event.target.value)}
+            <div
+              className="px-2 pb-2"
               onKeyDown={(event) => event.stopPropagation()}
-              placeholder="Search models"
-              className="mx-2 mb-2 w-[calc(100%-1rem)] rounded-md border border-border bg-background px-2 py-1.5 text-sm outline-none focus:border-primary"
-            />
+            >
+              <input
+                aria-label={`Search ${providerDisplayName} models`}
+                type="search"
+                value={providerSearch}
+                onChange={(event) => setProviderSearch(event.target.value)}
+                placeholder="Search models"
+                className="mb-2 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm outline-none focus:border-primary"
+              />
+              {isOpenRouterCatalog && (
+                <div className="space-y-2" aria-label="OpenRouter filters">
+                  <select
+                    aria-label="Filter OpenRouter by model maker"
+                    value={openRouterMaker}
+                    onChange={(event) => setOpenRouterMaker(event.target.value)}
+                    className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs outline-none focus:border-primary"
+                  >
+                    <option value="all">All model makers</option>
+                    {openRouterMakers.map((maker) => (
+                      <option key={maker} value={maker}>
+                        {maker}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(["all", "free", "paid"] as const).map((cost) => (
+                      <button
+                        key={cost}
+                        type="button"
+                        aria-pressed={openRouterCost === cost}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setOpenRouterCost(cost);
+                        }}
+                        className={cn(
+                          "rounded-full border px-2 py-1 text-xs capitalize",
+                          openRouterCost === cost
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        {cost}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      aria-pressed={openRouterVisionOnly}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setOpenRouterVisionOnly((current) => !current);
+                      }}
+                      className={cn(
+                        "rounded-full border px-2 py-1 text-xs",
+                        openRouterVisionOnly
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      Vision
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed={openRouterFavoritesOnly}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setOpenRouterFavoritesOnly((current) => !current);
+                      }}
+                      className={cn(
+                        "rounded-full border px-2 py-1 text-xs",
+                        openRouterFavoritesOnly
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      Favorites
+                    </button>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {formatModelCount(matchingModels.length)} shown
+                  </div>
+                </div>
+              )}
+            </div>
           )}
           {matchingModels.map((model) =>
             renderCloudModelItem({ providerId, model }),
@@ -1620,13 +1808,12 @@ export function ModelPicker() {
           aria-label={modelDisplayName}
           title={modelDisplayName}
         >
+          <span aria-hidden="true" className="truncate text-xs sm:hidden">
+            {modelDisplayNameCompact.replace(/^[^:]+:\s*/, "")}
+          </span>
           <span
             aria-hidden="true"
-            className="truncate text-[0px] before:text-xs before:content-[attr(data-mobile-label)] sm:text-xs sm:before:content-none"
-            data-mobile-label={modelDisplayNameCompact.replace(
-              /^[^:]+:\s*/,
-              "",
-            )}
+            className="hidden truncate text-xs sm:inline"
           >
             {getModelDisplayName() === "Auto" && (
               <>

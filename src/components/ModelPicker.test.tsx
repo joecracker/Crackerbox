@@ -37,6 +37,7 @@ const mocks = vi.hoisted(() => ({
   invalidateQueries: vi.fn(),
   refetchModelsByProviders: vi.fn(),
   anthropicModels: [] as import("@/ipc/types").LanguageModel[],
+  openrouterModels: [] as import("@/ipc/types").LanguageModel[],
   claudeModels: [
     { value: "sonnet", displayName: "sonnet", description: "" },
   ] as
@@ -383,21 +384,7 @@ vi.mock("@/hooks/useLanguageModelsByProviders", () => ({
               type: "cloud",
             },
           ],
-          openrouter: [
-            {
-              apiName: "openrouter/free",
-              displayName: "Free (OpenRouter)",
-              description: "Free OpenRouter model",
-              type: "cloud",
-            },
-            {
-              apiName: "anthropic/claude-sonnet-4.5",
-              displayName: "Claude Sonnet 4.5",
-              description: "OpenRouter paid model",
-              dollarSigns: 2,
-              type: "cloud",
-            },
-          ],
+          openrouter: mocks.openrouterModels,
           xai: [
             {
               apiName: "grok-code-fast-1",
@@ -636,6 +623,7 @@ vi.mock("@/components/ui/dropdown-menu", async (importOriginal) => ({
 
 describe("ModelPicker", () => {
   beforeEach(() => {
+    window.localStorage.clear();
     mocks.subscriptionUnavailable = false;
     mocks.subscriptionLoading = false;
     mocks.subscriptionConnected = true;
@@ -671,6 +659,24 @@ describe("ModelPicker", () => {
     mocks.chatLoading = false;
     mocks.liveMessages = [];
     mocks.chat = null;
+    mocks.openrouterModels = [
+      {
+        apiName: "openrouter/free",
+        displayName: "Free (OpenRouter)",
+        description: "Free OpenRouter model",
+        dollarSigns: 0,
+        inputModalities: ["text"],
+        type: "cloud",
+      },
+      {
+        apiName: "anthropic/claude-sonnet-4.5",
+        displayName: "Claude Sonnet 4.5",
+        description: "OpenRouter paid model",
+        dollarSigns: 2,
+        inputModalities: ["text", "image"],
+        type: "cloud",
+      },
+    ];
     mocks.claudeStatus.connected = true;
     mocks.claudeStatus.compatible = true;
     mocks.claudeModels = [
@@ -894,7 +900,7 @@ describe("ModelPicker", () => {
     };
 
     render(<ModelPicker />);
-    expect(screen.getAllByText("GPT 5")).toHaveLength(2);
+    expect(screen.getAllByText("GPT 5")).toHaveLength(3);
     fireEvent.click(
       document.querySelector(
         '[data-model-provider="auto"][data-model-name="auto"]',
@@ -1237,8 +1243,9 @@ describe("ModelPicker", () => {
 
     const trigger = screen.getByTestId("model-picker");
     expect(trigger.getAttribute("title")).toBe("Auto · qwen/qwen3");
-    expect(trigger.textContent).toContain("Model:");
-    expect(trigger.textContent).toContain("Auto · qwen3");
+    expect(trigger.children[0].textContent).toBe("Auto · qwen3");
+    expect(trigger.children[0].className).toContain("sm:hidden");
+    expect(trigger.children[1].textContent).toContain("Model:");
   });
 
   it("updates the Auto label from live chat messages", () => {
@@ -1496,6 +1503,65 @@ describe("ModelPicker", () => {
       "Gemini 2.5 Flash",
       "Claude Sonnet 4.5",
     ]);
+  });
+
+  it("searches and filters a large OpenRouter catalog", () => {
+    mocks.renderSubContent = true;
+    mocks.openrouterModels = [
+      ...mocks.openrouterModels,
+      {
+        apiName: "qwen/qwen-vision",
+        displayName: "Qwen Vision",
+        dollarSigns: 1,
+        inputModalities: ["text", "image"],
+        type: "cloud",
+      },
+      ...Array.from({ length: 19 }, (_, index) => ({
+        apiName: `vendor-${index}/model-${index}`,
+        displayName: `Catalog Model ${index}`,
+        dollarSigns: 1,
+        inputModalities: ["text"],
+        type: "cloud" as const,
+      })),
+    ];
+
+    render(<ModelPicker />);
+    const catalog = screen.getByTestId("other-provider-models-openrouter");
+    const search = within(catalog).getByLabelText("Search OpenRouter models");
+
+    fireEvent.change(search, { target: { value: "qwen" } });
+    expect(within(catalog).getByText("Qwen Vision")).toBeTruthy();
+    expect(within(catalog).queryByText("Claude Sonnet 4.5")).toBeNull();
+    fireEvent.click(
+      within(catalog).getByRole("button", {
+        name: "Add Qwen Vision to favorites",
+      }),
+    );
+    expect(mocks.updateSettings).not.toHaveBeenCalled();
+
+    fireEvent.change(search, { target: { value: "" } });
+    fireEvent.click(within(catalog).getByRole("button", { name: "Vision" }));
+    expect(within(catalog).getByText("Qwen Vision")).toBeTruthy();
+    expect(within(catalog).getByText("Claude Sonnet 4.5")).toBeTruthy();
+    expect(within(catalog).queryByText("Free (OpenRouter)")).toBeNull();
+
+    fireEvent.change(
+      within(catalog).getByLabelText("Filter OpenRouter by model maker"),
+      { target: { value: "qwen" } },
+    );
+    expect(within(catalog).getByText("Qwen Vision")).toBeTruthy();
+    expect(within(catalog).queryByText("Claude Sonnet 4.5")).toBeNull();
+
+    fireEvent.change(
+      within(catalog).getByLabelText("Filter OpenRouter by model maker"),
+      { target: { value: "all" } },
+    );
+    fireEvent.click(within(catalog).getByRole("button", { name: "Vision" }));
+    fireEvent.click(
+      within(catalog).getByRole("button", { name: "Favorites" }),
+    );
+    expect(within(catalog).getByText("Qwen Vision")).toBeTruthy();
+    expect(within(catalog).queryByText("Claude Sonnet 4.5")).toBeNull();
   });
 
   it("keeps the non-Pro root compact while preserving its Dyad choices", () => {
@@ -2003,7 +2069,9 @@ describe("Claude Code subscription picker", () => {
       ];
       render(<ModelPicker />);
       const trigger = screen.getByTestId("model-picker");
-      expect(trigger.textContent).toBe(`${shortName} (Claude Code)`);
+      expect(trigger.children[1].textContent).toBe(
+        `${shortName} (Claude Code)`,
+      );
       expect(trigger.getAttribute("title")).toBe(`${shortName} (Claude Code)`);
     },
   );
@@ -2090,7 +2158,7 @@ describe("Claude Code subscription picker", () => {
       effortLevel: "medium",
     };
     render(<ModelPicker />);
-    expect(screen.getByTestId("model-picker").textContent).toBe(
+    expect(screen.getByTestId("model-picker").children[1].textContent).toBe(
       "Claude Fable 5",
     );
     expect(mocks.setChatSelection).not.toHaveBeenCalled();

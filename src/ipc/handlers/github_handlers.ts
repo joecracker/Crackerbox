@@ -37,6 +37,7 @@ import { createTypedHandler } from "./base";
 import { githubContracts } from "../types/github";
 import type { CloneRepoParams, CloneRepoResult } from "../types/github";
 import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
+import { scanCommitsForSecrets } from "../utils/git_secret_scanner";
 import {
   sanitizeAppDisplayName,
   slugifyAppFolderName,
@@ -896,6 +897,20 @@ export async function handlePushToGithub(
         );
       }
     }
+  }
+
+  const secretFindings = await scanCommitsForSecrets({
+    appPath,
+    branch,
+  });
+  if (secretFindings.length > 0) {
+    const locations = secretFindings
+      .map((finding) => `- ${finding.path}:${finding.line} (${finding.kind})`)
+      .join("\n");
+    throw new DyadError(
+      `Push blocked: possible secrets were found in commits that have not reached GitHub:\n${locations}\n\nRemove the secret from every affected commit and rotate any real credential before trying again.`,
+      DyadErrorKind.Precondition,
+    );
   }
 
   // Push to GitHub

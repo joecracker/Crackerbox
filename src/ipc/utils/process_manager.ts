@@ -2,6 +2,7 @@ import { ChildProcess, spawn } from "node:child_process";
 import treeKill from "tree-kill";
 import log from "electron-log";
 import type { Worker } from "node:worker_threads";
+import type { Server } from "node:http";
 import type { RuntimeMode2 } from "@/lib/schemas";
 import { appOperationCoordinator } from "../services/app_operation_coordinator";
 import {
@@ -20,6 +21,8 @@ const logger = log.scope("process_manager");
 // Define a type for the value stored in runningApps
 export interface RunningAppInfo {
   process: ChildProcess | null;
+  /** In-process server used for dependency-free static HTML apps. */
+  staticServer?: Server;
   processId: number;
   /** Correlation identity of the run/restart that owns this producer. */
   invocationRef?: AppRunInvocationRef;
@@ -275,6 +278,12 @@ export async function stopAppByInfo(
       await stopDockerContainer(containerName);
     } else if (appInfo.process) {
       await killProcess(appInfo.process);
+    } else if (appInfo.staticServer) {
+      await new Promise<void>((resolve, reject) => {
+        appInfo.staticServer!.close((error) =>
+          error ? reject(error) : resolve(),
+        );
+      });
     }
 
     if (appInfo.proxyWorker) {
@@ -564,6 +573,8 @@ export function stopAllAppsSync(): void {
         );
         continue;
       }
+    } else if (appInfo.staticServer) {
+      appInfo.staticServer.close();
     }
     runningApps.delete(appId);
   }

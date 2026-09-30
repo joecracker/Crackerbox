@@ -13,7 +13,7 @@ interface DyadThinkProps {
 export const DyadThink: React.FC<DyadThinkProps> = ({ children, node }) => {
   const state = node?.properties?.state as CustomTagState;
   const inProgress = state === "pending";
-  const [isExpanded, setIsExpanded] = useState(inProgress);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [hasExpanded, setHasExpanded] = useState(false);
 
   useEffect(() => {

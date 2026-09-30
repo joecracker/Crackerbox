@@ -62,7 +62,6 @@ import {
   spawnAgentTool,
   waitAgentsTool,
 } from "./tools/subagent_tools";
-import { planningQuestionnaireTool } from "./tools/planning_questionnaire";
 import { writePlanTool } from "./tools/write_plan";
 import { exitPlanTool } from "./tools/exit_plan";
 import { readGuideTool } from "./tools/read_guide";
@@ -207,7 +206,6 @@ export const TOOL_DEFINITIONS: readonly ToolDefinition[] = [
   getMcpToolSchemaTool,
   suggestPluginTool,
   // Plan mode tools
-  planningQuestionnaireTool,
   writePlanTool,
   exitPlanTool,
   // App blueprint tools
@@ -488,7 +486,6 @@ export const BUILD_MODE_TOOL_NAMES = [
   "reinstall_and_restart_app",
   "update_todos",
   "read_guide",
-  "planning_questionnaire",
   "write_app_blueprint",
 ] as const satisfies readonly AgentToolName[];
 
@@ -650,7 +647,6 @@ export function estimateBuildModeToolTokens(
 
 /**
  * Tools that should ONLY be available in plan mode (excluded from normal agent mode).
- * Note: planning_questionnaire is intentionally omitted so it's available in pro agent mode too.
  */
 const PLAN_MODE_ONLY_TOOLS = new Set(["write_plan", "exit_plan"]);
 
@@ -659,10 +655,7 @@ const PLAN_MODE_ONLY_TOOLS = new Set(["write_plan", "exit_plan"]);
  * Superset of PLAN_MODE_ONLY_TOOLS plus tools that participate in planning
  * but are also available in normal (pro) agent mode.
  */
-const PLANNING_SPECIFIC_TOOLS = new Set([
-  ...PLAN_MODE_ONLY_TOOLS,
-  "planning_questionnaire",
-]);
+const PLANNING_SPECIFIC_TOOLS = new Set([...PLAN_MODE_ONLY_TOOLS]);
 
 /**
  * Tools only available in Pro agent mode (excluded from basic agent mode).

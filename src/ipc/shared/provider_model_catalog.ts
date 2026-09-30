@@ -94,6 +94,7 @@ export function mapOpenRouterModels(raw: unknown): LanguageModel[] {
       displayName: model.name,
       description: model.description ?? "",
       contextWindow: model.context_length ?? undefined,
+      inputModalities: model.architecture?.input_modalities ?? undefined,
       maxOutputTokens: outputLimit(
         model.context_length,
         model.top_provider?.max_completion_tokens,

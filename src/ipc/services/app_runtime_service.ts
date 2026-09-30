@@ -79,6 +79,10 @@ import {
   getPackageManagerSignal,
   signalPrefersPnpm,
 } from "@/ipc/utils/package_manager_selection";
+import {
+  isStaticHtmlApp,
+  startStaticAppServer,
+} from "@/ipc/services/static_app_server";
 
 const logger = log.scope("app_runtime_service");
 const pnpmVersionMigrationNotifiedAppIds = new Set<number>();
@@ -528,6 +532,42 @@ async function executeAppLocalNode({
   invocationRef?: AppRunInvocationRef;
   ignoredBuildsSelfHealAttempted?: boolean;
 }): Promise<void> {
+  const hasCustomCommands = !!installCommand?.trim() && !!startCommand?.trim();
+  if (!hasCustomCommands && isStaticHtmlApp(appPath)) {
+    const port = getAppPort(appId);
+    const staticServer = await startStaticAppServer({ appPath, port });
+    const currentProcessId = processCounter.increment();
+    runningApps.set(appId, {
+      process: null,
+      staticServer,
+      processId: currentProcessId,
+      invocationRef,
+      mode: "host",
+      output,
+      lastViewedAt: Date.now(),
+    });
+    const originalUrl = `http://localhost:${port}/`;
+    output.enqueue({
+      type: "stdout",
+      message: `Static app preview ready at ${originalUrl}`,
+      appId,
+    });
+    try {
+      await ensureProxyForRunningApp({
+        appId,
+        output,
+        originalUrl,
+        mode: "host",
+        invocationRef,
+      });
+    } catch (error) {
+      runningApps.delete(appId);
+      await new Promise<void>((resolve) => staticServer.close(() => resolve()));
+      throw error;
+    }
+    return;
+  }
+
   const command = await getCommand({
     runtimeMode: "host",
     appId,

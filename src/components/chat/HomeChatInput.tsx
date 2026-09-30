@@ -3,6 +3,7 @@ import {
   StopCircleIcon,
   FolderOpenIcon,
   XIcon,
+  Hammer,
 } from "lucide-react";
 import {
   Tooltip,
@@ -22,10 +23,8 @@ import { DragDropOverlay } from "./DragDropOverlay";
 import { FileAttachmentTypeDialog } from "./FileAttachmentTypeDialog";
 import { HomeSubmitOptions } from "@/pages/home";
 import { ChatInputControls } from "../ChatInputControls";
-import { ChatModeSelector } from "../ChatModeSelector";
 import { ModelPicker } from "../ModelPicker";
 import { LexicalChatInput } from "./LexicalChatInput";
-import { useChatModeToggle } from "@/hooks/useChatModeToggle";
 import { AuxiliaryActionsMenu } from "./AuxiliaryActionsMenu";
 import { ImportAppButton } from "@/components/ImportAppButton";
 import { ImportAppDialog } from "@/components/ImportAppDialog";
@@ -49,8 +48,6 @@ export function HomeChatInput({
   const { isStreaming } = useStreamChat({
     hasChatId: false,
   }); // eslint-disable-line @typescript-eslint/no-unused-vars
-  useChatModeToggle();
-
   const [appSearchOpen, setAppSearchOpen] = useState(false);
   const [importAppOpen, setImportAppOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -87,7 +84,9 @@ export function HomeChatInput({
   };
 
   // Custom submit function that wraps the provided onSubmit
-  const handleCustomSubmit = async () => {
+  const handleCustomSubmit = async (
+    requestedChatMode: "ask" | "local-agent" = "ask",
+  ) => {
     if (
       (!inputValue.trim() && attachments.length === 0) ||
       isStreaming ||
@@ -101,6 +100,7 @@ export function HomeChatInput({
     const didSubmit = await onSubmit({
       attachments,
       selectedApp: selectedApp ?? undefined,
+      requestedChatMode,
     });
 
     if (!didSubmit) {
@@ -178,24 +178,44 @@ export function HomeChatInput({
                 </TooltipContent>
               </Tooltip>
             ) : (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <button
-                      onClick={handleCustomSubmit}
-                      disabled={
-                        disabled ||
-                        (!inputValue.trim() && attachments.length === 0)
-                      }
-                      aria-label="Send message"
-                      className="px-2 py-2 mb-0.5 mr-1 text-muted-foreground hover:text-primary rounded-lg transition-colors duration-150 disabled:opacity-30 disabled:hover:text-muted-foreground cursor-pointer disabled:cursor-default"
-                    />
-                  }
-                >
-                  <SendHorizontalIcon size={20} />
-                </TooltipTrigger>
-                <TooltipContent>Send message</TooltipContent>
-              </Tooltip>
+              <div className="mb-0.5 mr-1 flex items-center">
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <button
+                        onClick={() => handleCustomSubmit("local-agent")}
+                        disabled={
+                          disabled ||
+                          (!inputValue.trim() && attachments.length === 0)
+                        }
+                        aria-label="Build this"
+                        className="px-2 py-2 text-muted-foreground hover:text-[var(--brand-pinstripe)] rounded-lg transition-colors duration-150 disabled:opacity-30 disabled:hover:text-muted-foreground cursor-pointer disabled:cursor-default"
+                      />
+                    }
+                  >
+                    <Hammer size={18} />
+                  </TooltipTrigger>
+                  <TooltipContent>Build this</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <button
+                        onClick={() => handleCustomSubmit("ask")}
+                        disabled={
+                          disabled ||
+                          (!inputValue.trim() && attachments.length === 0)
+                        }
+                        aria-label="Send message"
+                        className="px-2 py-2 text-muted-foreground hover:text-primary rounded-lg transition-colors duration-150 disabled:opacity-30 disabled:hover:text-muted-foreground cursor-pointer disabled:cursor-default"
+                      />
+                    }
+                  >
+                    <SendHorizontalIcon size={20} />
+                  </TooltipTrigger>
+                  <TooltipContent>Send without changing files</TooltipContent>
+                </Tooltip>
+              </div>
             )}
           </div>
           {isMobile ? (
@@ -278,7 +298,6 @@ export function HomeChatInput({
             className="mt-2 flex items-center justify-between gap-2 px-2"
             data-testid="home-chat-mobile-controls"
           >
-            <ChatModeSelector />
             {selectedApp && (
               <button
                 type="button"

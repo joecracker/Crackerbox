@@ -614,6 +614,32 @@ describe("getModelClient", () => {
     });
   });
 
+  test("Auto chains only configured personal-key providers and reports the active one", async () => {
+    const { modelClient, runtimeModel, isEngineEnabled } = await getModelClient(
+      { provider: "auto", name: "auto" },
+      {
+        enableDyadPro: false,
+        providerSettings: {
+          google: { apiKey: { value: "google-key" } },
+          openrouter: { apiKey: { value: "openrouter-key" } },
+        },
+      } as unknown as UserSettings,
+    );
+    const fallback = modelClient.model as unknown as {
+      modelId: string;
+      settings: { models: Array<{ modelId: string }>; fallbackOnRateLimit: boolean };
+    };
+    expect(fallback.settings.models.map(({ modelId }) => modelId)).toEqual([
+      "gemini-3.5-flash",
+      "nvidia/nemotron-3-super-120b-a12b:free",
+      "openrouter/free",
+    ]);
+    expect(fallback.settings.fallbackOnRateLimit).toBe(true);
+    expect(runtimeModel).toMatchObject({ provider: "google", name: "gemini-3.5-flash" });
+    expect(modelClient.getRuntimeModel?.()).toMatchObject({ provider: "google", name: "gemini-3.5-flash" });
+    expect(isEngineEnabled).toBe(false);
+  });
+
   test("builds catalog-derived call options in fallback-model order", async () => {
     vi.mocked(getLanguageModels).mockImplementation(async ({ providerId }) => {
       const catalogEntries = {

@@ -115,7 +115,6 @@ describe("chat mode (integration)", () => {
           "add_integration",
           "enable_nitro",
           "set_chat_summary",
-          "planning_questionnaire",
           "update_todos",
           "read_guide",
           "restart_app",

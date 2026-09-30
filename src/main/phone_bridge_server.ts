@@ -32,6 +32,10 @@ const logger = log.scope("phone_bridge_server");
 const PHONE_BRIDGE_PORT = 4319;
 const WS_PATH = "/__phone_bridge/ws";
 const SHIM_PATH = "/__phone_bridge/shim.js";
+const SHIM_SRC = `${SHIM_PATH}?v=3`;
+const PREVIEW_PATH_PREFIX = "/__phone_preview/";
+const MIN_PREVIEW_PROXY_PORT = 42_100;
+const MAX_PREVIEW_PROXY_PORT = 52_149;
 
 function isValidInvokeChannel(channel: string): boolean {
   return (VALID_INVOKE_CHANNELS as readonly string[]).includes(channel);
@@ -55,7 +59,10 @@ function isValidSendChannel(channel: string): boolean {
 // firing "destroyed"/"render-process-gone" when the socket closes so a phone
 // disconnect mid-creation cancels/cleans up like a closed window would.
 // ---------------------------------------------------------------------------
-let nextPhoneConnectionId = 1;
+// Electron WebContents IDs are positive integers. Keep browser-backed phone
+// connections in a separate ID space so registering a phone stream can never
+// alias the desktop window that happens to have the same numeric ID.
+let nextPhoneConnectionId = -1;
 
 class PhoneConnection {
   readonly sender: {
@@ -73,7 +80,7 @@ class PhoneConnection {
   private readonly emitter = new EventEmitter();
 
   constructor(private readonly ws: WebSocket) {
-    const senderId = nextPhoneConnectionId++;
+    const senderId = nextPhoneConnectionId--;
     this.sender = {
       id: senderId,
       isDestroyed: () => this.ws.readyState !== WebSocket.OPEN,
@@ -220,11 +227,37 @@ const PHONE_SHIM_SCRIPT = `(function () {
     };
   }
   var wsProtocol = location.protocol === "https:" ? "wss:" : "ws:";
-  var socket = new WebSocket(wsProtocol + "//" + location.host + "${WS_PATH}");
+  var socket;
   var pending = new Map();
   var listeners = new Map();
   var nextId = 1;
   var queue = [];
+  var filePickerActive = false;
+
+  function rewritePreviewUrl(value) {
+    if (typeof value !== "string") return value;
+    return value.replace(
+      new RegExp("^http://(?:localhost|127[.]0[.]0[.]1):([0-9]{5})(?=/|$)"),
+      function (match, port) {
+        var numericPort = Number(port);
+        if (numericPort < ${MIN_PREVIEW_PROXY_PORT} || numericPort > ${MAX_PREVIEW_PROXY_PORT}) {
+          return match;
+        }
+        return location.origin + "${PREVIEW_PATH_PREFIX}" + port;
+      }
+    );
+  }
+
+  function rewritePreviewUrls(value) {
+    if (typeof value === "string") return rewritePreviewUrl(value);
+    if (Array.isArray(value)) return value.map(rewritePreviewUrls);
+    if (value && typeof value === "object") {
+      Object.keys(value).forEach(function (key) {
+        value[key] = rewritePreviewUrls(value[key]);
+      });
+    }
+    return value;
+  }
 
   function rawSend(msg) {
     var json = JSON.stringify(msg);
@@ -235,53 +268,79 @@ const PHONE_SHIM_SCRIPT = `(function () {
     }
   }
 
-  socket.addEventListener("open", function () {
-    queue.forEach(function (json) { socket.send(json); });
-    queue.length = 0;
-  });
+  function connectSocket() {
+    socket = new WebSocket(wsProtocol + "//" + location.host + "${WS_PATH}");
+    socket.addEventListener("open", function () {
+      queue.forEach(function (json) { socket.send(json); });
+      queue.length = 0;
+    });
 
-  socket.addEventListener("message", function (evt) {
-    var msg = JSON.parse(evt.data);
-    if (msg.type === "invoke-result") {
-      var entry = pending.get(msg.id);
-      if (!entry) return;
-      pending.delete(msg.id);
-      if (msg.ok) entry.resolve(msg.result);
-      else entry.reject(new Error(msg.error));
-    } else if (msg.type === "event") {
-      var set = listeners.get(msg.channel);
-      if (set) {
-        Array.from(set).forEach(function (fn) {
-          try { fn.apply(null, msg.args || []); } catch (e) { console.error(e); }
-        });
+    socket.addEventListener("message", function (evt) {
+      var msg = rewritePreviewUrls(JSON.parse(evt.data));
+      if (msg.type === "invoke-result") {
+        var entry = pending.get(msg.id);
+        if (!entry) return;
+        pending.delete(msg.id);
+        if (msg.ok) entry.resolve(msg.result);
+        else entry.reject(new Error(msg.error));
+      } else if (msg.type === "event") {
+        var set = listeners.get(msg.channel);
+        if (set) {
+          Array.from(set).forEach(function (fn) {
+            try { fn.apply(null, msg.args || []); } catch (e) { console.error(e); }
+          });
+        }
       }
+    });
+
+    socket.addEventListener("close", function () {
+      console.warn("[phone bridge] connection to Crackerbox lost");
+    });
+  }
+
+  connectSocket();
+
+  // Mobile browsers freeze/kill the WebSocket whenever the tab is backgrounded.
+  // Returning from a native file picker must reconnect in place so the chosen
+  // File objects survive; ordinary stale sessions still reload and rehydrate.
+  document.addEventListener("click", function (evt) {
+    var target = evt.target;
+    if (target && target.tagName === "INPUT" && target.type === "file") {
+      filePickerActive = true;
     }
-  });
+  }, true);
+  function finishFilePickerSoon() {
+    setTimeout(function () { filePickerActive = false; }, 5000);
+  }
+  document.addEventListener("change", function (evt) {
+    var target = evt.target;
+    if (target && target.tagName === "INPUT" && target.type === "file") {
+      finishFilePickerSoon();
+    }
+  }, true);
+  document.addEventListener("cancel", function (evt) {
+    var target = evt.target;
+    if (target && target.tagName === "INPUT" && target.type === "file") {
+      finishFilePickerSoon();
+    }
+  }, true);
 
-  socket.addEventListener("close", function () {
-    console.warn("[phone bridge] connection to Crackerbox lost -- reload to reconnect");
-  });
-
-  // Mobile browsers freeze/kill the WebSocket (and drop it silently, no
-  // "close" event) whenever the tab is backgrounded -- phone locked, app
-  // switched away from, etc. Without this, coming back shows whatever state
-  // was on screen when it froze, with no indication anything's stale. A full
-  // reload is the simplest robust fix (mirrors what manually reopening the
-  // page already does) -- only reload if the socket actually isn't open, so
-  // a brief tab-switch that didn't kill the connection doesn't reload
-  // needlessly and lose in-progress typing.
-  function reloadIfDisconnected() {
+  function recoverIfDisconnected() {
     if (socket.readyState !== WebSocket.OPEN) {
+      if (filePickerActive) {
+        if (socket.readyState !== WebSocket.CONNECTING) connectSocket();
+        return;
+      }
       location.reload();
     }
   }
   document.addEventListener("visibilitychange", function () {
-    if (document.visibilityState === "visible") reloadIfDisconnected();
+    if (document.visibilityState === "visible") recoverIfDisconnected();
   });
   window.addEventListener("pageshow", function (evt) {
-    if (evt.persisted) reloadIfDisconnected();
+    if (evt.persisted) recoverIfDisconnected();
   });
-  window.addEventListener("focus", reloadIfDisconnected);
+  window.addEventListener("focus", recoverIfDisconnected);
 
   function trimTrailingUndefined(arr) {
     // JSON can't represent undefined -- inside an array it silently becomes
@@ -340,7 +399,7 @@ const PHONE_SHIM_SCRIPT = `(function () {
 `;
 
 function injectShimIntoHtml(html: string): string {
-  const tag = `<script src="${SHIM_PATH}"></script>`;
+  const tag = `<script src="${SHIM_SRC}"></script>`;
   if (html.includes("<head>")) {
     return html.replace("<head>", `<head>\n    ${tag}`);
   }
@@ -434,6 +493,64 @@ function proxyToDevServer(
   req.pipe(proxyReq);
 }
 
+function proxyPhonePreview(
+  port: number,
+  upstreamPath: string,
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+) {
+  const prefix = `${PREVIEW_PATH_PREFIX}${port}/`;
+  const proxyReq = http.request(
+    {
+      hostname: "127.0.0.1",
+      port,
+      path: upstreamPath,
+      method: req.method,
+      insecureHTTPParser: true,
+      headers: {
+        ...req.headers,
+        host: `localhost:${port}`,
+        "accept-encoding": "identity",
+      },
+    },
+    (proxyRes) => {
+      const contentType = proxyRes.headers["content-type"] ?? "";
+      if (contentType.includes("text/html")) {
+        const chunks: Buffer[] = [];
+        proxyRes.on("data", (chunk) => chunks.push(chunk));
+        proxyRes.on("end", () => {
+          let html = Buffer.concat(chunks).toString("utf-8");
+          html = html.replace(
+            /\b(src|href|action)=(['"])\/(?!\/)/gi,
+            `$1=$2${prefix}`,
+          );
+          const base = `<base href="${prefix}">`;
+          html = html.includes("<head>")
+            ? html.replace("<head>", `<head>\n    ${base}`)
+            : base + html;
+          const headers = { ...proxyRes.headers };
+          delete headers["content-length"];
+          delete headers["content-encoding"];
+          delete headers["transfer-encoding"];
+          headers["content-length"] = Buffer.byteLength(html).toString();
+          headers["cache-control"] = "no-store";
+          res.writeHead(proxyRes.statusCode ?? 200, headers);
+          res.end(html);
+        });
+        return;
+      }
+      res.writeHead(proxyRes.statusCode ?? 200, proxyRes.headers);
+      proxyRes.pipe(res);
+    },
+  );
+  proxyReq.on("error", (error) => {
+    logger.error("Phone preview proxy error:", error);
+    if (!res.headersSent) res.writeHead(502);
+    res.end("Crackerbox could not reach this app preview");
+  });
+  req.pipe(proxyReq);
+}
+
 function getLanUrls(port: number): string[] {
   const urls: string[] = [];
   for (const addrs of Object.values(os.networkInterfaces())) {
@@ -449,11 +566,37 @@ export function startPhoneBridgeServer(devServerUrl: string | undefined) {
   const rendererRoot = path.join(__dirname, "../renderer/main_window");
 
   const server = http.createServer((req, res) => {
-    const pathname = new URL(req.url ?? "/", "http://internal").pathname;
+    const requestUrl = new URL(req.url ?? "/", "http://internal");
+    const pathname = requestUrl.pathname;
 
     if (pathname === SHIM_PATH) {
-      res.writeHead(200, { "Content-Type": "text/javascript; charset=utf-8" });
+      res.writeHead(200, {
+        "Content-Type": "text/javascript; charset=utf-8",
+        "Cache-Control": "no-store",
+      });
       res.end(PHONE_SHIM_SCRIPT);
+      return;
+    }
+
+    if (pathname.startsWith(PREVIEW_PATH_PREFIX)) {
+      const remainder = pathname.slice(PREVIEW_PATH_PREFIX.length);
+      const separator = remainder.indexOf("/");
+      const rawPort =
+        separator === -1 ? remainder : remainder.slice(0, separator);
+      const port = Number(rawPort);
+      if (
+        !Number.isInteger(port) ||
+        port < MIN_PREVIEW_PROXY_PORT ||
+        port > MAX_PREVIEW_PROXY_PORT
+      ) {
+        res.writeHead(404);
+        res.end("Unknown preview");
+        return;
+      }
+      const upstreamPath =
+        (separator === -1 ? "/" : remainder.slice(separator)) +
+        requestUrl.search;
+      proxyPhonePreview(port, upstreamPath, req, res);
       return;
     }
 

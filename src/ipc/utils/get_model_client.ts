@@ -394,6 +394,7 @@ export async function getModelClient(
         isEngineEnabled: false,
       };
     }
+    const candidates: Array<{ model: LanguageModel; selection: ModelSelection }> = [];
     for (const autoModelAlias of AUTO_MODEL_ALIASES) {
       const resolvedModel = await resolveBuiltinModelAlias(autoModelAlias);
       if (!resolvedModel) {
@@ -415,34 +416,46 @@ export async function getModelClient(
         logger.log(
           `Using provider: ${resolvedModel.providerId} model: ${resolvedModel.apiName}`,
         );
-        if (
-          resolvedModel.providerId === "openrouter" &&
-          !isDyadProEnabledForRequest &&
-          providerInfo
-        ) {
-          return {
-            modelClient: getOpenRouterAutoFallbackModelClient({
-              primaryModelName: resolvedModel.apiName,
-              settings,
-              providerConfig: providerInfo,
-            }),
-            runtimeModel: {
-              provider: resolvedModel.providerId,
-              name: resolvedModel.apiName,
-            },
-            isEngineEnabled: false,
+        if (!providerInfo) continue;
+        const selection = {
+          provider: resolvedModel.providerId,
+          name: resolvedModel.apiName,
+          connection: "api-key" as const,
+        };
+        candidates.push({
+          model: getRegularModelClient(selection, settings, providerInfo).modelClient.model,
+          selection,
+        });
+        if (resolvedModel.providerId === "openrouter" &&
+            resolvedModel.apiName !== OPENROUTER_FREE_MODEL_NAME) {
+          const freeSelection = {
+            provider: "openrouter",
+            name: OPENROUTER_FREE_MODEL_NAME,
+            connection: "api-key" as const,
           };
+          candidates.push({
+            model: getRegularModelClient(freeSelection, settings, providerInfo).modelClient.model,
+            selection: freeSelection,
+          });
         }
-        // Recursively call with the specific model found
-        return await getModelClient(
-          {
-            provider: resolvedModel.providerId,
-            name: resolvedModel.apiName,
-            ...(connection ? { connection } : {}),
-          },
-          settings,
-        );
       }
+    }
+    if (candidates.length) {
+      const fallback = createFallback({
+        models: candidates.map(({ model }) => model),
+        fallbackOnRateLimit: true,
+      });
+      return {
+        modelClient: {
+          model: fallback,
+          builtinProviderId: candidates[0].selection.provider,
+          getRuntimeModel: () => candidates.find(
+            ({ model }) => model.modelId === fallback.modelId,
+          )?.selection ?? candidates[0].selection,
+        },
+        runtimeModel: candidates[0].selection,
+        isEngineEnabled: false,
+      };
     }
     // If no models have API keys, throw an error
     throw new Error(

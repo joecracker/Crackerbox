@@ -124,8 +124,8 @@ describe("normalizeMessagesAriaSnapshot", () => {
 
   it("normalizes generated AI rules prompts", () => {
     expect(
-      normalizeMessagesAriaSnapshot(`- paragraph: /Generate an AI_RULES\\.md file for this app\\. Describe the tech stack in 5-\\d+ bullet points and describe clear rules about what libraries to use for what\\./
-- paragraph: Generate an AI_RULES.md file for this app. Describe the tech stack in 5-10 bullet points and describe clear rules about what libraries to use for what.
+      normalizeMessagesAriaSnapshot(`- paragraph: /Inspect this existing app before creating AI_RULES\\.md\\./
+- paragraph: Inspect this existing app before creating AI_RULES.md. Read its package manifests and configuration.
 `),
     ).toBe(`- paragraph: "[[AI_RULES_GENERATION_PROMPT]]"
 - paragraph: "[[AI_RULES_GENERATION_PROMPT]]"

@@ -224,6 +224,27 @@ describe("useCopyToClipboard", () => {
     });
   });
 
+  describe("user-facing response copy", () => {
+    it("omits hidden reasoning and internal read operations", async () => {
+      const out = await copy(
+        'Visible answer.<think>Private reasoning</think><dyad-read path="src/index.css"></dyad-read>More answer.',
+      );
+
+      expect(out).toBe("Visible answer.More answer.");
+      expect(out).not.toContain("Thinking");
+      expect(out).not.toContain("Private reasoning");
+      expect(out).not.toContain("dyad-read");
+    });
+
+    it("omits internal search and file-list results", async () => {
+      const out = await copy(
+        "Before<dyad-grep query=\"app\">secret result</dyad-grep><dyad-list-files>src/App.tsx</dyad-list-files>After",
+      );
+
+      expect(out).toBe("BeforeAfter");
+    });
+  });
+
   describe("prose normalization — runs of newlines outside ``` still collapse", () => {
     it("collapses 3+ consecutive newlines in plain markdown prose", async () => {
       const out = await copy("Para 1\n\n\n\n\nPara 2");

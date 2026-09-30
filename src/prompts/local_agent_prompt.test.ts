@@ -26,7 +26,9 @@ import {
 
 const expectGitContextGuidance = (prompt: string) => {
   expect(prompt).toContain("<git_context>");
-  expect(prompt).toContain("Crackerbox may add Git provenance to a user message");
+  expect(prompt).toContain(
+    "Crackerbox may add Git provenance to a user message",
+  );
   expect(prompt).toContain(
     "identifies the app state at the start of that turn",
   );
@@ -38,7 +40,9 @@ const expectGitContextGuidance = (prompt: string) => {
 
 const expectBuildGitContextGuidance = (prompt: string) => {
   expect(prompt).toContain("<git_context>");
-  expect(prompt).toContain("Crackerbox may add Git provenance to a user message");
+  expect(prompt).toContain(
+    "Crackerbox may add Git provenance to a user message",
+  );
   expect(prompt).toContain(
     "identifies the app state at the start of that turn",
   );
@@ -91,6 +95,10 @@ describe("local_agent_prompt", () => {
   it("agent mode system prompt", () => {
     const prompt = constructLocalAgentPrompt(undefined);
     expect(prompt).toMatchSnapshot();
+    expect(prompt).toContain(
+      "Distinguish conversation from an implementation request",
+    );
+    expect(prompt).toContain("do not begin a requirements interview");
     expectGitContextGuidance(prompt);
     expect(prompt).toContain(
       "Use `grep` and `code_search` when the relevant files are not reasonably clear",
@@ -427,9 +435,8 @@ describe("local_agent_prompt", () => {
     expect(prompt).toContain("Required App Blueprint Gate");
     expect(prompt).toContain("Use the user's full description");
     expect(prompt).toContain("write_app_blueprint");
-    expect(prompt).toContain("planning_questionnaire");
-    expect(prompt).toContain("A prior unanswered questionnaire does not invalidate details the user provided later");
-    expect(prompt).toContain("A completed questionnaire is useful context, not a prerequisite");
+    expect(prompt).not.toContain("planning_questionnaire");
+    expect(prompt).toContain("Ask one focused question in plain chat only");
     expect(prompt).toContain("Preserve an app name the user chose");
     expect(prompt).not.toContain("**Clarify (when needed):**");
     expect(prompt).not.toContain("**Implement:**");
@@ -512,6 +519,15 @@ describe("local_agent_prompt", () => {
       readOnly: true,
     });
     expect(prompt).toMatchSnapshot();
+    expect(prompt).toContain("This is a conversation turn");
+    expect(prompt).toContain("send it with the Build action");
+    expect(prompt).toContain(
+      "Do not draft implementation code unless the user explicitly asks for code",
+    );
+    expect(prompt).toContain(
+      "When attached reference material is unclear, say what is uncertain instead of guessing",
+    );
+    expect(prompt).not.toContain("**CRITICAL: You are in READ-ONLY mode.**");
     expectGitContextGuidance(prompt);
     expect(prompt).not.toContain("<app_lifecycle>");
     expect(prompt).not.toContain("restart_app");
@@ -622,9 +638,7 @@ describe("local_agent_prompt", () => {
     expect(prompt).toContain("Card-edited name");
     expect(prompt).toContain("Card-edited direction");
     expect(prompt).toContain("including edits made in the blueprint card");
-    expect(prompt).toContain(
-      "Do not repeat it merely to update an existing unapproved blueprint",
-    );
+    expect(prompt).toContain("Ask one focused question in plain chat only");
     expect(prompt).not.toContain(
       "You MUST call this tool even when the initial request seems concrete",
     );
@@ -661,11 +675,10 @@ describe("local_agent_prompt", () => {
       planningQuestionnaireAvailable: false,
     });
 
-    expect(prompt).toContain("initial questionnaire was already completed");
     expect(prompt).toContain(
-      "questionnaire answers and the user's full description already recorded",
+      "Use the user's full description already recorded",
     );
-    expect(prompt).toContain("Do not call `planning_questionnaire` again");
+    expect(prompt).not.toContain("planning_questionnaire");
     expect(prompt).not.toContain(
       "You MUST call this tool even when the initial request seems concrete",
     );
@@ -694,7 +707,7 @@ describe("build agent prompt", () => {
     expect(prompt).toMatchSnapshot();
     expect(prompt).toContain("<tool_calling>");
     expect(prompt).toContain("`grep` and `list_files`");
-    expect(prompt).toContain("`planning_questionnaire`");
+    expect(prompt).not.toContain("planning_questionnaire");
     expect(prompt).toContain("write_app_blueprint");
     expectBuildGitContextGuidance(prompt);
     expect(prompt).toContain("Required App Blueprint Gate");

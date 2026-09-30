@@ -37,6 +37,7 @@ import { getHomeDefaultChatMode } from "@/lib/homeChatMode";
 export interface HomeSubmitOptions {
   attachments?: FileAttachment[];
   selectedApp?: ListedApp;
+  requestedChatMode?: "ask" | "local-agent";
 }
 
 export default function HomePage() {
@@ -107,8 +108,8 @@ export default function HomePage() {
           prompt: inputValue,
           attachments: submittedAttachments,
           selectedApp: options?.selectedApp,
-          chatMode: homeSubmitChatMode,
-          isChatModeExplicit: hasManuallySelectedChatMode,
+          chatMode: options?.requestedChatMode ?? homeSubmitChatMode,
+          isChatModeExplicit: options?.requestedChatMode !== undefined,
         },
       });
     },

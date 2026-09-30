@@ -16,8 +16,9 @@ function normalizeTextLine(line: string, normalizeVersionNumbers: boolean) {
 
   if (
     trimmed.startsWith("- paragraph: ") &&
-    trimmed.includes("Generate an AI_RULES") &&
-    trimmed.includes("Describe the tech stack")
+    trimmed.includes("AI_RULES") &&
+    (trimmed.includes("Generate an AI_RULES") ||
+      trimmed.includes("Inspect this existing app"))
   ) {
     return `${indent}${GENERATED_AI_RULES_PROMPT}`;
   }

@@ -243,7 +243,7 @@ const PHONE_SHIM_SCRIPT = `(function () {
         if (numericPort < ${MIN_PREVIEW_PROXY_PORT} || numericPort > ${MAX_PREVIEW_PROXY_PORT}) {
           return match;
         }
-        return location.origin + "${PREVIEW_PATH_PREFIX}" + port;
+        return location.protocol + "//" + location.hostname + ":" + port;
       }
     );
   }
@@ -500,6 +500,11 @@ function proxyPhonePreview(
   res: http.ServerResponse,
 ) {
   const prefix = `${PREVIEW_PATH_PREFIX}${port}/`;
+  const rewriteModuleImports = (source: string) =>
+    source.replace(
+      /(\b(?:from|import)\s*(?:\(\s*)?["'])\/(?!\/|__phone_preview\/)/g,
+      `$1${prefix}`,
+    );
   const proxyReq = http.request(
     {
       hostname: "127.0.0.1",
@@ -524,10 +529,46 @@ function proxyPhonePreview(
             /\b(src|href|action)=(['"])\/(?!\/)/gi,
             `$1=$2${prefix}`,
           );
+          html = rewriteModuleImports(html);
+          const appRoute = new URL(upstreamPath, `http://localhost:${port}`);
+          const previewRouteShim = `<script>
+(() => {
+  addEventListener("error", (event) => {
+    console.error("[Crackerbox phone preview]", event.message, event.filename);
+  });
+  addEventListener("unhandledrejection", (event) => {
+    console.error("[Crackerbox phone preview]", event.reason);
+  });
+  const bridgeUrl = location.pathname + location.search + location.hash;
+  history.replaceState(history.state, "", ${JSON.stringify(
+    appRoute.pathname + appRoute.search + appRoute.hash,
+  )});
+  addEventListener("load", () => {
+    history.replaceState(history.state, "", bridgeUrl);
+  }, { once: true });
+})();
+</script>`;
+          const previewWebSocketShim = `<script>
+(() => {
+  const NativeWebSocket = window.WebSocket;
+  window.WebSocket = class extends NativeWebSocket {
+    constructor(url, protocols) {
+      const resolved = new URL(String(url), location.href);
+      if (resolved.host === location.host && !resolved.pathname.startsWith(${JSON.stringify(prefix)})) {
+        resolved.pathname = ${JSON.stringify(prefix)} + resolved.pathname.replace(/^\\//, "");
+      }
+      super(resolved.toString(), protocols);
+    }
+  };
+})();
+</script>`;
           const base = `<base href="${prefix}">`;
           html = html.includes("<head>")
-            ? html.replace("<head>", `<head>\n    ${base}`)
-            : base + html;
+            ? html.replace(
+                "<head>",
+                `<head>\n    ${base}\n    ${previewRouteShim}\n    ${previewWebSocketShim}`,
+              )
+            : base + previewRouteShim + previewWebSocketShim + html;
           const headers = { ...proxyRes.headers };
           delete headers["content-length"];
           delete headers["content-encoding"];
@@ -536,6 +577,27 @@ function proxyPhonePreview(
           headers["cache-control"] = "no-store";
           res.writeHead(proxyRes.statusCode ?? 200, headers);
           res.end(html);
+        });
+        return;
+      }
+      if (
+        contentType.includes("javascript") ||
+        contentType.includes("ecmascript")
+      ) {
+        const chunks: Buffer[] = [];
+        proxyRes.on("data", (chunk) => chunks.push(chunk));
+        proxyRes.on("end", () => {
+          const script = rewriteModuleImports(
+            Buffer.concat(chunks).toString("utf-8"),
+          );
+          const headers = { ...proxyRes.headers };
+          delete headers["content-length"];
+          delete headers["content-encoding"];
+          delete headers["transfer-encoding"];
+          headers["content-length"] = Buffer.byteLength(script).toString();
+          headers["cache-control"] = "no-store";
+          res.writeHead(proxyRes.statusCode ?? 200, headers);
+          res.end(script);
         });
         return;
       }
@@ -549,6 +611,42 @@ function proxyPhonePreview(
     res.end("Crackerbox could not reach this app preview");
   });
   req.pipe(proxyReq);
+}
+
+function proxyPhonePreviewWebSocket(
+  port: number,
+  upstreamPath: string,
+  req: http.IncomingMessage,
+  socket: import("node:stream").Duplex,
+  head: Buffer,
+) {
+  const proxyReq = http.request({
+    hostname: "127.0.0.1",
+    port,
+    path: upstreamPath,
+    method: req.method,
+    headers: {
+      ...req.headers,
+      host: `localhost:${port}`,
+    },
+  });
+
+  proxyReq.on("upgrade", (proxyRes, proxySocket, proxyHead) => {
+    let responseHead = `HTTP/1.1 ${proxyRes.statusCode ?? 101} ${proxyRes.statusMessage ?? "Switching Protocols"}\r\n`;
+    for (const [name, value] of Object.entries(proxyRes.headers)) {
+      if (value !== undefined) responseHead += `${name}: ${value}\r\n`;
+    }
+    socket.write(responseHead + "\r\n");
+    if (head.length > 0) proxySocket.write(head);
+    if (proxyHead.length > 0) socket.write(proxyHead);
+    proxySocket.pipe(socket).pipe(proxySocket);
+  });
+  proxyReq.on("response", () => socket.destroy());
+  proxyReq.on("error", (error) => {
+    logger.warn("Phone preview WebSocket proxy error:", error);
+    socket.destroy();
+  });
+  proxyReq.end();
 }
 
 function getLanUrls(port: number): string[] {
@@ -610,7 +708,26 @@ export function startPhoneBridgeServer(devServerUrl: string | undefined) {
 
   const wss = new WebSocketServer({ noServer: true });
   server.on("upgrade", (req, socket, head) => {
-    const pathname = new URL(req.url ?? "/", "http://internal").pathname;
+    const requestUrl = new URL(req.url ?? "/", "http://internal");
+    const pathname = requestUrl.pathname;
+    if (pathname.startsWith(PREVIEW_PATH_PREFIX)) {
+      const remainder = pathname.slice(PREVIEW_PATH_PREFIX.length);
+      const separator = remainder.indexOf("/");
+      const port = Number(
+        separator === -1 ? remainder : remainder.slice(0, separator),
+      );
+      if (
+        Number.isInteger(port) &&
+        port >= MIN_PREVIEW_PROXY_PORT &&
+        port <= MAX_PREVIEW_PROXY_PORT
+      ) {
+        const upstreamPath =
+          (separator === -1 ? "/" : remainder.slice(separator)) +
+          requestUrl.search;
+        proxyPhonePreviewWebSocket(port, upstreamPath, req, socket, head);
+        return;
+      }
+    }
     if (pathname !== WS_PATH) {
       socket.destroy();
       return;

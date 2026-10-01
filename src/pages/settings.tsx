@@ -49,6 +49,7 @@ import { SECTION_IDS, SETTING_IDS } from "@/lib/settingsSearchIndex";
 import { SubagentSettings } from "@/components/settings/SubagentSettings";
 import { RunTypeScriptForWholeProjectSwitch } from "@/components/RunTypeScriptForWholeProjectSwitch";
 import { WorkspaceColorSettings } from "@/components/settings/WorkspaceColorSettings";
+import { GmailIntegration } from "@/components/GmailIntegration";
 
 const hint = "text-[13px] leading-relaxed text-muted-foreground";
 
@@ -241,6 +242,7 @@ export default function SettingsPage() {
               <Label className="text-sm font-medium">Home Assistant</Label>
               <HomeAssistantSettings />
             </div>
+            <GmailIntegration />
           </SettingsSection>
 
           <SettingsSection

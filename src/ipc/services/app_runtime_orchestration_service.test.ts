@@ -54,6 +54,7 @@ function createHarness() {
     })),
     resolveAppPath: (relativePath) => `/apps/${relativePath}`,
     getRunningApp: () => running,
+    isRunningAppHealthy: vi.fn(async () => true),
     deleteRunningApp: () => {
       calls.push("delete");
       running = undefined;
@@ -157,6 +158,33 @@ describe("AppRuntimeService", () => {
       "lock:stop",
       "stop",
       "unlock:stop",
+    ]);
+  });
+
+  it("replaces a stale runtime instead of reporting it as running", async () => {
+    const harness = createHarness();
+    const { output } = createOutput();
+    harness.setRunning({
+      process: null,
+      processId: 1,
+      mode: "host",
+      proxyUrl: "http://localhost:42142",
+      originalUrl: "http://localhost:32142",
+      lastViewedAt: 0,
+    });
+    vi.mocked(harness.dependencies.isRunningAppHealthy).mockResolvedValue(
+      false,
+    );
+
+    await harness.service.start({ appId: APP_ID, output, invocationRef: REF });
+
+    expect(harness.calls).toEqual([
+      "lock:start",
+      "stop",
+      "clean-port",
+      "start:app-run:test",
+      "ready",
+      "unlock:start",
     ]);
   });
 

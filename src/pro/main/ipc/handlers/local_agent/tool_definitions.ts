@@ -43,6 +43,7 @@ import { haListFilesTool } from "./tools/ha_list_files";
 import { haReadFileTool } from "./tools/ha_read_file";
 import { haWriteFileTool } from "./tools/ha_write_file";
 import { haDeleteFileTool } from "./tools/ha_delete_file";
+import { sendEmailTool } from "./tools/send_email";
 import { generateTestAssertionsTool } from "./tools/generate_test_assertions";
 import {
   reinstallAndRestartAppTool,
@@ -196,6 +197,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinition[] = [
   haReadFileTool,
   haWriteFileTool,
   haDeleteFileTool,
+  sendEmailTool,
   runTestsTool,
   generateTestAssertionsTool,
   restartAppTool,
@@ -655,7 +657,7 @@ const PLAN_MODE_ONLY_TOOLS = new Set(["write_plan", "exit_plan"]);
  * Superset of PLAN_MODE_ONLY_TOOLS plus tools that participate in planning
  * but are also available in normal (pro) agent mode.
  */
-const PLANNING_SPECIFIC_TOOLS = new Set([...PLAN_MODE_ONLY_TOOLS]);
+const PLANNING_SPECIFIC_TOOLS = new Set(PLAN_MODE_ONLY_TOOLS);
 
 /**
  * Tools only available in Pro agent mode (excluded from basic agent mode).

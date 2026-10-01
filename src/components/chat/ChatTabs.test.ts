@@ -25,6 +25,7 @@ import {
   matchesPreNavigationPresentationCapture,
   getFallbackChatIdAfterClose,
   groupChatIdsByApp,
+  keepOneChatTabPerApp,
   partitionChatsByVisibleCount,
   reorderVisibleChatIds,
   restoreLocalStorageSnapshot,
@@ -253,6 +254,20 @@ describe("ChatTabs helpers", () => {
       sessionIds,
     );
     expect(orderedIds).toEqual([4, 2, 1, 3]);
+  });
+
+  it("shows only the most recent chat tab for each app", () => {
+    const chats = [chat(1, 1), chat(2, 1), chat(3, 2), chat(4, 2)];
+    const chatsById = new Map(chats.map((item) => [item.id, item]));
+
+    expect(keepOneChatTabPerApp([2, 4, 1, 3], chatsById, 2)).toEqual([2, 4]);
+  });
+
+  it("lets the selected chat represent its app before MRU order catches up", () => {
+    const chats = [chat(1, 1), chat(2, 1), chat(3, 2)];
+    const chatsById = new Map(chats.map((item) => [item.id, item]));
+
+    expect(keepOneChatTabPerApp([1, 3, 2], chatsById, 2)).toEqual([2, 3]);
   });
 
   it("only shows chats opened in current session", () => {

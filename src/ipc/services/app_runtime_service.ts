@@ -1507,6 +1507,7 @@ export interface AppRuntimeServiceDependencies {
   findApp(appId: number): Promise<RuntimeAppRecord | undefined>;
   resolveAppPath(relativePath: string): string;
   getRunningApp(appId: number): RunningAppInfo | undefined;
+  isRunningAppHealthy(appInfo: RunningAppInfo): Promise<boolean>;
   deleteRunningApp(appId: number): void;
   getProcessCounter(): number;
   startProcess(input: {
@@ -1632,18 +1633,23 @@ export class AppRuntimeService {
     return this.dependencies.runSerialized(appId, "start", async () => {
       const existing = this.dependencies.getRunningApp(appId);
       if (existing) {
-        logger.debug(`App ${appId} is already running.`);
-        if (existing.proxyUrl && existing.originalUrl) {
-          emitProxyServerStarted({
-            appId,
-            output,
-            proxyUrl: existing.proxyUrl,
-            originalUrl: existing.originalUrl,
-            mode: existing.mode,
-            invocationRef: invocationRef ?? existing.invocationRef,
-          });
+        if (await this.dependencies.isRunningAppHealthy(existing)) {
+          logger.debug(`App ${appId} is already running.`);
+          if (existing.proxyUrl && existing.originalUrl) {
+            emitProxyServerStarted({
+              appId,
+              output,
+              proxyUrl: existing.proxyUrl,
+              originalUrl: existing.originalUrl,
+              mode: existing.mode,
+              invocationRef: invocationRef ?? existing.invocationRef,
+            });
+          }
+          return;
         }
-        return;
+
+        logger.warn(`App ${appId} has a stale runtime; starting it again.`);
+        await this.dependencies.stopProcess(appId, existing);
       }
 
       const app = await this.requireApp(appId);
@@ -2048,6 +2054,18 @@ export const appRuntimeService = new AppRuntimeService({
     }),
   resolveAppPath: getDyadAppPath,
   getRunningApp: (appId) => runningApps.get(appId),
+  isRunningAppHealthy: async (appInfo) => {
+    if (appInfo.mode !== "host" || !appInfo.proxyUrl) return true;
+
+    try {
+      await fetch(appInfo.proxyUrl, {
+        signal: AbortSignal.timeout(1_500),
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  },
   deleteRunningApp: (appId) => {
     runningApps.delete(appId);
   },

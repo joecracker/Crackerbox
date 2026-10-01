@@ -90,6 +90,31 @@ export const settingsContracts = {
     }),
     output: z.object({ ok: z.literal(true) }),
   }),
+  getGmailStatus: defineContract({
+    channel: "gmail:status",
+    input: z.void(),
+    output: z.object({ configured: z.boolean(), connected: z.boolean() }),
+  }),
+  importGmailCredentials: defineContract({
+    channel: "gmail:import-credentials",
+    input: z.void(),
+    output: z.object({ imported: z.boolean() }),
+  }),
+  connectGmail: defineContract({
+    channel: "gmail:connect",
+    input: z.void(),
+    output: z.void(),
+  }),
+  disconnectGmail: defineContract({
+    channel: "gmail:disconnect",
+    input: z.void(),
+    output: z.void(),
+  }),
+  forgetGmailCredentials: defineContract({
+    channel: "gmail:forget-credentials",
+    input: z.void(),
+    output: z.void(),
+  }),
 } as const;
 
 // =============================================================================

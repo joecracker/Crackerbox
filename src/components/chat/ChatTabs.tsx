@@ -440,6 +440,43 @@ export function groupChatIdsByApp(
   return Array.from(groups.values()).flat();
 }
 
+/**
+ * Keeps the tab strip focused by showing only the active/recent chat for each
+ * app. Chats remain in history and keep running; this only controls which tab
+ * represents an app in the title bar.
+ */
+export function keepOneChatTabPerApp(
+  orderedChatIds: number[],
+  chatsById: Map<number, ChatSummary>,
+  selectedChatId: number | null,
+): number[] {
+  const result: number[] = [];
+  const indexByAppId = new Map<number, number>();
+
+  for (const chatId of orderedChatIds) {
+    const appId = chatsById.get(chatId)?.appId;
+    if (appId === undefined) {
+      result.push(chatId);
+      continue;
+    }
+
+    const existingIndex = indexByAppId.get(appId);
+    if (existingIndex === undefined) {
+      indexByAppId.set(appId, result.length);
+      result.push(chatId);
+      continue;
+    }
+
+    // Navigation can update the selected chat before the MRU atom catches up.
+    // In that brief window the selected chat must still represent its app.
+    if (chatId === selectedChatId) {
+      result[existingIndex] = chatId;
+    }
+  }
+
+  return result;
+}
+
 export function getFallbackChatIdAfterClose(
   tabs: ChatSummary[],
   closedChatId: number,
@@ -1070,9 +1107,10 @@ export function ChatTabs({ selectedChatId }: ChatTabsProps) {
       closedChatIds,
       sessionOpenedChatIds,
     );
+    const onePerApp = keepOneChatTabPerApp(base, chatsById, selectedChatId);
     // When grouping is enabled, re-bucket by app on every render so newly
     // opened chats automatically join their app's existing group.
-    return groupTabsByApp ? groupChatIdsByApp(base, chatsById) : base;
+    return groupTabsByApp ? groupChatIdsByApp(onePerApp, chatsById) : onePerApp;
   }, [
     recentViewedChatIds,
     chats,
@@ -1080,6 +1118,7 @@ export function ChatTabs({ selectedChatId }: ChatTabsProps) {
     sessionOpenedChatIds,
     groupTabsByApp,
     chatsById,
+    selectedChatId,
   ]);
 
   const orderedChats = useMemo(

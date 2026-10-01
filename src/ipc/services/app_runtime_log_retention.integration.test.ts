@@ -55,6 +55,7 @@ function createService(): AppRuntimeService {
             lastViewedAt: NOW,
           }
         : undefined,
+    isRunningAppHealthy: vi.fn(async () => true),
     deleteRunningApp: () => {
       running = false;
     },

@@ -1,4 +1,5 @@
-import { AlertTriangle, ArrowRight } from "lucide-react";
+import { AlertTriangle, ArrowRight, Clock3 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -13,6 +14,13 @@ const LONG_CONTEXT_THRESHOLD = 200_000;
 interface ContextLimitBannerProps {
   totalTokens?: number | null;
   contextWindow?: number;
+  isStreaming?: boolean;
+}
+
+export function getSummarizeRequestAction(
+  isStreaming: boolean,
+): "queue" | "run" {
+  return isStreaming ? "queue" : "run";
 }
 
 /** Check if the context limit banner should be shown */
@@ -35,8 +43,27 @@ export function shouldShowContextLimitBanner({
 export function ContextLimitBanner({
   totalTokens,
   contextWindow,
+  isStreaming = false,
 }: ContextLimitBannerProps) {
   const { handleSummarize } = useSummarizeInNewChat();
+  const [isQueued, setIsQueued] = useState(false);
+  const queuedRef = useRef(false);
+
+  const requestSummarize = () => {
+    if (getSummarizeRequestAction(isStreaming) === "queue") {
+      queuedRef.current = true;
+      setIsQueued(true);
+      return;
+    }
+    void handleSummarize();
+  };
+
+  useEffect(() => {
+    if (isStreaming || !queuedRef.current) return;
+    queuedRef.current = false;
+    setIsQueued(false);
+    void handleSummarize();
+  }, [handleSummarize, isStreaming]);
 
   if (!shouldShowContextLimitBanner({ totalTokens, contextWindow })) {
     return null;
@@ -61,17 +88,28 @@ export function ContextLimitBanner({
         <TooltipTrigger
           render={
             <Button
-              onClick={handleSummarize}
+              onClick={requestSummarize}
+              disabled={isQueued}
               variant="outline"
               size="sm"
               className="h-6 px-2 text-xs border-amber-500/40 bg-amber-500/5 text-amber-600 dark:text-amber-500 hover:bg-amber-500/20 hover:border-amber-500/60"
             />
           }
         >
-          Summarize
-          <ArrowRight className="h-3 w-3 ml-1" />
+          {isQueued ? "Queued" : "Summarize"}
+          {isQueued ? (
+            <Clock3 className="h-3 w-3 ml-1" />
+          ) : (
+            <ArrowRight className="h-3 w-3 ml-1" />
+          )}
         </TooltipTrigger>
-        <TooltipContent>Summarize to new chat</TooltipContent>
+        <TooltipContent>
+          {isQueued
+            ? "Will summarize when the current response finishes"
+            : isStreaming
+              ? "Queue a summary for when the current response finishes"
+              : "Summarize to new chat"}
+        </TooltipContent>
       </Tooltip>
     </div>
   );

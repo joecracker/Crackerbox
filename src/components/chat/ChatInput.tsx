@@ -34,6 +34,8 @@ import {
   chatMessagesByIdAtom,
   selectedChatIdAtom,
   agentTodosByChatIdAtom,
+  summarizeQueuedChatIdsAtom,
+  summarizeSuggestedChatIdsAtom,
 } from "@/atoms/chatAtoms";
 import { chatAnnotationsAtom } from "@/atoms/chatAnnotationAtoms";
 import { atom, useAtom, useSetAtom, useAtomValue, useStore } from "jotai";
@@ -295,6 +297,19 @@ export function ChatInput({ chatId }: { chatId?: number }) {
     refreshProposal,
   } = useProposal(chatId, { isStreaming });
   const { proposal, messageId } = proposalResult ?? {};
+  const [summarizeSuggestedChatIds, setSummarizeSuggestedChatIds] = useAtom(
+    summarizeSuggestedChatIdsAtom,
+  );
+  const proposalOffersSummarize =
+    proposal?.type === "action-proposal" &&
+    proposal.actions.some((action) => action.id === "summarize-in-new-chat");
+
+  useEffect(() => {
+    if (!chatId || !proposalOffersSummarize) return;
+    setSummarizeSuggestedChatIds((current) =>
+      current.includes(chatId) ? current : [...current, chatId],
+    );
+  }, [chatId, proposalOffersSummarize, setSummarizeSuggestedChatIds]);
   const lastMessage = messages.at(-1);
   const disableSendButton =
     lastMessage?.role === "assistant" &&
@@ -340,7 +355,6 @@ export function ChatInput({ chatId }: { chatId?: number }) {
   );
 
   const showBanner =
-    !isStreaming &&
     tokenCountResult &&
     shouldShowContextLimitBanner({
       totalTokens: tokenCountResult.actualMaxTokens,
@@ -890,6 +904,7 @@ export function ChatInput({ chatId }: { chatId?: number }) {
           <ContextLimitBanner
             totalTokens={tokenCountResult.actualMaxTokens}
             contextWindow={tokenCountResult.contextWindow}
+            isStreaming={isStreaming}
           />
         )}
         {/* Cancelling a turn can take a minute when the agent is mid-tool (a
@@ -978,6 +993,16 @@ export function ChatInput({ chatId }: { chatId?: number }) {
                 isApproving={isApproving}
                 isRejecting={isRejecting}
               />
+            )}
+          {!pendingToolConsent &&
+            chatId &&
+            summarizeSuggestedChatIds.includes(chatId) &&
+            !proposalOffersSummarize && (
+              <div className="border-b border-border p-2 pb-0 flex items-center">
+                <div className="flex items-center gap-2 overflow-x-auto pb-2">
+                  <SummarizeInNewChatButton />
+                </div>
+              </div>
             )}
 
           {userBudget ? (
@@ -1235,10 +1260,12 @@ function SuggestionButton({
   children,
   onClick,
   tooltipText,
+  disabledWhileStreaming = true,
 }: {
   onClick: () => void;
   children: React.ReactNode;
   tooltipText: string | string[];
+  disabledWhileStreaming?: boolean;
 }) {
   const { isStreaming } = useStreamChat();
   return (
@@ -1246,7 +1273,7 @@ function SuggestionButton({
       <TooltipTrigger
         render={
           <Button
-            disabled={isStreaming}
+            disabled={disabledWhileStreaming && isStreaming}
             variant="outline"
             size="sm"
             onClick={onClick}
@@ -1267,12 +1294,45 @@ function SuggestionButton({
 function SummarizeInNewChatButton() {
   const { t } = useTranslation("chat");
   const { handleSummarize } = useSummarizeInNewChat();
+  const chatId = useAtomValue(selectedChatIdAtom);
+  const { isStreaming } = useStreamChat();
+  const [queuedChatIds, setQueuedChatIds] = useAtom(summarizeQueuedChatIdsAtom);
+  const setSuggestedChatIds = useSetAtom(summarizeSuggestedChatIdsAtom);
+  const isQueued = chatId ? queuedChatIds.includes(chatId) : false;
+
+  const clearRequest = useCallback(() => {
+    if (!chatId) return;
+    setQueuedChatIds((current) => current.filter((id) => id !== chatId));
+    setSuggestedChatIds((current) => current.filter((id) => id !== chatId));
+  }, [chatId, setQueuedChatIds, setSuggestedChatIds]);
+
+  const runSummarize = useCallback(() => {
+    clearRequest();
+    void handleSummarize();
+  }, [clearRequest, handleSummarize]);
+
+  useEffect(() => {
+    if (isQueued && !isStreaming) runSummarize();
+  }, [isQueued, isStreaming, runSummarize]);
+
+  const onClick = () => {
+    if (!chatId) return;
+    if (isStreaming) {
+      setQueuedChatIds((current) =>
+        current.includes(chatId) ? current : [...current, chatId],
+      );
+      return;
+    }
+    runSummarize();
+  };
+
   return (
     <SuggestionButton
-      onClick={handleSummarize}
+      onClick={onClick}
       tooltipText={t("summarizeNewChatTip")}
+      disabledWhileStreaming={false}
     >
-      {t("summarizeToNewChat")}
+      {isQueued ? "Summarize queued" : t("summarizeToNewChat")}
     </SuggestionButton>
   );
 }

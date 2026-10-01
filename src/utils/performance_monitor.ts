@@ -1,5 +1,5 @@
 import log from "electron-log";
-import { app } from "electron";
+import { app, BrowserWindow } from "electron";
 import { writeSettings } from "../main/settings";
 import os from "node:os";
 import v8 from "node:v8";
@@ -12,14 +12,26 @@ import { runningApps } from "../ipc/utils/process_manager";
 import { typescriptUtilityProcessScheduler } from "../ipc/processors/typescript_utility_process_scheduler";
 import { getUserDataPath } from "../paths/paths";
 import { getDiskUsageMB } from "./disk_usage";
+import {
+  EMPTY_RENDERER_RECOVERY_STATE,
+  getRendererRecoveryDecision,
+  RENDERER_RECOVERY_RESET_MB,
+  type RendererRecoveryState,
+} from "./renderer_memory_guard";
 
 const logger = log.scope("performance-monitor");
 
 // Constants
 const MONITOR_INTERVAL_MS = 30000; // 30 seconds
+const RENDERER_MEMORY_GUARD_INTERVAL_MS = 5000;
 const BYTES_PER_MB = 1024 * 1024;
 
 let monitorInterval: NodeJS.Timeout | null = null;
+let rendererMemoryGuardInterval: NodeJS.Timeout | null = null;
+const rendererRecoveryStateByWebContentsId = new Map<
+  number,
+  RendererRecoveryState
+>();
 let lastCpuUsage: NodeJS.CpuUsage | null = null;
 let lastTimestamp: number | null = null;
 let lastSystemCpuInfo: os.CpuInfo[] | null = null;
@@ -73,6 +85,46 @@ function getProcessWorkingSetsMB(): Record<string, number> | null {
     return sets;
   } catch {
     return null;
+  }
+}
+
+function guardRendererMemory(): void {
+  try {
+    const metricsByPid = new Map(
+      app
+        .getAppMetrics()
+        .filter((metric) => metric.type.toLowerCase() === "tab")
+        .map((metric) => [metric.pid, metric.memory.workingSetSize / 1024]),
+    );
+    for (const window of BrowserWindow.getAllWindows()) {
+      if (window.isDestroyed() || window.webContents.isDestroyed()) continue;
+      const workingSetMB = metricsByPid.get(
+        window.webContents.getOSProcessId(),
+      );
+      if (workingSetMB === undefined) continue;
+
+      const webContentsId = window.webContents.id;
+      if (workingSetMB < RENDERER_RECOVERY_RESET_MB) {
+        rendererRecoveryStateByWebContentsId.delete(webContentsId);
+      }
+      const state =
+        rendererRecoveryStateByWebContentsId.get(webContentsId) ??
+        EMPTY_RENDERER_RECOVERY_STATE;
+      const decision = getRendererRecoveryDecision(workingSetMB, state);
+      if (decision === "none") continue;
+
+      rendererRecoveryStateByWebContentsId.set(webContentsId, {
+        recovered: true,
+        emergencyRecovered:
+          state.emergencyRecovered || decision === "emergency",
+      });
+      logger.warn(
+        `Renderer memory guard ${decision} reload for webContents=${webContentsId} at ${Math.round(workingSetMB)}MB`,
+      );
+      window.webContents.reload();
+    }
+  } catch (error) {
+    logger.error("Renderer memory guard failed:", error);
   }
 }
 
@@ -316,6 +368,10 @@ export function startPerformanceMonitoring() {
 
   // Capture every 30 seconds
   monitorInterval = setInterval(capturePerformanceMetrics, MONITOR_INTERVAL_MS);
+  rendererMemoryGuardInterval = setInterval(
+    guardRendererMemory,
+    RENDERER_MEMORY_GUARD_INTERVAL_MS,
+  );
 }
 
 /**
@@ -329,5 +385,10 @@ export function stopPerformanceMonitoring() {
 
     // Capture final metrics before stopping
     capturePerformanceMetrics();
+  }
+  if (rendererMemoryGuardInterval) {
+    clearInterval(rendererMemoryGuardInterval);
+    rendererMemoryGuardInterval = null;
+    rendererRecoveryStateByWebContentsId.clear();
   }
 }

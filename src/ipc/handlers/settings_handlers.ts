@@ -8,6 +8,16 @@ import {
   disconnectCodexSubscription,
   acknowledgeSubscriptionConnection,
 } from "../services/codex_subscription_auth";
+import { app, dialog } from "electron";
+import fs from "node:fs";
+import path from "node:path";
+import {
+  connectGmail,
+  disconnectGmail,
+  forgetGmailCredentials,
+  getGmailStatus,
+  importGmailCredentials,
+} from "../services/gmail_service";
 
 export function registerSettingsHandlers() {
   createTypedHandler(
@@ -42,5 +52,48 @@ export function registerSettingsHandlers() {
     async (_, params) => {
       return validateProviderApiKey(params);
     },
+  );
+
+  createTypedHandler(settingsContracts.getGmailStatus, async () =>
+    getGmailStatus(),
+  );
+  createTypedHandler(settingsContracts.importGmailCredentials, async () => {
+    const downloads = app.getPath("downloads");
+    const downloadedCredential = fs
+      .readdirSync(downloads, { withFileTypes: true })
+      .filter(
+        (entry) =>
+          entry.isFile() &&
+          entry.name.startsWith("client_secret_") &&
+          entry.name.endsWith(".json"),
+      )
+      .map((entry) => {
+        const filePath = path.join(downloads, entry.name);
+        return { filePath, modified: fs.statSync(filePath).mtimeMs };
+      })
+      .sort((a, b) => b.modified - a.modified)[0];
+
+    if (downloadedCredential) {
+      importGmailCredentials(downloadedCredential.filePath);
+      return { imported: true };
+    }
+
+    const result = await dialog.showOpenDialog({
+      title: "Choose Google OAuth credentials",
+      properties: ["openFile"],
+      filters: [{ name: "Google OAuth JSON", extensions: ["json"] }],
+    });
+    if (result.canceled || !result.filePaths[0]) return { imported: false };
+    importGmailCredentials(result.filePaths[0]);
+    return { imported: true };
+  });
+  createTypedHandler(settingsContracts.connectGmail, async () =>
+    connectGmail(),
+  );
+  createTypedHandler(settingsContracts.disconnectGmail, async () =>
+    disconnectGmail(),
+  );
+  createTypedHandler(settingsContracts.forgetGmailCredentials, async () =>
+    forgetGmailCredentials(),
   );
 }

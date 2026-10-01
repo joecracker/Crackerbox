@@ -64,6 +64,22 @@ export const closedChatIdsAtom = atom<Set<number>>(new Set<number>());
 // Track chats opened in the current session - tabs are only shown for these
 export const sessionOpenedChatIdsAtom = atom<Set<number>>(new Set<number>());
 
+// Keep the summarize handoff available after the short-lived action proposal
+// that introduced it disappears. The queued list lets a click made during an
+// active turn wait for the next clean stopping point.
+export const summarizeSuggestedChatIdsAtom = atomWithStorage<number[]>(
+  "summarize-suggested-chat-ids",
+  [],
+  undefined,
+  { getOnInit: true },
+);
+export const summarizeQueuedChatIdsAtom = atomWithStorage<number[]>(
+  "summarize-queued-chat-ids",
+  [],
+  undefined,
+  { getOnInit: true },
+);
+
 export interface ChatTabSession {
   openChatIds: number[];
   selectedChatId: number | null;

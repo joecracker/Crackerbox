@@ -38,6 +38,7 @@ import { buildMcpAutoApprove } from "./mcp_auto_consent";
 import { scheduleChatSearchIndexing } from "./chat_search_indexer";
 import { parseMcpToolKey, sanitizeMcpName } from "@/ipc/utils/mcp_tool_utils";
 import { sanitizeMcpToolResult } from "@/ipc/utils/mcp_result_sanitizer";
+import { createModelTextGuard } from "./processors/model_text_guard";
 
 import {
   isDyadProEnabled,
@@ -1715,6 +1716,8 @@ export async function handleLocalAgentStream(
           cancelOrphanedBaseStream(streamResult);
 
           let inThinkingBlock = false;
+          // Model-typed <dyad-...> tags must not render as real result cards.
+          const modelTextGuard = createModelTextGuard();
           let streamErrorFromIteration: unknown;
 
           try {
@@ -1745,6 +1748,10 @@ export async function handleLocalAgentStream(
 
               switch (part.type) {
                 case "finish":
+                  {
+                    const heldText = modelTextGuard.flush();
+                    if (heldText) chunk = heldText + chunk;
+                  }
                   if (isModelRefusal(part)) {
                     // Refusals are successful responses and may arrive after
                     // incomplete output, so replace this attempt with a warning.
@@ -1758,7 +1765,7 @@ export async function handleLocalAgentStream(
 
                 case "text-delta":
                   passProducedChatText = true;
-                  chunk += part.text;
+                  chunk += modelTextGuard.push(part.text);
                   maybeCaptureRetryReplayText(
                     activeRetryReplayEvents,
                     part.text,

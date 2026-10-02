@@ -22,5 +22,18 @@ if ($runningWindow) {
   return
 }
 
+# No window yet, but a previous click may still be starting up (takes ~2 min).
+# Starting a second copy would fight the first over ports and files.
+$alreadyStarting = Get-CimInstance Win32_Process -Filter "Name='node.exe'" -ErrorAction SilentlyContinue |
+  Where-Object { $_.CommandLine -like "*start-supervisor.mjs*" } |
+  Select-Object -First 1
+$anyCrackerboxElectron = Get-Process -Name electron -ErrorAction SilentlyContinue |
+  Where-Object { $_.Path -eq $crackerboxElectron } |
+  Select-Object -First 1
+if ($alreadyStarting -and -not $anyCrackerboxElectron) {
+  Add-Content -LiteralPath $crackerboxLog -Encoding utf8 -Value "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] Crackerbox is already starting; not launching a second copy"
+  return
+}
+
 & npm.cmd run dev 2>&1 | Out-File -LiteralPath $crackerboxLog -Append -Encoding utf8
 Add-Content -LiteralPath $crackerboxLog -Encoding utf8 -Value "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] Crackerbox launcher exited with code $LASTEXITCODE"

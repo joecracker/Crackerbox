@@ -1,5 +1,4 @@
-import { AlertTriangle, ArrowRight, Clock3 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { AlertTriangle, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -9,7 +8,7 @@ import {
 import { useSummarizeInNewChat } from "./SummarizeInNewChatButton";
 
 const CONTEXT_LIMIT_THRESHOLD = 40_000;
-const LONG_CONTEXT_THRESHOLD = 200_000;
+const LONG_CONTEXT_THRESHOLD = 60_000;
 
 interface ContextLimitBannerProps {
   totalTokens?: number | null;
@@ -19,8 +18,8 @@ interface ContextLimitBannerProps {
 
 export function getSummarizeRequestAction(
   isStreaming: boolean,
-): "queue" | "run" {
-  return isStreaming ? "queue" : "run";
+): "wait" | "run" {
+  return isStreaming ? "wait" : "run";
 }
 
 /** Check if the context limit banner should be shown */
@@ -46,24 +45,12 @@ export function ContextLimitBanner({
   isStreaming = false,
 }: ContextLimitBannerProps) {
   const { handleSummarize } = useSummarizeInNewChat();
-  const [isQueued, setIsQueued] = useState(false);
-  const queuedRef = useRef(false);
-
   const requestSummarize = () => {
-    if (getSummarizeRequestAction(isStreaming) === "queue") {
-      queuedRef.current = true;
-      setIsQueued(true);
-      return;
-    }
+    // Never run while a reply is streaming: the wrap-up at the end of the
+    // reply must be seen before leaving this chat.
+    if (getSummarizeRequestAction(isStreaming) === "wait") return;
     void handleSummarize();
   };
-
-  useEffect(() => {
-    if (isStreaming || !queuedRef.current) return;
-    queuedRef.current = false;
-    setIsQueued(false);
-    void handleSummarize();
-  }, [handleSummarize, isStreaming]);
 
   if (!shouldShowContextLimitBanner({ totalTokens, contextWindow })) {
     return null;
@@ -73,7 +60,7 @@ export function ContextLimitBanner({
   const isNearLimit = tokensRemaining <= CONTEXT_LIMIT_THRESHOLD;
   const message = isNearLimit
     ? "This chat context is running out"
-    : "Long chat context costs extra";
+    : "Chat is getting long";
 
   return (
     <div
@@ -89,26 +76,20 @@ export function ContextLimitBanner({
           render={
             <Button
               onClick={requestSummarize}
-              disabled={isQueued}
+              disabled={isStreaming}
               variant="outline"
               size="sm"
               className="h-6 px-2 text-xs border-amber-500/40 bg-amber-500/5 text-amber-600 dark:text-amber-500 hover:bg-amber-500/20 hover:border-amber-500/60"
             />
           }
         >
-          {isQueued ? "Queued" : "Summarize"}
-          {isQueued ? (
-            <Clock3 className="h-3 w-3 ml-1" />
-          ) : (
-            <ArrowRight className="h-3 w-3 ml-1" />
-          )}
+          Summarize
+          <ArrowRight className="h-3 w-3 ml-1" />
         </TooltipTrigger>
         <TooltipContent>
-          {isQueued
-            ? "Will summarize when the current response finishes"
-            : isStreaming
-              ? "Queue a summary for when the current response finishes"
-              : "Summarize to new chat"}
+          {isStreaming
+            ? "Available when the current response finishes"
+            : "Summarize to new chat"}
         </TooltipContent>
       </Tooltip>
     </div>

@@ -85,7 +85,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   autoApproveNonSchemaSql: true,
   autoExpandPreviewPanel: true,
   disableSandboxedE2eTests: false,
-  enableContextCompaction: true,
+  enableContextCompaction: false,
   enablePnpmMinimumReleaseAgeWarning: true,
   previewIdleTimeoutPolicy: "default",
   nodeRuntimePreference: "system",

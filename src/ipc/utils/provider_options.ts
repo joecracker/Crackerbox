@@ -69,6 +69,17 @@ export function getProviderOptions({
     };
   }
 
+  // OpenRouter reasoning models (DeepSeek, Qwen, ...) think at their own
+  // default depth unless told otherwise. Always send an explicit effort.
+  if (builtinProviderId === "openrouter") {
+    const orEffort = getModelEffort(modelSelection);
+    providerOptions.openrouter = {
+      reasoning: {
+        effort: ["low", "medium", "high"].includes(orEffort) ? orEffort : "low",
+      },
+    };
+  }
+
   // Conditionally include Google thinking config only for supported models
   const selectedModelName = modelSelection.name || "";
   const providerId = builtinProviderId;

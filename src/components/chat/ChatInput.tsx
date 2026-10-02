@@ -1364,31 +1364,6 @@ function RefactorFileButton({ path }: { path: string }) {
   );
 }
 
-function WriteCodeProperlyButton() {
-  const { t } = useTranslation("chat");
-  const chatId = useAtomValue(selectedChatIdAtom);
-  const { streamMessage } = useStreamChat();
-  const onClick = () => {
-    if (!chatId) {
-      console.error("No chat id found");
-      return;
-    }
-    streamMessage({
-      prompt: `Write the code in the previous message in the correct format using \`<dyad-write>\` tags!`,
-      chatId,
-      redo: false,
-    });
-  };
-  return (
-    <SuggestionButton
-      onClick={onClick}
-      tooltipText={t("writeCodeProperlyDescription")}
-    >
-      {t("writeCodeProperly")}
-    </SuggestionButton>
-  );
-}
-
 function RebuildButton() {
   const { t } = useTranslation("chat");
   const { restartApp } = useRunApp();
@@ -1504,8 +1479,6 @@ export function mapActionToButton(action: SuggestedAction) {
       return <SummarizeInNewChatButton />;
     case "refactor-file":
       return <RefactorFileButton path={action.path} />;
-    case "write-code-properly":
-      return <WriteCodeProperlyButton />;
     case "rebuild":
       return <RebuildButton />;
     case "restart":

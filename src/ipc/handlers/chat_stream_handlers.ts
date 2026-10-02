@@ -1170,6 +1170,15 @@ export function registerChatStreamHandlers() {
             ...baseSettings,
             selectedModel: modelForChatBackend(chat, baseSettings),
           });
+      // Chat summaries always run on a fixed cheap model with low thinking,
+      // whatever model the chat itself uses.
+      if (req.prompt.startsWith("Summarize from chat-id=")) {
+        selectedModel = await normalizeModelSelection({
+          provider: "openrouter",
+          name: "deepseek/deepseek-v4.1-flash",
+          effortLevel: "low",
+        } as Parameters<typeof normalizeModelSelection>[0]);
+      }
       let { settings: storedSettings, mode: selectedChatMode } =
         await resolveChatModeForTurn({
           storedChatMode: chat.chatMode,

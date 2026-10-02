@@ -6,7 +6,7 @@ describe("context limit summarize action", () => {
     expect(getSummarizeRequestAction(false)).toBe("run");
   });
 
-  it("queues while the current response is still running", () => {
-    expect(getSummarizeRequestAction(true)).toBe("queue");
+  it("waits (does nothing) while the current response is still running", () => {
+    expect(getSummarizeRequestAction(true)).toBe("wait");
   });
 });

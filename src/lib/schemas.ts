@@ -537,6 +537,8 @@ const BaseUserSettingsFields = {
   // every app -- not scoped to the current chat's message history like
   // everything else here.
   cbMemory: z.string().optional(),
+  // When non-empty, send_email may only address these emails.
+  emailAllowedRecipients: z.array(z.string()).optional(),
   maxToolCallSteps: z.number().optional(),
   modelEffortPreferences: z.record(z.string(), EffortLevelSchema).optional(),
   recentModels: z.array(LargeLanguageModelSchema).optional(),

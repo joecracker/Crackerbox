@@ -217,6 +217,19 @@ export async function sendGmailMessage(input: {
   body: string;
   attachments?: Array<{ path: string; filename?: string }>;
 }): Promise<string> {
+  const headerValues = [
+    ...input.to,
+    ...(input.cc ?? []),
+    ...(input.bcc ?? []),
+    input.subject,
+    ...(input.attachments ?? []).flatMap((a) => (a.filename ? [a.filename] : [])),
+  ];
+  if (headerValues.some((value) => /[\r\n]/.test(value))) {
+    throw new Error("Email fields cannot contain line breaks.");
+  }
+  if ((input.attachments ?? []).some((a) => a.filename?.includes('"'))) {
+    throw new Error("Attachment filenames cannot contain quotes.");
+  }
   const envelopeHeaders = [
     `To: ${input.to.join(", ")}`,
     ...(input.cc?.length ? [`Cc: ${input.cc.join(", ")}`] : []),

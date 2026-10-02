@@ -50,6 +50,8 @@ export const LanguageModelSchema = z.object({
   inputModalities: z.array(z.string()).optional(),
   temperature: z.number().optional(),
   dollarSigns: z.number().optional(),
+  // false only when the provider's catalog says the model can't call tools.
+  supportsTools: z.boolean().optional(),
   effortSettings: EffortSettingsSchema.optional(),
   type: z.enum(["custom", "local", "cloud"]).optional(),
 });

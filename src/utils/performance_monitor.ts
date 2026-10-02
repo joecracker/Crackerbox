@@ -112,6 +112,9 @@ function guardRendererMemory(): void {
         EMPTY_RENDERER_RECOVERY_STATE;
       const decision = getRendererRecoveryDecision(workingSetMB, state);
       if (decision === "none") continue;
+      // Don't reload the screen while a reply is streaming; retry next tick.
+      // The emergency threshold still reloads unconditionally.
+      if (decision === "recover" && getActiveStreamCount() > 0) continue;
 
       rendererRecoveryStateByWebContentsId.set(webContentsId, {
         recovered: true,

@@ -2592,7 +2592,14 @@ function getErrorMessageWithDetails(error: unknown): string {
     responseBody.includes(marker),
   );
   if (!isFreeModelQuotaBody) {
-    return message;
+    // Providers like OpenRouter wrap the real reason (e.g. "model does not
+    // support tools") in the response body; the message alone is generic.
+    const trimmed =
+      responseBody.length > 1500
+        ? `${responseBody.slice(0, 1500)}…`
+        : responseBody;
+    logger.warn(`Provider error response body: ${trimmed}`);
+    return `${message}\n\nDetails: ${trimmed}`;
   }
   return `${message}\n\nDetails: ${responseBody}`;
 }

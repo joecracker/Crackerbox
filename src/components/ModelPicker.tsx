@@ -644,12 +644,30 @@ export function ModelPicker() {
           ([providerId]) => providerId !== "auto",
         )
       : [];
-  const isVisibleCatalogModel = (providerId: string, model: LanguageModel) =>
-    !(
+  const isAgentMode =
+    (selectedMode ?? settings.defaultChatMode) === "local-agent";
+  const isVisibleCatalogModel = (providerId: string, model: LanguageModel) => {
+    if (
       dyadProEnabled &&
       providerId === "openrouter" &&
       isFreeOpenRouterModelName(model.apiName)
-    );
+    ) {
+      return false;
+    }
+    // Agent mode needs tool calling: hide models known not to support it,
+    // but never hide the one that's currently selected.
+    if (
+      isAgentMode &&
+      model.supportsTools === false &&
+      !(
+        selectedModel.provider === providerId &&
+        selectedModel.name === model.apiName
+      )
+    ) {
+      return false;
+    }
+    return true;
+  };
   const isOtherProvider = (providerId: string) => {
     const provider = providers?.find(
       (candidate) => candidate.id === providerId,

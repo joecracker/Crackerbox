@@ -28,6 +28,7 @@ const OpenRouterModelSchema = z.object({
       max_completion_tokens: z.number().nullish(),
     })
     .nullish(),
+  supported_parameters: z.array(z.string()).nullish(),
 });
 
 const OpenRouterResponseSchema = z.object({
@@ -100,6 +101,9 @@ export function mapOpenRouterModels(raw: unknown): LanguageModel[] {
         model.top_provider?.max_completion_tokens,
       ),
       dollarSigns: priceTier(model.pricing.prompt, model.pricing.completion),
+      supportsTools: model.supported_parameters
+        ? model.supported_parameters.includes("tools")
+        : undefined,
       type: "cloud" as const,
     }));
 }

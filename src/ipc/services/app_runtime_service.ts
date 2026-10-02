@@ -2057,14 +2057,22 @@ export const appRuntimeService = new AppRuntimeService({
   isRunningAppHealthy: async (appInfo) => {
     if (appInfo.mode !== "host" || !appInfo.proxyUrl) return true;
 
-    try {
-      await fetch(appInfo.proxyUrl, {
-        signal: AbortSignal.timeout(1_500),
-      });
-      return true;
-    } catch {
-      return false;
-    }
+    const proxyUrl = appInfo.proxyUrl;
+    const probe = async (timeoutMs: number) => {
+      try {
+        await fetch(proxyUrl, { signal: AbortSignal.timeout(timeoutMs) });
+        return "ok" as const;
+      } catch (error) {
+        return (error as { name?: string } | null)?.name === "TimeoutError"
+          ? ("timeout" as const)
+          : ("down" as const);
+      }
+    };
+    const first = await probe(1_500);
+    if (first !== "timeout") return first === "ok";
+    // Slow is not dead (the app may be compiling). Give it a longer chance
+    // before it gets stopped and restarted.
+    return (await probe(10_000)) === "ok";
   },
   deleteRunningApp: (appId) => {
     runningApps.delete(appId);

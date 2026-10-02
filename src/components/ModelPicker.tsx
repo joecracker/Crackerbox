@@ -654,20 +654,27 @@ export function ModelPicker() {
     ) {
       return false;
     }
-    // Agent mode needs tool calling: hide models known not to support it,
-    // but never hide the one that's currently selected.
+    if (!isAgentMode) return true;
+    // Never hide the model that's currently selected.
     if (
-      isAgentMode &&
-      model.supportsTools === false &&
-      !(
-        selectedModel.provider === providerId &&
-        selectedModel.name === model.apiName
-      )
+      selectedModel.provider === providerId &&
+      selectedModel.name === model.apiName
+    ) {
+      return true;
+    }
+    // Agent mode is for real work: it needs tool calling, and free or batch
+    // variants can't be depended on.
+    if (model.supportsTools === false) return false;
+    if (
+      isFreeOpenRouterModelName(model.apiName) ||
+      model.apiName.endsWith(":batch")
     ) {
       return false;
     }
     return true;
   };
+  // Auto can route to a free model, so it's hidden in Agent mode too.
+  const hideAutoInAgentMode = isAgentMode && selectedModel.provider !== "auto";
   const isOtherProvider = (providerId: string) => {
     const provider = providers?.find(
       (candidate) => candidate.id === providerId,
@@ -2110,7 +2117,7 @@ export function ModelPicker() {
                   </div>
                 ) : (
                   <>
-                    {!isTrial && autoModels.length > 0 && (
+                    {!isTrial && !hideAutoInAgentMode && autoModels.length > 0 && (
                       <>
                         {autoModels.map((model) =>
                           renderCloudModelItem({

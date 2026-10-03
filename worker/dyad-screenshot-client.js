@@ -93,6 +93,68 @@
     return Number.isFinite(value) ? Math.max(0, value) : 0;
   }
 
+  function describeError(error) {
+    if (error && typeof error.message === "string" && error.message) {
+      return error.message;
+    }
+    // html-to-image rejects with a bare DOM event when the browser cannot
+    // render part of the page, which has no message of its own.
+    if (error && typeof error.type === "string") {
+      return `${error.type} event (the browser could not render part of the page)`;
+    }
+    return String(error);
+  }
+
+  function isImageElement(node) {
+    return Boolean(node) && node.tagName === "IMG";
+  }
+
+  // An <img> with an empty src, or one that failed to load, is common (apps
+  // keep placeholder images for later) and makes html-to-image reject the
+  // whole screenshot.
+  function isBrokenImage(node) {
+    if (!isImageElement(node)) return false;
+    const src =
+      node.currentSrc ||
+      (typeof node.getAttribute === "function" ? node.getAttribute("src") : "");
+    if (!src) return true;
+    return node.complete === true && node.naturalWidth === 0;
+  }
+
+  // The first attempt is exactly what we always did. Only if it fails do we
+  // retry without the broken images, then without any images, so the app still
+  // gets a picture instead of none.
+  async function toPngWithFallbacks(options) {
+    const attempts = [
+      { label: null, extra: {} },
+      {
+        label: "without broken images",
+        extra: { filter: (node) => !isBrokenImage(node) },
+      },
+      {
+        label: "without any images",
+        extra: { filter: (node) => !isImageElement(node) },
+      },
+    ];
+    let lastError;
+    for (let i = 0; i < attempts.length; i++) {
+      try {
+        return await htmlToImage.toPng(
+          document.body,
+          i === 0 ? options : { ...options, ...attempts[i].extra },
+        );
+      } catch (error) {
+        lastError = error;
+        if (i < attempts.length - 1) {
+          console.warn(
+            `[dyad-screenshot] Capture failed (${describeError(error)}); retrying ${attempts[i + 1].label}.`,
+          );
+        }
+      }
+    }
+    throw lastError;
+  }
+
   async function captureScreenshotOnce() {
     try {
       // Use html-to-image if available
@@ -132,7 +194,7 @@
           };
         }
 
-        return await htmlToImage.toPng(document.body, options);
+        return await toPngWithFallbacks(options);
       }
       throw new Error("html-to-image library not found");
     } catch (error) {
@@ -183,7 +245,7 @@
           type: "dyad-screenshot-response",
           requestId,
           success: false,
-          error: error.message,
+          error: describeError(error),
         },
         "*",
       );

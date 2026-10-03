@@ -18,17 +18,20 @@ function loadScreenshotClient({
   viewport,
   devicePixelRatio = 1,
   scroll = { x: 0, y: 0 },
+  toPngMock,
 }: {
   fullPage: Dimensions;
   viewport: Dimensions;
   devicePixelRatio?: number;
   scroll?: { x: number; y: number };
+  toPngMock?: ReturnType<typeof vi.fn>;
 }) {
   let messageHandler:
     | ((event: { source: object; data: Record<string, unknown> }) => void)
     | undefined;
   const parent = { postMessage: vi.fn() };
-  const toPng = vi.fn().mockResolvedValue("data:image/png;base64,test");
+  const toPng =
+    toPngMock ?? vi.fn().mockResolvedValue("data:image/png;base64,test");
   const window = {
     parent,
     innerWidth: viewport.width,
@@ -181,6 +184,12 @@ describe("dyad screenshot client", () => {
         }),
     );
 
+    // A failed capture is retried twice (without broken images, then without
+    // any images) before it is reported, so make those retries fail too.
+    client.toPng
+      .mockRejectedValueOnce(new Error("capture failed"))
+      .mockRejectedValueOnce(new Error("capture failed"));
+
     client.dispatchScreenshot("request-1");
     client.dispatchScreenshot("request-2");
 
@@ -213,7 +222,8 @@ describe("dyad screenshot client", () => {
     await vi.waitFor(() =>
       expect(client.parent.postMessage).toHaveBeenCalledTimes(3),
     );
-    expect(client.toPng).toHaveBeenCalledTimes(2);
+    // 3 attempts for the failed capture, then 1 for the fresh request.
+    expect(client.toPng).toHaveBeenCalledTimes(4);
     expect(client.parent.postMessage).toHaveBeenLastCalledWith(
       expect.objectContaining({
         requestId: "request-3",
@@ -222,5 +232,132 @@ describe("dyad screenshot client", () => {
       }),
       "*",
     );
+  });
+});
+
+describe("dyad screenshot client with pages html-to-image cannot render", () => {
+  const brokenEvent = { type: "error" };
+  const div = { tagName: "DIV" };
+  const emptySrcImage = {
+    tagName: "IMG",
+    currentSrc: "",
+    getAttribute: () => "",
+    complete: true,
+    naturalWidth: 0,
+  };
+  const failedImage = {
+    tagName: "IMG",
+    currentSrc: "http://x/missing.png",
+    getAttribute: () => "missing.png",
+    complete: true,
+    naturalWidth: 0,
+  };
+  const goodImage = {
+    tagName: "IMG",
+    currentSrc: "http://x/ok.png",
+    getAttribute: () => "ok.png",
+    complete: true,
+    naturalWidth: 40,
+  };
+  const pageSize = {
+    fullPage: { width: 1200, height: 800 },
+    viewport: { width: 1200, height: 800 },
+  };
+
+  it("takes a healthy page in one attempt with no filter", async () => {
+    const toPng = vi.fn().mockResolvedValue("data:image/png;base64,ok");
+    const client = loadScreenshotClient({ ...pageSize, toPngMock: toPng });
+
+    await client.requestScreenshot();
+
+    expect(toPng).toHaveBeenCalledTimes(1);
+    expect(toPng.mock.calls[0][1]).not.toHaveProperty("filter");
+    expect(client.parent.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ success: true }),
+      "*",
+    );
+  });
+
+  it("retries without broken images when the first attempt fails", async () => {
+    const toPng = vi
+      .fn()
+      .mockRejectedValueOnce(brokenEvent)
+      .mockResolvedValueOnce("data:image/png;base64,second");
+    const client = loadScreenshotClient({ ...pageSize, toPngMock: toPng });
+
+    await client.requestScreenshot();
+
+    expect(toPng).toHaveBeenCalledTimes(2);
+    const { filter } = toPng.mock.calls[1][1];
+    expect(filter(emptySrcImage)).toBe(false);
+    expect(filter(failedImage)).toBe(false);
+    expect(filter(goodImage)).toBe(true);
+    expect(filter(div)).toBe(true);
+    expect(client.parent.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: true,
+        dataUrl: "data:image/png;base64,second",
+      }),
+      "*",
+    );
+  });
+
+  it("falls back to dropping every image as a last resort", async () => {
+    const toPng = vi
+      .fn()
+      .mockRejectedValueOnce(brokenEvent)
+      .mockRejectedValueOnce(brokenEvent)
+      .mockResolvedValueOnce("data:image/png;base64,third");
+    const client = loadScreenshotClient({ ...pageSize, toPngMock: toPng });
+
+    await client.requestScreenshot();
+
+    expect(toPng).toHaveBeenCalledTimes(3);
+    const { filter } = toPng.mock.calls[2][1];
+    expect(filter(goodImage)).toBe(false);
+    expect(filter(div)).toBe(true);
+    expect(client.parent.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ success: true }),
+      "*",
+    );
+  });
+
+  it("keeps the other capture options on the retries", async () => {
+    const toPng = vi
+      .fn()
+      .mockRejectedValueOnce(brokenEvent)
+      .mockResolvedValueOnce("data:image/png;base64,second");
+    const client = loadScreenshotClient({ ...pageSize, toPngMock: toPng });
+
+    await client.requestScreenshot();
+
+    expect(toPng.mock.calls[1][1]).toMatchObject({
+      width: 1200,
+      height: 800,
+      pixelRatio: 1,
+    });
+  });
+
+  it("reports a readable error when every attempt fails", async () => {
+    const toPng = vi.fn().mockRejectedValue(brokenEvent);
+    const client = loadScreenshotClient({ ...pageSize, toPngMock: toPng });
+
+    await client.requestScreenshot();
+
+    expect(toPng).toHaveBeenCalledTimes(3);
+    const [message] = client.parent.postMessage.mock.calls[0];
+    expect(message.success).toBe(false);
+    expect(message.error).toContain("error event");
+    expect(message.error).not.toContain("undefined");
+  });
+
+  it("still reports ordinary Error messages unchanged", async () => {
+    const toPng = vi.fn().mockRejectedValue(new Error("canvas is tainted"));
+    const client = loadScreenshotClient({ ...pageSize, toPngMock: toPng });
+
+    await client.requestScreenshot();
+
+    const [message] = client.parent.postMessage.mock.calls[0];
+    expect(message.error).toBe("canvas is tainted");
   });
 });

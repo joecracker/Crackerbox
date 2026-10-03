@@ -1,4 +1,4 @@
-import { nativeImage } from "electron";
+import { BrowserWindow, nativeImage } from "electron";
 import { z } from "zod";
 import { runningApps } from "@/ipc/utils/process_manager";
 import { getPreviewScreenshots } from "@/main/preview_web_contents_view";
@@ -30,11 +30,43 @@ function shrinkToJpeg(dataUrl: string): string | null {
   }
 }
 
+/**
+ * The everyday Preview is a frame inside the app window. Find that frame in
+ * whichever window shows it and photograph exactly its area on screen.
+ */
+async function captureEmbeddedPreview(appId: number): Promise<string | null> {
+  const title = JSON.stringify(`Preview for App ${appId}`);
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (win.isDestroyed() || win.isMinimized() || !win.isVisible()) continue;
+    try {
+      const rect = (await win.webContents.executeJavaScript(`(() => {
+        const frame = document.querySelector('iframe[data-testid="preview-iframe-element"]');
+        if (!frame || frame.title !== ${title}) return null;
+        const r = frame.getBoundingClientRect();
+        if (r.width < 20 || r.height < 20) return null;
+        return { x: r.x, y: r.y, width: r.width, height: r.height };
+      })()`)) as { x: number; y: number; width: number; height: number } | null;
+      if (!rect) continue;
+      const zoom = win.webContents.getZoomFactor();
+      const image = await win.webContents.capturePage({
+        x: Math.round(rect.x * zoom),
+        y: Math.round(rect.y * zoom),
+        width: Math.round(rect.width * zoom),
+        height: Math.round(rect.height * zoom),
+      });
+      if (!image.isEmpty()) return image.toDataURL();
+    } catch {
+      // Try the next window.
+    }
+  }
+  return null;
+}
+
 export const viewPreviewTool: ToolDefinition<z.infer<typeof viewPreviewSchema>> =
   {
     name: "view_preview",
     description:
-      "Look at the app's live preview: returns a picture of what it is showing right now. Use it after a visual change, or when the user says something looks wrong. It only works while the preview is open on the user's computer and showing this app, and the model must be able to read images.",
+      "Look at the app's live preview: returns a picture of what it is showing right now. Use it after a visual change, or when the user says something looks wrong. It only works while this app's Preview tab is open and visible on the user's computer, and the model must be able to read images.",
     inputSchema: viewPreviewSchema,
     defaultConsent: "always",
     modifiesState: false,
@@ -42,19 +74,20 @@ export const viewPreviewTool: ToolDefinition<z.infer<typeof viewPreviewSchema>> 
     requiresBlueprintApproval: false,
     getConsentPreview: () => "Look at the live preview",
     execute: async (_args, ctx) => {
-      const shots = getPreviewScreenshots();
-      if (shots.length === 0) {
-        return "No preview is open right now, so I can't see the page. Ask the user to open the Preview tab on their computer.";
-      }
+      // Test runs use a separate native preview window; check it first.
       const info = runningApps.get(ctx.appId);
       const appUrl = info?.proxyUrl ?? info?.cloudPreviewUrl;
-      const match = appUrl
-        ? shots.find((shot) => shot.url && sameOrigin(shot.url, appUrl))
+      const nativeShot = appUrl
+        ? getPreviewScreenshots().find(
+            (shot) => shot.url && sameOrigin(shot.url, appUrl),
+          )
         : undefined;
-      if (!match) {
-        return "The preview isn't showing this app right now. Ask the user to open this app's Preview tab.";
+      const source =
+        nativeShot?.dataUrl ?? (await captureEmbeddedPreview(ctx.appId));
+      if (!source) {
+        return "I can't see this app's preview right now. Ask the user to open this app's Preview tab on their computer and keep that window visible (not minimized).";
       }
-      const picture = shrinkToJpeg(match.dataUrl);
+      const picture = shrinkToJpeg(source);
       if (!picture) {
         return "The preview picture couldn't be read. Try again in a moment.";
       }

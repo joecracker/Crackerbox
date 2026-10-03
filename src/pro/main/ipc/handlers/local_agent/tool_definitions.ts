@@ -780,7 +780,20 @@ export function shouldIncludeTool(
   if (phase === "discovery" && tool.isDiscoverable && !tool.isDiscoverable(ctx))
     return false;
   if (tool.isEnabled) {
-    const enabled = tool.isEnabled(ctx);
+    // One tool's availability check must never take every other tool down with
+    // it. send_email, for example, reads encrypted Gmail credentials from disk:
+    // if that file or the OS credential store is unusable, the check throws,
+    // and without this guard no agent turn could build its tool list at all.
+    let enabled: boolean;
+    try {
+      enabled = Boolean(tool.isEnabled(ctx));
+    } catch (error) {
+      logger.warn(
+        `Tool "${tool.name}" left out: its availability check failed`,
+        error,
+      );
+      return false;
+    }
     if (!enabled) {
       return false;
     }

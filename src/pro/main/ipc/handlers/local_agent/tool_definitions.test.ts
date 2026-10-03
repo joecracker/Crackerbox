@@ -197,3 +197,55 @@ describe("discovery versus invocation availability", () => {
     ).toBe(false);
   });
 });
+
+describe("a broken availability check", () => {
+  const makeCtx = () =>
+    ({
+      appId: 1,
+      appPath: "/tmp/unused-broken-check",
+      chatId: 1,
+      isDyadPro: false,
+      onXmlComplete: vi.fn(),
+      onXmlStream: vi.fn(),
+      requireConsent: vi.fn(async () => true),
+      referencedApps: new Map(),
+      abortSignal: new AbortController().signal,
+    }) as unknown as import("./tools/types").AgentContext;
+
+  it("leaves only that tool out instead of failing the whole tool list", () => {
+    const sendEmail = TOOL_DEFINITIONS.find(
+      (tool) => tool.name === "send_email",
+    )!;
+    const spy = vi.spyOn(sendEmail, "isEnabled").mockImplementation(() => {
+      throw new Error("Windows secure credential storage is unavailable.");
+    });
+    try {
+      const ctx = makeCtx();
+      expect(() => shouldIncludeTool(sendEmail, ctx)).not.toThrow();
+      expect(shouldIncludeTool(sendEmail, ctx)).toBe(false);
+
+      const tools = buildAgentToolSet(ctx, { enableAppBlueprint: false });
+      expect(tools.send_email).toBeUndefined();
+      expect(tools.read_file).toBeDefined();
+      expect(tools.list_files).toBeDefined();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("still offers a tool whose check passes, and drops one whose check says no", () => {
+    const sendEmail = TOOL_DEFINITIONS.find(
+      (tool) => tool.name === "send_email",
+    )!;
+    const spy = vi.spyOn(sendEmail, "isEnabled");
+    try {
+      const ctx = makeCtx();
+      spy.mockReturnValue(true);
+      expect(shouldIncludeTool(sendEmail, ctx)).toBe(true);
+      spy.mockReturnValue(false);
+      expect(shouldIncludeTool(sendEmail, ctx)).toBe(false);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+});

@@ -59,6 +59,7 @@ const executeSandboxScriptSchema = z.object({
         "the only thread that can expose main-thread-only host functions — " +
         "use it for scripts that call MCP host functions and for small / " +
         "fast operations. " +
+        "Scripts that call write_file or an MCP function run on the main thread and are stopped after roughly 2 seconds of work; all other scripts automatically run on the worker thread. " +
         "Use 'worker' for compute-heavy work (parsing multi-MB attachments, " +
         "large aggregations, anything that might take more than a few hundred " +
         "milliseconds) so chat streaming and other main-process work isn't " +
@@ -92,12 +93,50 @@ function isAttachmentHostCallPath(path: string | undefined): boolean {
   );
 }
 
+// Host functions that exist only on the main thread: write_file and the MCP
+// tool functions. Everything else (read_file, list_files, file_stats, plain
+// computing) is also available on the worker thread.
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function scriptNeedsMainThread(script: string, ctx: AgentContext): boolean {
+  const mainOnlyNames = [
+    "write_file",
+    ...(ctx.mcpToolDefs ?? []).map((def) => def.jsName),
+  ];
+  return mainOnlyNames.some((name) =>
+    new RegExp(
+      `(?<![A-Za-z0-9_$])${escapeRegExp(name)}(?![A-Za-z0-9_$])`,
+    ).test(script),
+  );
+}
+
+// Scripts run on the worker thread unless they call a main-only host function.
+// The interpreter can spend minutes inside one heavy operation (measured
+// 2026-10-03: a base64 image decoder took 41 s on the main thread) and nothing
+// can interrupt it, which freezes the whole app. A script that merely mentions
+// a main-only name stays on the main thread, which is no worse than before.
+function chooseExecutionThread(
+  requested: "main" | "worker",
+  script: string,
+  ctx: AgentContext,
+): "main" | "worker" {
+  if (requested === "worker") {
+    return "worker";
+  }
+  return scriptNeedsMainThread(script, ctx) ? "main" : "worker";
+}
+
 function buildSandboxFailureMessage(params: {
   script: string;
   errorMessage: string;
 }): string {
+  const stoppedEarly = /step limit|timed out/i.test(params.errorMessage);
   return [
-    "This script contains unsupported syntax.",
+    stoppedEarly
+      ? "This script was stopped before it finished."
+      : "This script contains unsupported syntax.",
     "",
     "Script:",
     params.script,
@@ -207,7 +246,7 @@ const row = { key: "x", total: 1 };
 
 Execution thread:
 - 'main' (default) runs in-process. Use for small / fast scripts${includeWriteFile ? ", write_file," : ""} and MCP calls.
-- 'worker' runs on a separate worker thread so chat streaming and other main-process work stay responsive. Use when the script is compute-heavy (parsing multi-MB CSVs, large aggregations). The worker thread exposes read_file, list_files, and file_stats only; ${includeWriteFile ? "write_file and " : ""}MCP calls are not available.
+- 'worker' runs on a separate worker thread so chat streaming and other main-process work stay responsive. Use when the script is compute-heavy (parsing multi-MB CSVs, large aggregations). The worker thread exposes read_file, list_files, file_stats, and image_info only; ${includeWriteFile ? "write_file and " : ""}MCP calls are not available.
 
 Host functions:
 \`\`\`ts
@@ -231,10 +270,21 @@ declare function read_file(
 declare function list_files(dir?: "." | "attachments:" | string): Promise<string[]>;
 
 declare function file_stats(path: string): Promise<FileStats>;
+
+type ImageInfo = {
+  format: "jpeg" | "png" | "gif" | "webp" | "bmp";
+  width: number; // pixels, as stored in the file (EXIF rotation is not applied)
+  height: number;
+  size: number; // file size in bytes
+};
+
+// Use this to get an image's size. Never decode image bytes by hand in a script:
+// the interpreter is far too slow for that and the script will be stopped.
+declare function image_info(path: string): Promise<ImageInfo>;
 ${includeWriteFile ? WRITE_FILE_HOST_DECLARATIONS : ""}
 \`\`\`
 
-Paths are app-relative (including \`.dyad/media/<stored-name>\`), or attachment paths like attachments:filename.ext for read_file/list_files/file_stats.${includeWriteFile ? " write_file accepts app-relative paths only, not attachments: paths." : ""} Prefer range reads, filtering, aggregation, and small summaries over returning entire files.`;
+Paths are app-relative (including \`.dyad/media/<stored-name>\`), or attachment paths like attachments:filename.ext for read_file/list_files/file_stats/image_info.${includeWriteFile ? " write_file accepts app-relative paths only, not attachments: paths." : ""} Prefer range reads, filtering, aggregation, and small summaries over returning entire files.`;
 }
 
 function buildMcpAddendum(typeDefsBlock: string): string {
@@ -354,7 +404,11 @@ export const executeSandboxScriptTool: ToolDefinition<ExecuteSandboxScriptArgs> 
       args.description?.trim() || "Run a sandboxed script",
 
     execute: async (args: ExecuteSandboxScriptArgs, ctx: AgentContext) => {
-      const executionThread = args.execution_thread ?? "main";
+      const executionThread = chooseExecutionThread(
+        args.execution_thread ?? "main",
+        args.script,
+        ctx,
+      );
       const observeHostCall = ({ path }: { path?: string }) => {
         if (isAttachmentHostCallPath(path)) {
           ctx.onAttachmentAccess?.();

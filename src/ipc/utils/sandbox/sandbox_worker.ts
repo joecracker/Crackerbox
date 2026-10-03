@@ -1,5 +1,6 @@
 import { parentPort, workerData } from "node:worker_threads";
 import { executeSandboxScriptInProcess } from "./execution";
+import { SANDBOX_WORKER_INSTRUCTION_BUDGET } from "./limits";
 import {
   serializeSandboxWorkerError,
   type SandboxWorkerInput,
@@ -22,6 +23,7 @@ async function run() {
     script: input.script,
     timeoutMs: input.timeoutMs,
     persistFullOutput: input.persistFullOutput,
+    instructionBudget: SANDBOX_WORKER_INSTRUCTION_BUDGET,
     onHostCall: (hostCall) => {
       port.postMessage({
         type: "hostCall",

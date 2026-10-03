@@ -10,6 +10,7 @@ import {
 import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
 import { readContainedTextFile } from "@/ipc/utils/bounded_text_file";
 import { isDotenvFilePath, redactDotenvValues } from "@/utils/dotenv_redaction";
+import { IMAGE_INFO_HEADER_BYTES, parseImageInfo } from "./image_info";
 import { SANDBOX_READ_FILE_LIMIT_BYTES } from "./limits";
 
 type StructuredObject = { [key: string]: unknown };
@@ -18,6 +19,13 @@ export interface SandboxFileStats {
   size: number;
   isText: boolean;
   mtime: string;
+}
+
+export interface SandboxImageInfo {
+  format: "jpeg" | "png" | "gif" | "webp" | "bmp";
+  width: number;
+  height: number;
+  size: number;
 }
 
 export interface SandboxReadFileOptions {
@@ -35,6 +43,7 @@ export const SANDBOX_HOST_CALL_NAMES = [
   "read_file",
   "list_files",
   "file_stats",
+  "image_info",
   "write_file",
 ] as const;
 export type SandboxHostCallName = (typeof SANDBOX_HOST_CALL_NAMES)[number];
@@ -419,6 +428,44 @@ export async function sandboxFileStats(
   };
 }
 
+// Reads only the file header, so a script never has to decode image bytes
+// itself (far too slow in the sandbox interpreter). Same path rules as
+// file_stats, minus the .env exemption.
+export async function sandboxImageInfo(
+  appPath: string,
+  guestPath: string,
+): Promise<SandboxImageInfo> {
+  const resolved = await resolveSandboxPath({ appPath, guestPath });
+  const { realFilePath } = await assertResolvedPathAllowed({
+    appPath,
+    ...resolved,
+  });
+  const stat = await fs.stat(realFilePath);
+  if (!stat.isFile()) {
+    throw new DyadError(
+      `Path is not a file: ${resolved.displayPath}`,
+      DyadErrorKind.Validation,
+    );
+  }
+  const handle = await fs.open(realFilePath, "r");
+  let header: Buffer;
+  try {
+    const buffer = Buffer.alloc(Math.min(stat.size, IMAGE_INFO_HEADER_BYTES));
+    const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0);
+    header = buffer.subarray(0, bytesRead);
+  } finally {
+    await handle.close();
+  }
+  const info = parseImageInfo(header);
+  if (!info) {
+    throw new DyadError(
+      `image_info could not read the size of ${resolved.displayPath}. It must be a JPEG, PNG, GIF, WebP or BMP image.`,
+      DyadErrorKind.Validation,
+    );
+  }
+  return { ...info, size: stat.size };
+}
+
 export async function sandboxListFiles(
   appPath: string,
   guestDir?: string,
@@ -500,6 +547,16 @@ export function buildSandboxCapabilitiesWithObserver(
       }
       onHostCall?.({ name: "file_stats", path: guestPath });
       return sandboxFileStats(appPath, guestPath);
+    },
+    image_info: (guestPath: unknown) => {
+      if (typeof guestPath !== "string") {
+        throw new DyadError(
+          "image_info path must be a string.",
+          DyadErrorKind.Validation,
+        );
+      }
+      onHostCall?.({ name: "image_info", path: guestPath });
+      return sandboxImageInfo(appPath, guestPath);
     },
   };
 }

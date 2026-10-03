@@ -144,7 +144,7 @@ describe("executeSandboxScriptTool", () => {
       "}",
       "main();",
     ].join("\n");
-    vi.mocked(executeSandboxScriptInProcess).mockRejectedValue(
+    vi.mocked(runSandboxScript).mockRejectedValue(
       new Error("Unexpected token ?."),
     );
 
@@ -166,7 +166,7 @@ describe("executeSandboxScriptTool", () => {
     expect((thrown as Error).message).toContain(
       "Original error:\nUnexpected token ?.",
     );
-    expect(executeSandboxScriptInProcess).toHaveBeenCalledWith(
+    expect(runSandboxScript).toHaveBeenCalledWith(
       expect.objectContaining({
         appPath: "/tmp/app",
         script,
@@ -182,8 +182,81 @@ describe("executeSandboxScriptTool", () => {
     );
   });
 
-  it("defaults execution_thread to main and runs in-process", async () => {
+  it("does not call a step-limit stop 'unsupported syntax'", async () => {
+    vi.mocked(runSandboxScript).mockRejectedValue(
+      new Error(
+        "Sandbox script was stopped because it reached its step limit (50,000,000 steps).",
+      ),
+    );
+
+    let thrown: unknown;
+    try {
+      await executeSandboxScriptTool.execute(
+        { script: "while (true) {}", execution_thread: "main" },
+        createMockContext(),
+      );
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(Error);
+    expect((thrown as Error).message).toContain(
+      "This script was stopped before it finished.",
+    );
+    expect((thrown as Error).message).not.toContain("unsupported syntax");
+    expect((thrown as Error).message).toContain("step limit");
+  });
+
+  it("runs a script that calls a main-only host function in-process", async () => {
     vi.mocked(executeSandboxScriptInProcess).mockResolvedValue({
+      value: "42",
+      truncated: false,
+      executionMs: 5,
+    });
+
+    await executeSandboxScriptTool.execute(
+      { script: 'write_file("a.txt", "x");', execution_thread: "main" },
+      createMockContext(),
+    );
+
+    expect(executeSandboxScriptInProcess).toHaveBeenCalledTimes(1);
+    expect(runSandboxScript).not.toHaveBeenCalled();
+    expect(sendTelemetryEvent).toHaveBeenCalledWith(
+      "sandbox.script.completed",
+      expect.objectContaining({ executionThread: "main" }),
+    );
+  });
+
+  it("runs a script that calls an MCP function in-process", async () => {
+    vi.mocked(executeSandboxScriptInProcess).mockResolvedValue({
+      value: "ok",
+      truncated: false,
+      executionMs: 5,
+    });
+    const ctx = createMockContext();
+    ctx.mcpToolsEnabled = true;
+    ctx.mcpToolDefs = [
+      {
+        jsName: "srv__hello",
+        toolKey: "srv__hello",
+        serverId: 1,
+        serverName: "srv",
+        toolName: "hello",
+        inputSchema: { type: "object" } as any,
+      },
+    ];
+
+    await executeSandboxScriptTool.execute(
+      { script: "await srv__hello({});", execution_thread: "main" },
+      ctx,
+    );
+
+    expect(executeSandboxScriptInProcess).toHaveBeenCalledTimes(1);
+    expect(runSandboxScript).not.toHaveBeenCalled();
+  });
+
+  it("moves a script that needs no main-only function to the worker, even when main was requested", async () => {
+    vi.mocked(runSandboxScript).mockResolvedValue({
       value: "42",
       truncated: false,
       executionMs: 5,
@@ -194,12 +267,28 @@ describe("executeSandboxScriptTool", () => {
       createMockContext(),
     );
 
-    expect(executeSandboxScriptInProcess).toHaveBeenCalledTimes(1);
-    expect(runSandboxScript).not.toHaveBeenCalled();
+    expect(runSandboxScript).toHaveBeenCalledTimes(1);
+    expect(executeSandboxScriptInProcess).not.toHaveBeenCalled();
     expect(sendTelemetryEvent).toHaveBeenCalledWith(
       "sandbox.script.completed",
-      expect.objectContaining({ executionThread: "main" }),
+      expect.objectContaining({ executionThread: "worker" }),
     );
+  });
+
+  it("does not treat a longer name that merely contains write_file as a main-only call", async () => {
+    vi.mocked(runSandboxScript).mockResolvedValue({
+      value: "1",
+      truncated: false,
+      executionMs: 1,
+    });
+
+    await executeSandboxScriptTool.execute(
+      { script: "const my_write_file_count = 1;", execution_thread: "main" },
+      createMockContext(),
+    );
+
+    expect(runSandboxScript).toHaveBeenCalledTimes(1);
+    expect(executeSandboxScriptInProcess).not.toHaveBeenCalled();
   });
 
   it("injects write_file as a main-thread host capability", async () => {

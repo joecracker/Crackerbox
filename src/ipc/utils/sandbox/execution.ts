@@ -14,7 +14,8 @@ import {
   SANDBOX_ALLOCATION_BUDGET,
   SANDBOX_CALL_DEPTH_LIMIT,
   SANDBOX_HEAP_LIMIT_BYTES,
-  SANDBOX_INSTRUCTION_BUDGET,
+  SANDBOX_MAIN_THREAD_INSTRUCTION_BUDGET,
+  SANDBOX_STEP_LIMIT_ERROR_MARKER,
   SANDBOX_LLM_OUTPUT_LIMIT_BYTES,
   SANDBOX_MAX_OUTSTANDING_HOST_CALLS,
   SANDBOX_SCRIPT_SOURCE_LIMIT_BYTES,
@@ -45,6 +46,8 @@ export interface SandboxExecutionParams {
   onVmBudgetPause?: () => void;
   onVmBudgetResume?: () => void;
   capabilities?: Record<string, (...args: unknown[]) => unknown>;
+  /** Max interpreter steps. Defaults to the small main-thread budget. */
+  instructionBudget?: number;
 }
 
 export function isSandboxSupportedPlatform(): boolean {
@@ -294,6 +297,8 @@ export async function executeSandboxScriptInProcess(
   }
 
   const timeoutMs = clampSandboxTimeoutMs(params.timeoutMs);
+  const instructionBudget =
+    params.instructionBudget ?? SANDBOX_MAIN_THREAD_INSTRUCTION_BUDGET;
   const wallClockTimeoutMs = clampSandboxWallClockTimeoutMs(
     params.wallClockTimeoutMs,
   );
@@ -315,7 +320,7 @@ export async function executeSandboxScriptInProcess(
     const context = new ExecutionContext({
       capabilities: capabilityMap as unknown as Record<string, Capability>,
       limits: {
-        instructionBudget: SANDBOX_INSTRUCTION_BUDGET,
+        instructionBudget,
         heapLimitBytes: SANDBOX_HEAP_LIMIT_BYTES,
         allocationBudget: SANDBOX_ALLOCATION_BUDGET,
         callDepthLimit: SANDBOX_CALL_DEPTH_LIMIT,
@@ -372,6 +377,21 @@ export async function executeSandboxScriptInProcess(
     if (vmBudget.signal.aborted) {
       throw new DyadError(
         `Sandbox script timed out after ${timeoutMs}ms of VM execution.`,
+        DyadErrorKind.External,
+      );
+    }
+    if (
+      error instanceof Error &&
+      /instruction budget exhausted/i.test(error.message)
+    ) {
+      const onMainThread =
+        instructionBudget === SANDBOX_MAIN_THREAD_INSTRUCTION_BUDGET;
+      throw new DyadError(
+        `Sandbox script was stopped because it reached its ${SANDBOX_STEP_LIMIT_ERROR_MARKER} ` +
+          `(${instructionBudget.toLocaleString("en-US")} steps). It may contain an endless loop` +
+          (onMainThread
+            ? ", or be too heavy for the main thread. For heavy computing, run it with execution_thread 'worker'."
+            : ", or be too heavy to finish in time."),
         DyadErrorKind.External,
       );
     }

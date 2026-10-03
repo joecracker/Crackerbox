@@ -72,8 +72,6 @@ export const viewPreviewTool: ToolDefinition<z.infer<typeof viewPreviewSchema>> 
     modifiesState: false,
     mutationTracking: "none",
     requiresBlueprintApproval: false,
-    // OFF while the main-program freeze that followed its first use is investigated.
-    isEnabled: () => false,
     getConsentPreview: () => "Look at the live preview",
     execute: async (_args, ctx) => {
       // Test runs use a separate native preview window; check it first.

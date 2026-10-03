@@ -76,6 +76,7 @@ import {
   startPerformanceMonitoring,
   stopPerformanceMonitoring,
 } from "./utils/performance_monitor";
+import { startFreezeCatcher, stopFreezeCatcher } from "./utils/freeze_catcher";
 import {
   browserCrashAttribution,
   parseMinidumpSummary,
@@ -593,6 +594,17 @@ export async function onReady() {
 
   // Start performance monitoring
   startPerformanceMonitoring();
+
+  // Freeze catcher: if the main process stops responding for 10s, a helper
+  // thread writes the main thread's call stack to freeze-catcher.log, next to
+  // main.log, so the cause can be read after the fact.
+  startFreezeCatcher({
+    logFilePath: path.join(
+      path.dirname(log.transports.file.getFile().path),
+      "freeze-catcher.log",
+    ),
+    onInfo: (message) => logger.warn(message),
+  });
 
   // Handle dyad-media:// requests. Media-library tiles use bounded, cached
   // derivatives while explicit previews continue to receive the source file.
@@ -1869,6 +1881,7 @@ app.on("will-quit", () => {
 
   // Stop performance monitoring and capture final metrics
   stopPerformanceMonitoring();
+  stopFreezeCatcher();
 
   // Stop the chat-search index maintenance timers
   stopChatSearchIndexer();

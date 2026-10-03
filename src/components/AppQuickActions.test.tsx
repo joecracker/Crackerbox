@@ -13,31 +13,6 @@ vi.mock("@/ipc/types", () => ({
   ipc: { app: { renameApp: h.renameApp, deleteApp: h.deleteApp } },
 }));
 
-// Radix menus do not run their select handlers in this test environment
-// (verified with a bare Radix menu), so the menu components are replaced by
-// plain stand-ins. This tests the card's wiring, not the Radix library.
-vi.mock("@/components/ui/dropdown-menu", () => ({
-  DropdownMenu: ({ children }: { children: React.ReactNode }) => (
-    <div>{children}</div>
-  ),
-  DropdownMenuTrigger: ({ children }: { children: React.ReactNode }) => (
-    <>{children}</>
-  ),
-  DropdownMenuContent: ({ children }: { children: React.ReactNode }) => (
-    <div role="menu">{children}</div>
-  ),
-  DropdownMenuItem: ({
-    children,
-    onSelect,
-  }: {
-    children: React.ReactNode;
-    onSelect?: () => void;
-  }) => (
-    <div role="menuitem" onClick={() => onSelect?.()}>
-      {children}
-    </div>
-  ),
-}));
 const { AppQuickRenameDialog } = await import("./AppQuickRenameDialog");
 const { AppQuickDeleteDialog } = await import("./AppQuickDeleteDialog");
 const { AppShowcaseCard } = await import("./AppShowcaseCard");
@@ -179,10 +154,16 @@ describe("AppQuickDeleteDialog", () => {
 });
 
 describe("AppShowcaseCard menu", () => {
-  const menuTrigger = () =>
-    screen.getByLabelText("Actions for cozy-beaver-chirp");
+  const trigger = () => screen.getByLabelText("Actions for cozy-beaver-chirp");
 
-  it("offers Rename and Delete and calls the matching handler", () => {
+  // This is the app's real menu component (Base UI): items run on click, the
+  // way every other menu in the app wires them.
+  async function openMenu() {
+    fireEvent.click(trigger());
+    await screen.findByRole("menu");
+  }
+
+  it("offers Rename and Delete and calls the matching handler", async () => {
     const onRename = vi.fn();
     const onDelete = vi.fn();
     render(
@@ -195,15 +176,18 @@ describe("AppShowcaseCard menu", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("menuitem", { name: /Rename/ }));
-    expect(onRename).toHaveBeenCalledWith(app);
+    await openMenu();
+    fireEvent.click(await screen.findByRole("menuitem", { name: /Rename/ }));
+    await waitFor(() => expect(onRename).toHaveBeenCalledWith(app));
     expect(onDelete).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
 
-    fireEvent.click(screen.getByRole("menuitem", { name: /Delete/ }));
-    expect(onDelete).toHaveBeenCalledWith(app);
+    await openMenu();
+    fireEvent.click(await screen.findByRole("menuitem", { name: /Delete/ }));
+    await waitFor(() => expect(onDelete).toHaveBeenCalledWith(app));
   });
 
-  it("only lists the actions it was given", () => {
+  it("only lists the actions it was given", async () => {
     render(
       <AppShowcaseCard
         app={app}
@@ -212,11 +196,12 @@ describe("AppShowcaseCard menu", () => {
         onRename={vi.fn()}
       />,
     );
+    await openMenu();
     expect(screen.getByRole("menuitem", { name: /Rename/ })).toBeTruthy();
     expect(screen.queryByRole("menuitem", { name: /Delete/ })).toBeNull();
   });
 
-  it("clicking the menu button or an item does not open the app", () => {
+  it("opening the menu or choosing an item does not open the app", async () => {
     const onClick = vi.fn();
     render(
       <AppShowcaseCard
@@ -227,8 +212,9 @@ describe("AppShowcaseCard menu", () => {
         onDelete={vi.fn()}
       />,
     );
-    fireEvent.click(menuTrigger());
-    fireEvent.click(screen.getByRole("menuitem", { name: /Rename/ }));
+    await openMenu();
+    fireEvent.click(await screen.findByRole("menuitem", { name: /Rename/ }));
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
     expect(onClick).not.toHaveBeenCalled();
   });
 
@@ -263,5 +249,17 @@ describe("AppShowcaseCard menu", () => {
     );
     fireEvent.click(screen.getByTestId("app-showcase-card-cozy-beaver-chirp"));
     expect(onClick).toHaveBeenCalledWith(7);
+  });
+
+  it("does not put a button inside a button", async () => {
+    const { container } = render(
+      <AppShowcaseCard
+        app={app}
+        thumbnailUrl={null}
+        onClick={vi.fn()}
+        onRename={vi.fn()}
+      />,
+    );
+    expect(container.querySelectorAll("button button")).toHaveLength(0);
   });
 });

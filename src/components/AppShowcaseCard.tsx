@@ -108,27 +108,27 @@ export function AppShowcaseCard({
       </button>
       {showMenu && (
         <div className="absolute top-2 right-2 z-10">
+          {/* Same pattern as the other card menus in the app (see
+              MediaFileThumbnail): this menu library takes the trigger's
+              styling directly and fires items on click, not on select. */}
           <DropdownMenu modal={false}>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                aria-label={`Actions for ${app.name}`}
-                data-testid={`app-showcase-card-${app.name}-menu`}
-                className="flex h-7 w-7 items-center justify-center rounded-md bg-black/55 text-white backdrop-blur-sm transition-opacity hover:bg-black/75 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              >
-                <MoreVertical className="h-4 w-4" />
-              </button>
+            <DropdownMenuTrigger
+              aria-label={`Actions for ${app.name}`}
+              data-testid={`app-showcase-card-${app.name}-menu`}
+              className="flex h-7 w-7 items-center justify-center rounded-md bg-black/55 text-white backdrop-blur-sm transition-opacity hover:bg-black/75 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              <MoreVertical className="h-4 w-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               {onRename && (
-                <DropdownMenuItem onSelect={() => onRename(app)}>
+                <DropdownMenuItem onClick={() => onRename(app)}>
                   Rename...
                 </DropdownMenuItem>
               )}
               {onDelete && (
                 <DropdownMenuItem
-                  onSelect={() => onDelete(app)}
-                  className="text-destructive focus:text-destructive"
+                  variant="destructive"
+                  onClick={() => onDelete(app)}
                 >
                   Delete...
                 </DropdownMenuItem>

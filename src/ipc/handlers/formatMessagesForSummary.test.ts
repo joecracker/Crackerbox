@@ -165,3 +165,66 @@ describe("formatMessagesForSummary", () => {
     expect(lines[8]).toBe('<message role="user">Message 15</message>');
   });
 });
+
+describe("formatMessagesForSummary with long messages", () => {
+  it("keeps the start and end of a very long message and says what was cut", () => {
+    const long = "START-" + "x".repeat(200_000) + "-END";
+    const result = formatMessagesForSummary([
+      { role: "assistant", content: long },
+    ]);
+
+    expect(result.length).toBeLessThan(7_000);
+    expect(result).toContain("START-");
+    expect(result).toContain("-END");
+    expect(result).toMatch(/\[\.\.\. \d+ characters omitted \.\.\.\]/);
+  });
+
+  it("replaces written code with just the file name", () => {
+    const code = "console.log('hello');\n".repeat(2_000);
+    const result = formatMessagesForSummary([
+      {
+        role: "assistant",
+        content: `Fixed it.\n<dyad-write path="src/app.ts" description="fix">${code}</dyad-write>\nDone.`,
+      },
+    ]);
+
+    expect(result).toContain(
+      '<dyad-write path="src/app.ts">[code omitted]</dyad-write>',
+    );
+    expect(result).not.toContain("console.log");
+    expect(result).toContain("Fixed it.");
+    expect(result).toContain("Done.");
+  });
+
+  it("also shortens search-replace edits", () => {
+    const result = formatMessagesForSummary([
+      {
+        role: "assistant",
+        content:
+          '<dyad-search-replace path="a.css" description="">' +
+          "<<<<<<< SEARCH\nold\n=======\nnew\n>>>>>>> REPLACE\n" +
+          "</dyad-search-replace>",
+      },
+    ]);
+    expect(result).toBe(
+      '<message role="assistant"><dyad-search-replace path="a.css">[code omitted]</dyad-search-replace></message>',
+    );
+  });
+
+  it("does not touch messages that are already short", () => {
+    const content = "A normal short reply with <b>markup</b> in it.";
+    expect(formatMessagesForSummary([{ role: "user", content }])).toBe(
+      `<message role="user">${content}</message>`,
+    );
+  });
+
+  it("caps every message in a long chat, not only one", () => {
+    const messages = Array.from({ length: 12 }, (_, i) => ({
+      role: i % 2 === 0 ? "user" : "assistant",
+      content: `Message ${i + 1} ` + "y".repeat(100_000),
+    }));
+    const result = formatMessagesForSummary(messages);
+    // 8 messages kept, each capped, plus the "omitted" marker.
+    expect(result.length).toBeLessThan(8 * 7_000);
+  });
+});

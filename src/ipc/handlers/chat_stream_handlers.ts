@@ -104,6 +104,7 @@ import {
   getSupabaseClientCode,
 } from "../../supabase_admin/supabase_context";
 import { SUMMARIZE_CHAT_SYSTEM_PROMPT } from "../../prompts/summarize_chat_system_prompt";
+import { buildSummaryRequestMessage } from "../../prompts/handoff_prompts";
 import { SECURITY_REVIEW_SYSTEM_PROMPT } from "../../prompts/security_review_prompt";
 import fs from "node:fs";
 import * as path from "path";
@@ -2572,9 +2573,9 @@ This conversation includes one or more image attachments. When the user uploads 
           chatMessages = [
             {
               role: "user",
-              content:
-                "Summarize the following chat: " +
+              content: buildSummaryRequestMessage(
                 formatMessagesForSummary(previousChat?.messages ?? []),
+              ),
             } satisfies ModelMessage,
           ];
         }
@@ -3364,14 +3365,45 @@ This conversation includes one or more image attachments. When the user uploads 
   });
 }
 
+// A summary only needs to know what happened, not the full text of every tool
+// result. Without a cap, one long chat (255k characters, one message of 165k)
+// buries the summary instructions and a cheap model just carries on the
+// conversation instead of summarizing it.
+const MAX_SUMMARY_MESSAGE_CHARS = 6_000;
+
+function shortenForSummary(content: string | undefined): string | undefined {
+  if (typeof content !== "string") return content;
+  // Code the assistant wrote lives in the files; the summary only needs to
+  // know which files changed.
+  const withoutCode = content.replace(
+    /<(dyad-write|dyad-search-replace|dyad-edit)\b([^>]*)>[\s\S]*?<\/\1>/g,
+    (_match, tag: string, attrs: string) => {
+      const path = /path="([^"]*)"/.exec(attrs)?.[1];
+      return `<${tag}${path ? ` path="${path}"` : ""}>[code omitted]</${tag}>`;
+    },
+  );
+  if (withoutCode.length <= MAX_SUMMARY_MESSAGE_CHARS) return withoutCode;
+  const half = MAX_SUMMARY_MESSAGE_CHARS / 2;
+  return (
+    withoutCode.slice(0, half) +
+    `\n[... ${withoutCode.length - MAX_SUMMARY_MESSAGE_CHARS} characters omitted ...]\n` +
+    withoutCode.slice(-half)
+  );
+}
+
+function formatSummaryMessage(m: {
+  role: string;
+  content: string | undefined;
+}) {
+  return `<message role="${m.role}">${shortenForSummary(m.content)}</message>`;
+}
+
 export function formatMessagesForSummary(
   messages: { role: string; content: string | undefined }[],
 ) {
   if (messages.length <= 8) {
     // If we have 8 or fewer messages, include all of them
-    return messages
-      .map((m) => `<message role="${m.role}">${m.content}</message>`)
-      .join("\n");
+    return messages.map(formatSummaryMessage).join("\n");
   }
 
   // Take first 2 messages and last 6 messages
@@ -3388,9 +3420,7 @@ export function formatMessagesForSummary(
     ...lastMessages,
   ];
 
-  return combinedMessages
-    .map((m) => `<message role="${m.role}">${m.content}</message>`)
-    .join("\n");
+  return combinedMessages.map(formatSummaryMessage).join("\n");
 }
 
 // Helper function to replace text attachment placeholders with full content

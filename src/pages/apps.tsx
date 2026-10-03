@@ -23,9 +23,7 @@ import { cn } from "@/lib/utils";
 import { useLoadApps } from "@/hooks/useLoadApps";
 import { useOpenApp } from "@/hooks/useOpenApp";
 import { AppShowcaseCard } from "@/components/AppShowcaseCard";
-import { AppQuickRenameDialog } from "@/components/AppQuickRenameDialog";
-import { AppQuickDeleteDialog } from "@/components/AppQuickDeleteDialog";
-import type { ListedApp } from "@/ipc/types/app";
+import { useAppQuickActions } from "@/components/AppQuickActions";
 import { useAppThumbnails } from "@/hooks/useAppThumbnails";
 import { sortAppsForShowcase } from "@/lib/sortApps";
 import { ipc } from "@/ipc/types";
@@ -55,8 +53,7 @@ export default function AppsPage() {
     useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectedAppId, setSelectedAppId] = useAtom(selectedAppIdAtom);
-  const [renameTarget, setRenameTarget] = useState<ListedApp | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<ListedApp | null>(null);
+  const quickActions = useAppQuickActions();
   const [view, setView] = useState<AppsView>("apps");
   const [openCollectionId, setOpenCollectionId] = useState<number | null>(null);
   const [isAddOrEditCollectionOpen, setIsAddOrEditCollectionOpen] =
@@ -327,8 +324,8 @@ export default function AppsPage() {
                   isSelectionMode={isSelectionMode}
                   isSelected={selectedAppIds.has(app.id)}
                   onToggleSelect={handleToggleSelect}
-                  onRename={setRenameTarget}
-                  onDelete={setDeleteTarget}
+                  onRename={quickActions.onRename}
+                  onDelete={quickActions.onDelete}
                 />
               ))}
             </div>
@@ -465,27 +462,7 @@ export default function AppsPage() {
         </DialogContent>
       </Dialog>
 
-      <AppQuickRenameDialog
-        key={`rename-${renameTarget?.id ?? "none"}`}
-        app={renameTarget}
-        onOpenChange={(next) => {
-          if (!next) setRenameTarget(null);
-        }}
-        onRenamed={async () => {
-          await refreshApps();
-        }}
-      />
-
-      <AppQuickDeleteDialog
-        app={deleteTarget}
-        onOpenChange={(next) => {
-          if (!next) setDeleteTarget(null);
-        }}
-        onDeleted={async (deletedId) => {
-          if (selectedAppId === deletedId) setSelectedAppId(null);
-          await refreshApps();
-        }}
-      />
+      {quickActions.dialogs}
 
       <AssignAppsToCollectionDialog
         open={isAssignCollectionDialogOpen}

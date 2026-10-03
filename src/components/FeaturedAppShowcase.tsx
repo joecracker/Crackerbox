@@ -6,12 +6,14 @@ import { useOpenApp } from "@/hooks/useOpenApp";
 import { AppShowcaseCard } from "@/components/AppShowcaseCard";
 import { useAppThumbnails } from "@/hooks/useAppThumbnails";
 import { sortAppsForShowcase } from "@/lib/sortApps";
+import { useAppQuickActions } from "@/components/AppQuickActions";
 
 const MAX_FEATURED_APPS = 10;
 
 export function FeaturedAppShowcase() {
   const { apps } = useLoadApps();
   const openApp = useOpenApp();
+  const quickActions = useAppQuickActions();
   const navigate = useNavigate();
 
   const sortedApps = useMemo(() => sortAppsForShowcase(apps), [apps]);
@@ -59,6 +61,8 @@ export function FeaturedAppShowcase() {
                 app={app}
                 thumbnailUrl={thumbnailByAppId.get(app.id) ?? null}
                 onClick={openApp}
+                onRename={quickActions.onRename}
+                onDelete={quickActions.onDelete}
               />
             </div>
           ))}
@@ -80,6 +84,7 @@ export function FeaturedAppShowcase() {
           className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-background to-transparent rounded-r-lg"
         />
       </div>
+      {quickActions.dialogs}
     </section>
   );
 }

@@ -54,6 +54,18 @@ interface PreviewViewEntry {
  */
 const entries = new Map<number, PreviewViewEntry>();
 
+/** The latest picture of each open preview, for the agent's view_preview tool. */
+export function getPreviewScreenshots(): Array<{
+  url: string | null;
+  dataUrl: string;
+}> {
+  return [...entries.values()].flatMap((entry) =>
+    entry.latestScreenshotDataUrl
+      ? [{ url: entry.currentUrl, dataUrl: entry.latestScreenshotDataUrl }]
+      : [],
+  );
+}
+
 /**
  * Host renderer keys whose preview view a starting test run has claimed.
  *

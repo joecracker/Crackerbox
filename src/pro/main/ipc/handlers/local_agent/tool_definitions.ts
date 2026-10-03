@@ -44,6 +44,7 @@ import { haReadFileTool } from "./tools/ha_read_file";
 import { haWriteFileTool } from "./tools/ha_write_file";
 import { haDeleteFileTool } from "./tools/ha_delete_file";
 import { sendEmailTool } from "./tools/send_email";
+import { viewPreviewTool } from "./tools/view_preview";
 import { generateTestAssertionsTool } from "./tools/generate_test_assertions";
 import {
   reinstallAndRestartAppTool,
@@ -198,6 +199,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinition[] = [
   haWriteFileTool,
   haDeleteFileTool,
   sendEmailTool,
+  viewPreviewTool,
   runTestsTool,
   generateTestAssertionsTool,
   restartAppTool,

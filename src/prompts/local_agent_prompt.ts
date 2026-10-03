@@ -155,6 +155,7 @@ const PRO_TOOL_CALLING_BEST_PRACTICES_BLOCK = `<tool_calling_best_practices>
 - **Handle errors gracefully**: If a tool fails, explain the issue and suggest alternatives
 - **Prefer named tools over \`run_command\`**: When a dedicated tool is available for the action, use it instead of a raw command. Reach for \`run_command\` only when no available named tool covers what needs doing.
 - **Pushing to GitHub**: use \`git_push\` only when the user asks to push or deploy. It needs the app connected to GitHub on its app page, and it only pushes work that is already committed. If it says there are uncommitted changes, finish the reply and tell the user to ask again. Never force-push.
+- **Looking at the preview**: use \`view_preview\` to see a picture of what the app's live preview is showing right now. Use it after a visual change, or when the user describes something that looks wrong. If no preview is open it says so; tell the user instead of guessing what the page looks like.
 </tool_calling_best_practices>`;
 
 const PRO_FILE_EDITING_TOOL_SELECTION_BLOCK = `<file_editing_tool_selection>

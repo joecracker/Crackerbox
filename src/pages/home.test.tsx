@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   openExternalUrl: vi.fn(),
   phase: "idle",
   posthogCapture: vi.fn(),
+  requestedChatMode: undefined as string | undefined,
   selectedApp: null as any,
   send: vi.fn(() => true),
   settings: { selectedChatMode: "build" } as any,
@@ -102,6 +103,7 @@ vi.mock("@/components/chat/HomeChatInput", () => ({
         onSubmit({
           attachments: mocks.attachments,
           selectedApp: mocks.selectedApp ?? undefined,
+          requestedChatMode: mocks.requestedChatMode,
         })
       }
     >
@@ -122,6 +124,7 @@ describe("HomePage first-prompt projection", () => {
     mocks.attachments = [];
     mocks.effectiveDefaultChatMode = "build";
     mocks.hasManuallySelectedChatMode = false;
+    mocks.requestedChatMode = undefined;
     mocks.hasDyadProApiKey = false;
     mocks.inputValue = "Build a notes app";
     mocks.isAnyProviderSetup = false;
@@ -159,6 +162,10 @@ describe("HomePage first-prompt projection", () => {
     expect(screen.queryByRole("button", { name: "Upgrade to Pro" })).toBeNull();
   });
 
+  // Crackerbox (commit "Polish Crackerbox chat, mobile, and model workflows")
+  // counts a first prompt as an explicit mode choice only when the input itself
+  // asks for a mode (requestedChatMode), not merely because a mode was once
+  // picked by hand. A manually picked mode still decides which mode is used.
   it("submits a captured payload to the machine", () => {
     const attachment = { file: new File(["x"], "x.txt"), type: "chat-context" };
     mocks.attachments = [attachment];
@@ -176,8 +183,23 @@ describe("HomePage first-prompt projection", () => {
         attachments: [attachment],
         selectedApp: { id: 9, name: "Existing" },
         chatMode: "plan",
-        isChatModeExplicit: true,
+        isChatModeExplicit: false,
       },
+    });
+  });
+
+  it("marks the mode as explicit when the input asks for one", () => {
+    mocks.requestedChatMode = "ask";
+    render(<HomePage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Submit home prompt" }));
+
+    expect(mocks.send).toHaveBeenCalledWith({
+      type: "SUBMIT",
+      payload: expect.objectContaining({
+        chatMode: "ask",
+        isChatModeExplicit: true,
+      }),
     });
   });
 

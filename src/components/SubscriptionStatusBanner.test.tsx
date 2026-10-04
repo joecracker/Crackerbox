@@ -92,17 +92,17 @@ describe("SubscriptionStatusBanner", () => {
   it.each([
     {
       alert: "payment_past_due" as const,
-      text: "Payment failed. Update your payment method to keep Dyad Pro active.",
+      text: "Payment failed. Update your payment method to keep Crackerbox Pro active.",
       action: "Update payment method",
     },
     {
       alert: "subscription_ending" as const,
-      text: "Your Dyad Pro subscription ends in 20 days. You will lose 650 credits.",
+      text: "Your Crackerbox Pro subscription ends in 20 days. You will lose 650 credits.",
       action: "Manage subscription",
     },
     {
       alert: "subscription_paused" as const,
-      text: "Your Dyad Pro subscription is paused.",
+      text: "Your Crackerbox Pro subscription is paused.",
       action: "Resume subscription",
     },
   ])("renders the $alert localized variant", ({ alert, text, action }) => {
@@ -172,7 +172,7 @@ describe("SubscriptionStatusBanner", () => {
 
     expect(
       screen.getByText(
-        "Your Dyad Pro subscription ends in 1 day. You will lose 1 credit.",
+        "Your Crackerbox Pro subscription ends in 1 day. You will lose 1 credit.",
       ),
     ).not.toBeNull();
   });
@@ -188,7 +188,7 @@ describe("SubscriptionStatusBanner", () => {
 
     expect(
       screen.getByText(
-        "Your Dyad Pro subscription ends today. You will lose 650 credits.",
+        "Your Crackerbox Pro subscription ends today. You will lose 650 credits.",
       ),
     ).not.toBeNull();
   });

@@ -283,7 +283,7 @@ export const nonRemoteDispatchOrEnqueueInventory = [
   // Runtime output delivery during an already-locked restart is local
   // presentation plumbing, not distributed-machine dispatch.
   owned("ipc/services/app_run_actor_service.ts", 1),
-  owned("ipc/services/app_runtime_service.ts", 2),
+  owned("ipc/services/app_runtime_service.ts", 3),
   owned("ipc/services/app_runtime_transport.ts", 1),
   owned("ipc/services/main_app_runtime_output.ts", 1),
   // Web ReadableStream output, not a distributed-machine command.

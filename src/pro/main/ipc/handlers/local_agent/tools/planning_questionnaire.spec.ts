@@ -32,7 +32,7 @@ describe("planningQuestionnaireTool", () => {
 
   it("uses product-focused language in its example", () => {
     expect(planningQuestionnaireTool.description).toContain(
-      "look and feel and key product features",
+      "What should this app help people do?",
     );
     expect(planningQuestionnaireTool.description).not.toContain("tech stack");
   });

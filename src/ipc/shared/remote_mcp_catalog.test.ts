@@ -30,6 +30,9 @@ function mockCatalogResponse(servers: unknown[], extra?: object) {
   );
 }
 
+// Skipped: the Crackerbox remodel (dfb08b2d) removed fetching this catalog from
+// Dyad's servers, so these remote-fetch behaviours no longer exist. Re-enable
+// them if remote fetching is ever turned back on.
 describe("remote_mcp_catalog", () => {
   beforeEach(() => {
     process.env.DYAD_MCP_CATALOG_URL = "http://localhost:9/mcp-catalog";
@@ -41,20 +44,20 @@ describe("remote_mcp_catalog", () => {
     vi.unstubAllGlobals();
   });
 
-  it("returns valid entries", async () => {
+  it.skip("returns valid entries", async () => {
     mockCatalogResponse([VALID_ENTRY]);
     const entries = await getRemoteMcpCatalog();
     expect(entries).toHaveLength(1);
     expect(entries[0].slug).toBe("figma");
   });
 
-  it("accepts a mixed-case http(s) scheme", async () => {
+  it.skip("accepts a mixed-case http(s) scheme", async () => {
     mockCatalogResponse([{ ...VALID_ENTRY, url: "HTTPS://mcp.figma.com/mcp" }]);
     const entries = await getRemoteMcpCatalog();
     expect(entries).toHaveLength(1);
   });
 
-  it("drops a malformed entry without losing the rest", async () => {
+  it.skip("drops a malformed entry without losing the rest", async () => {
     mockCatalogResponse([
       { slug: "broken" }, // missing everything else
       VALID_ENTRY,
@@ -64,7 +67,7 @@ describe("remote_mcp_catalog", () => {
     expect(entries.map((e) => e.slug)).toEqual(["figma"]);
   });
 
-  it("drops entries with transports this client does not support", async () => {
+  it.skip("drops entries with transports this client does not support", async () => {
     // Forward compatibility: a newer catalog may serve entry kinds this
     // client doesn't know about yet.
     mockCatalogResponse([{ ...VALID_ENTRY, transport: "sse" }, VALID_ENTRY]);
@@ -72,7 +75,7 @@ describe("remote_mcp_catalog", () => {
     expect(entries.map((e) => e.slug)).toEqual(["figma"]);
   });
 
-  it("keeps entries that declare setup inputs and carries them through", async () => {
+  it.skip("keeps entries that declare setup inputs and carries them through", async () => {
     mockCatalogResponse([
       {
         ...VALID_ENTRY,
@@ -115,7 +118,7 @@ describe("remote_mcp_catalog", () => {
     }
   });
 
-  it("drops an entry whose input kind this client doesn't know", async () => {
+  it.skip("drops an entry whose input kind this client doesn't know", async () => {
     // A whole entry drops if any input kind is unrecognized, so a newer
     // field type can't cause a half-configured add on this client.
     mockCatalogResponse([
@@ -126,7 +129,7 @@ describe("remote_mcp_catalog", () => {
     expect(entries.map((e) => e.slug)).toEqual(["figma"]);
   });
 
-  it("keeps stdio entries alongside http ones", async () => {
+  it.skip("keeps stdio entries alongside http ones", async () => {
     mockCatalogResponse([
       VALID_STDIO_ENTRY,
       VALID_ENTRY,
@@ -149,7 +152,7 @@ describe("remote_mcp_catalog", () => {
     }
   });
 
-  it("drops stdio entries with a non-npx command or no args", async () => {
+  it.skip("drops stdio entries with a non-npx command or no args", async () => {
     mockCatalogResponse([
       { ...VALID_STDIO_ENTRY, command: "node" },
       { ...VALID_STDIO_ENTRY, slug: "bash-server", command: "bash" },
@@ -160,7 +163,7 @@ describe("remote_mcp_catalog", () => {
     expect(entries.map((e) => e.slug)).toEqual(["figma"]);
   });
 
-  it("keeps unpinned stdio entries (pinning is enforced upstream)", async () => {
+  it.skip("keeps unpinned stdio entries (pinning is enforced upstream)", async () => {
     // The desktop only checks the shape; cloud CI pins the catalog data
     // and the consent prompt shows the exact command.
     mockCatalogResponse([
@@ -175,7 +178,7 @@ describe("remote_mcp_catalog", () => {
     expect(entries.map((e) => e.slug)).toEqual(["mongodb", "eq-package"]);
   });
 
-  it("accepts scoped and prerelease pinned packages", async () => {
+  it.skip("accepts scoped and prerelease pinned packages", async () => {
     mockCatalogResponse([
       {
         ...VALID_STDIO_ENTRY,
@@ -192,7 +195,7 @@ describe("remote_mcp_catalog", () => {
     expect(entries.map((e) => e.slug)).toEqual(["scoped", "prerelease"]);
   });
 
-  it("accepts npx flags and server-CLI args around the spec", async () => {
+  it.skip("accepts npx flags and server-CLI args around the spec", async () => {
     // Real catalog shapes: leading npx flags and trailing subcommands.
     mockCatalogResponse([
       {
@@ -215,7 +218,7 @@ describe("remote_mcp_catalog", () => {
     expect(entries.map((e) => e.slug)).toEqual(["azure", "snyk", "meta-quest"]);
   });
 
-  it("passes through stdio env vars", async () => {
+  it.skip("passes through stdio env vars", async () => {
     mockCatalogResponse([
       {
         ...VALID_STDIO_ENTRY,
@@ -233,7 +236,7 @@ describe("remote_mcp_catalog", () => {
     }
   });
 
-  it("drops duplicate slugs, keeping the first", async () => {
+  it.skip("drops duplicate slugs, keeping the first", async () => {
     mockCatalogResponse([
       VALID_ENTRY,
       { ...VALID_ENTRY, name: "Figma Duplicate" },
@@ -263,14 +266,14 @@ describe("remote_mcp_catalog", () => {
     expect(entries).toEqual([]);
   });
 
-  it("caches entries across calls", async () => {
+  it.skip("caches entries across calls", async () => {
     mockCatalogResponse([VALID_ENTRY]);
     await getRemoteMcpCatalog();
     await getRemoteMcpCatalog();
     expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
   });
 
-  it("drops entries whose URL is not http(s)", async () => {
+  it.skip("drops entries whose URL is not http(s)", async () => {
     mockCatalogResponse([
       { ...VALID_ENTRY, slug: "ftp-server", url: "ftp://example.com/mcp" },
       VALID_ENTRY,
@@ -279,7 +282,7 @@ describe("remote_mcp_catalog", () => {
     expect(entries.map((e) => e.slug)).toEqual(["figma"]);
   });
 
-  it("caps a far-future server expiry to the max TTL", async () => {
+  it.skip("caps a far-future server expiry to the max TTL", async () => {
     vi.useFakeTimers();
     try {
       const farFuture = new Date(
@@ -297,7 +300,7 @@ describe("remote_mcp_catalog", () => {
     }
   });
 
-  it("does not pin an empty result to the server expiry", async () => {
+  it.skip("does not pin an empty result to the server expiry", async () => {
     vi.useFakeTimers();
     try {
       const farFuture = new Date(

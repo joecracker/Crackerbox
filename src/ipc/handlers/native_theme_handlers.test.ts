@@ -4,7 +4,11 @@ import type { IpcMainInvokeEvent } from "electron";
 const h = vi.hoisted(() => ({
   shouldUseDarkColors: true,
   listener: undefined as (() => void) | undefined,
-  windows: [] as Array<{ webContents: unknown }>,
+  windows: [] as Array<{
+    webContents: unknown;
+    isDestroyed?: () => boolean;
+    setTitleBarOverlay?: () => void;
+  }>,
   on: vi.fn(),
 }));
 
@@ -54,6 +58,8 @@ describe("native theme handlers", () => {
     const secondSend = vi.fn();
     h.windows = [
       {
+        isDestroyed: () => false,
+        setTitleBarOverlay: () => {},
         webContents: {
           isDestroyed: () => false,
           isCrashed: () => false,
@@ -61,6 +67,8 @@ describe("native theme handlers", () => {
         },
       },
       {
+        isDestroyed: () => false,
+        setTitleBarOverlay: () => {},
         webContents: {
           isDestroyed: () => false,
           isCrashed: () => false,

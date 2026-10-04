@@ -26,6 +26,10 @@ const MONITOR_INTERVAL_MS = 30000; // 30 seconds
 const RENDERER_MEMORY_GUARD_INTERVAL_MS = 5000;
 const BYTES_PER_MB = 1024 * 1024;
 
+// Metrics are still captured every interval; only every Nth line is written to
+// the log so the 1 MB log file keeps hours of history instead of minutes.
+const PERFORMANCE_LOG_EVERY_N_SAMPLES = 10;
+let performanceSampleCount = 0;
 let monitorInterval: NodeJS.Timeout | null = null;
 let rendererMemoryGuardInterval: NodeJS.Timeout | null = null;
 const rendererRecoveryStateByWebContentsId = new Map<
@@ -293,9 +297,11 @@ function capturePerformanceMetrics() {
     // different drive entirely.
     const diskUsage = getDiskUsageMB(getUserDataPath());
 
-    logger.debug(
-      `Performance: Memory=${memoryUsageMB}MB, Heap=${heapUsedMB}/${heapLimitMB}MB, All Processes=${allProcessesMemoryMB ?? "?"}MB, CPU=${cpuUsagePercent}%, System Memory=${systemMemory.usedMemoryMB}/${systemMemory.totalMemoryMB}MB (${systemMemory.usagePercent}%), System CPU=${systemCpuPercent}%`,
-    );
+    if (performanceSampleCount++ % PERFORMANCE_LOG_EVERY_N_SAMPLES === 0) {
+      logger.debug(
+        `Performance: Memory=${memoryUsageMB}MB, Heap=${heapUsedMB}/${heapLimitMB}MB, All Processes=${allProcessesMemoryMB ?? "?"}MB, CPU=${cpuUsagePercent}%, System Memory=${systemMemory.usedMemoryMB}/${systemMemory.totalMemoryMB}MB (${systemMemory.usagePercent}%), System CPU=${systemCpuPercent}%`,
+      );
+    }
 
     // Child process working sets drift constantly, so only main process
     // peaks (heap, RSS) stamp peakActivity and peakTimestamp.

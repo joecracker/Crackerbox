@@ -5,8 +5,7 @@
   "keywords": [],
   "license": "MIT",
   "author": {
-    "name": "Will Chen",
-    "email": "willchen90@gmail.com"
+    "name": "Crackerbox"
   },
   "repository": {
     "type": "git",
@@ -48,6 +47,7 @@
     "eval": "cross-env NODE_OPTIONS=--no-deprecation vitest run --config vitest.eval.config.ts",
     "test": "node --test scripts/promote-previous-beta.test.mjs scripts/start-supervisor.test.mjs scripts/copy-data-to-dev.test.mjs scripts/unauthorized-release-alert.test.mjs scripts/pr-review/validate-review.test.mjs scripts/issue-triage/triage-comment.test.mjs scripts/issue-triage/prepare-context.test.mjs && cross-env NODE_OPTIONS=--no-deprecation VITE_CJS_IGNORE_WARNING=true vitest run",
     "test:watch": "cross-env NODE_OPTIONS=--no-deprecation VITE_CJS_IGNORE_WARNING=true vitest",
+    "test:native": "cross-env VITE_CJS_IGNORE_WARNING=true ELECTRON_RUN_AS_NODE=1 electron node_modules/vitest/vitest.mjs run",
     "test:ui": "cross-env NODE_OPTIONS=--no-deprecation VITE_CJS_IGNORE_WARNING=true vitest --ui",
     "extract-codebase": "ts-node scripts/extract-codebase.ts",
     "init-precommit": "husky",

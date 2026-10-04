@@ -169,7 +169,7 @@ describe("nothing to look at yet", () => {
     open();
 
     expect(
-      await screen.findAllByText(/Looking up what Dyad has stored/),
+      await screen.findAllByText(/Looking up what Crackerbox has stored/),
     ).toHaveLength(1);
   });
 

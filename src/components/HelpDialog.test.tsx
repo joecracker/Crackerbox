@@ -268,7 +268,7 @@ const askForRetake = async () => {
 /** A screenshot, asked for and captured, back on the form. */
 const addScreenshot = async () => {
   await askForScreenshot();
-  return screen.findByAltText("Screenshot of the Dyad window");
+  return screen.findByAltText("Screenshot of the Crackerbox window");
 };
 
 const fileIt = async () => {
@@ -411,7 +411,7 @@ describe("HelpDialog report flow", () => {
 
     submit();
     await askForScreenshot();
-    await screen.findByAltText("Screenshot of the Dyad window");
+    await screen.findByAltText("Screenshot of the Crackerbox window");
     submit();
 
     const blocked = posthogClient.capture.mock.calls.filter(
@@ -537,7 +537,7 @@ describe("HelpDialog report flow", () => {
     await openForm("never mind");
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
 
-    expect(await screen.findByText("Need help with Dyad?")).toBeTruthy();
+    expect(await screen.findByText("Need help with Crackerbox?")).toBeTruthy();
     fireEvent.click(screen.getByText("Report a Bug"));
     expect(
       ((await screen.findByLabelText(/What happened/)) as HTMLTextAreaElement)
@@ -999,7 +999,9 @@ describe("HelpDialog disclosures", () => {
         ).disabled,
       ).toBe(false),
     );
-    expect(screen.queryByAltText("Screenshot of the Dyad window")).toBeNull();
+    expect(
+      screen.queryByAltText("Screenshot of the Crackerbox window"),
+    ).toBeNull();
   });
 
   it("asks main again on a retry rather than assuming the clipboard", async () => {
@@ -1247,7 +1249,9 @@ describe("HelpDialog disclosures", () => {
     fireEvent.click(screen.getByText("reopen-help"));
 
     await waitFor(() =>
-      expect(screen.queryByAltText("Screenshot of the Dyad window")).toBeNull(),
+      expect(
+        screen.queryByAltText("Screenshot of the Crackerbox window"),
+      ).toBeNull(),
     );
     // It must not simply vanish between one visit and the next.
     expect(mocks.showError).toHaveBeenCalledWith(
@@ -1298,7 +1302,9 @@ describe("HelpDialog disclosures", () => {
     submit();
 
     await waitFor(() =>
-      expect(screen.queryByAltText("Screenshot of the Dyad window")).toBeNull(),
+      expect(
+        screen.queryByAltText("Screenshot of the Crackerbox window"),
+      ).toBeNull(),
     );
   });
 
@@ -1335,7 +1341,9 @@ describe("HelpDialog disclosures", () => {
     );
 
     await waitFor(() =>
-      expect(screen.queryByAltText("Screenshot of the Dyad window")).toBeNull(),
+      expect(
+        screen.queryByAltText("Screenshot of the Crackerbox window"),
+      ).toBeNull(),
     );
   });
 
@@ -1353,7 +1361,7 @@ describe("HelpDialog disclosures", () => {
     }) as HTMLButtonElement;
     expect(back.disabled).toBe(false);
     fireEvent.click(back);
-    expect(await screen.findByText("Need help with Dyad?")).toBeTruthy();
+    expect(await screen.findByText("Need help with Crackerbox?")).toBeTruthy();
   });
 
   it("locks everything the filed report was built from", async () => {
@@ -1443,7 +1451,7 @@ describe("HelpDialog disclosures", () => {
 
   it("reports the gate against the report that was blocked", async () => {
     renderHelp();
-    await screen.findByText("Need help with Dyad?");
+    await screen.findByText("Need help with Crackerbox?");
     fireEvent.click(screen.getByText("force-close-report"));
     await screen.findByLabelText(/What happened/);
     submit();
@@ -1526,7 +1534,7 @@ describe("HelpDialog disclosures", () => {
     );
 
     renderHelp();
-    await screen.findByText("Need help with Dyad?");
+    await screen.findByText("Need help with Crackerbox?");
     fireEvent.click(screen.getByText("force-close-report"));
     await screen.findByLabelText(/What happened/);
 
@@ -1563,7 +1571,7 @@ describe("HelpDialog disclosures", () => {
     );
 
     renderHelp();
-    await screen.findByText("Need help with Dyad?");
+    await screen.findByText("Need help with Crackerbox?");
     fireEvent.click(screen.getByText("force-close-report"));
     await screen.findByLabelText(/What happened/);
 
@@ -1588,7 +1596,7 @@ describe("HelpDialog disclosures", () => {
 
   it("uploads the crashed chat, not whichever chat is selected", async () => {
     renderHelp();
-    await screen.findByText("Need help with Dyad?");
+    await screen.findByText("Need help with Crackerbox?");
     fireEvent.click(screen.getByText("force-close-report"));
     await screen.findByLabelText(/What happened/);
     fireEvent.change(screen.getByLabelText(/What happened/), {
@@ -1597,7 +1605,7 @@ describe("HelpDialog disclosures", () => {
 
     // The dialog closes and reopens for the capture.
     await askForScreenshot();
-    await screen.findByAltText("Screenshot of the Dyad window");
+    await screen.findByAltText("Screenshot of the Crackerbox window");
 
     submit();
     await waitFor(() => expect(mocks.openExternalUrl).toHaveBeenCalled());
@@ -1608,7 +1616,7 @@ describe("HelpDialog disclosures", () => {
 
   it("keeps the session offer after the dialog reopens with no chat selected", async () => {
     renderHelp();
-    await screen.findByText("Need help with Dyad?");
+    await screen.findByText("Need help with Crackerbox?");
     fireEvent.click(screen.getByText("clear-chat"));
     fireEvent.click(screen.getByText("force-close-report"));
     await screen.findByLabelText(/What happened/);
@@ -1619,7 +1627,7 @@ describe("HelpDialog disclosures", () => {
     ).toBe(true);
 
     await askForScreenshot();
-    await screen.findByAltText("Screenshot of the Dyad window");
+    await screen.findByAltText("Screenshot of the Crackerbox window");
 
     // The reporter agreed to send the session; it must not quietly withdraw.
     const box = screen.getByRole("checkbox", { name: "Chat session" });
@@ -1629,7 +1637,7 @@ describe("HelpDialog disclosures", () => {
 
   it("counts a crash-opened form, and says it came from the crash", async () => {
     renderHelp();
-    await screen.findByText("Need help with Dyad?");
+    await screen.findByText("Need help with Crackerbox?");
     fireEvent.click(screen.getByText("force-close-report"));
     await screen.findByLabelText(/What happened/);
 
@@ -1642,7 +1650,7 @@ describe("HelpDialog disclosures", () => {
 
   it("carries the crash source on the report's screenshot events too", async () => {
     renderHelp();
-    await screen.findByText("Need help with Dyad?");
+    await screen.findByText("Need help with Crackerbox?");
     fireEvent.click(screen.getByText("force-close-report"));
     await screen.findByLabelText(/What happened/);
     await addScreenshot();
@@ -1668,7 +1676,7 @@ describe("HelpDialog disclosures", () => {
 
   it("opens the form with the session ticked after a force-close", async () => {
     renderHelp();
-    await screen.findByText("Need help with Dyad?");
+    await screen.findByText("Need help with Crackerbox?");
 
     fireEvent.click(screen.getByText("force-close-report"));
 
@@ -1716,7 +1724,9 @@ describe("HelpDialog screenshot", () => {
     await addScreenshot();
 
     fireEvent.click(screen.getByRole("button", { name: /Remove/ }));
-    expect(screen.queryByAltText("Screenshot of the Dyad window")).toBeNull();
+    expect(
+      screen.queryByAltText("Screenshot of the Crackerbox window"),
+    ).toBeNull();
 
     submit();
     await waitFor(() => expect(mocks.openExternalUrl).toHaveBeenCalled());
@@ -1739,7 +1749,9 @@ describe("HelpDialog screenshot", () => {
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
     fireEvent.click(await screen.findByText("Report a Bug"));
 
-    expect(screen.queryByAltText("Screenshot of the Dyad window")).toBeNull();
+    expect(
+      screen.queryByAltText("Screenshot of the Crackerbox window"),
+    ).toBeNull();
 
     fireEvent.change(await screen.findByLabelText(/What happened/), {
       target: { value: "a different problem" },
@@ -1771,7 +1783,9 @@ describe("HelpDialog screenshot", () => {
     await waitFor(() =>
       expect(screen.getByLabelText(/What happened/)).toBeTruthy(),
     );
-    expect(screen.queryByAltText("Screenshot of the Dyad window")).toBeNull();
+    expect(
+      screen.queryByAltText("Screenshot of the Crackerbox window"),
+    ).toBeNull();
   });
 
   it("leaves the screenshot button usable after a discarded capture", async () => {
@@ -1890,7 +1904,7 @@ describe("HelpDialog screenshot", () => {
       expect(
         (
           screen.getByAltText(
-            "Screenshot of the Dyad window",
+            "Screenshot of the Crackerbox window",
           ) as HTMLImageElement
         ).src,
       ).toContain("BBBB"),
@@ -2029,7 +2043,7 @@ describe("HelpDialog screenshot", () => {
       expect(
         (
           screen.getByAltText(
-            "Screenshot of the Dyad window",
+            "Screenshot of the Crackerbox window",
           ) as HTMLImageElement
         ).src,
       ).toContain("BBBB"),
@@ -2066,7 +2080,7 @@ describe("HelpDialog screenshot", () => {
     await addScreenshot();
 
     const hint = screen
-      .getByAltText("Screenshot of the Dyad window")
+      .getByAltText("Screenshot of the Crackerbox window")
       .parentElement!.querySelector("p.text-xs")!;
 
     // The sentence has to read as one sentence, with the keys marked up.
@@ -2110,7 +2124,7 @@ describe("HelpDialog screenshot", () => {
     // The first image is still on the clipboard and still in main, so losing
     // it to a failed retake would throw away something that works.
     expect(
-      await screen.findByAltText("Screenshot of the Dyad window"),
+      await screen.findByAltText("Screenshot of the Crackerbox window"),
     ).toBeTruthy();
     await fileIt();
     expect(bodyOfOpenedIssue()).toContain("Screenshot status: captured");
@@ -2162,7 +2176,9 @@ describe("HelpDialog screenshot", () => {
 
     // The image is gone from main, so the form must not keep offering it.
     await waitFor(() =>
-      expect(screen.queryByAltText("Screenshot of the Dyad window")).toBeNull(),
+      expect(
+        screen.queryByAltText("Screenshot of the Crackerbox window"),
+      ).toBeNull(),
     );
   });
 
@@ -2218,7 +2234,9 @@ describe("HelpDialog screenshot", () => {
 
     // The mirror of the failed-restore case: a succeeded restore also drops
     // the image in main, and must not take a newer report's with it.
-    expect(screen.getByAltText("Screenshot of the Dyad window")).toBeTruthy();
+    expect(
+      screen.getByAltText("Screenshot of the Crackerbox window"),
+    ).toBeTruthy();
     expect(mocks.showError).not.toHaveBeenCalledWith(
       "Your screenshot could no longer be restored, so it was removed from this report.",
     );
@@ -2261,7 +2279,9 @@ describe("HelpDialog screenshot", () => {
 
     // The failed restore belongs to a report that is gone; the screenshot on
     // screen belongs to the one being written now.
-    expect(screen.getByAltText("Screenshot of the Dyad window")).toBeTruthy();
+    expect(
+      screen.getByAltText("Screenshot of the Crackerbox window"),
+    ).toBeTruthy();
   });
 
   it("clears a capture flag stranded by a report that ended", async () => {
@@ -2358,7 +2378,7 @@ describe("HelpDialog screenshot bar", () => {
 
     release({ dataUrl: "data:image/png;base64,AAAA", captureId: "capture-1" });
     expect(
-      await screen.findByAltText("Screenshot of the Dyad window"),
+      await screen.findByAltText("Screenshot of the Crackerbox window"),
     ).toBeTruthy();
   });
 
@@ -2370,7 +2390,9 @@ describe("HelpDialog screenshot bar", () => {
 
     expect(await screen.findByDisplayValue("half-written report")).toBeTruthy();
     expect(captureBar()).toBeNull();
-    expect(screen.queryByAltText("Screenshot of the Dyad window")).toBeNull();
+    expect(
+      screen.queryByAltText("Screenshot of the Crackerbox window"),
+    ).toBeNull();
     expect(mocks.takeScreenshot).not.toHaveBeenCalled();
     expect(posthogClient.capture).toHaveBeenCalledWith(
       "screenshot-prompt:bar-cancelled",
@@ -2448,7 +2470,7 @@ describe("HelpDialog screenshot bar", () => {
 
     await captureFromBar();
     expect(
-      await screen.findByAltText("Screenshot of the Dyad window"),
+      await screen.findByAltText("Screenshot of the Crackerbox window"),
     ).toBeTruthy();
     expect(mocks.takeScreenshot).toHaveBeenCalledTimes(2);
   });
@@ -2580,7 +2602,9 @@ describe("HelpDialog closing step", () => {
     expect(body.textContent).toContain("edit the issue and paste it there");
     expect(body.textContent).toContain("you are all set");
     // What is on the clipboard, so the reporter knows what they are pasting.
-    expect(screen.getByAltText("Screenshot of the Dyad window")).toBeTruthy();
+    expect(
+      screen.getByAltText("Screenshot of the Crackerbox window"),
+    ).toBeTruthy();
     expect(screen.queryByLabelText(/What happened/)).toBeNull();
   });
 
@@ -2601,7 +2625,7 @@ describe("HelpDialog closing step", () => {
     expect(screen.queryByText("Did you paste your screenshot?")).toBeNull();
 
     fireEvent.click(screen.getByText("reopen-help"));
-    expect(await screen.findByText("Need help with Dyad?")).toBeTruthy();
+    expect(await screen.findByText("Need help with Crackerbox?")).toBeTruthy();
     expect(screen.queryByDisplayValue("the preview goes blank")).toBeNull();
   });
 
@@ -2641,6 +2665,8 @@ describe("HelpDialog closing step", () => {
       /What happened/,
     )) as HTMLTextAreaElement;
     expect(field.value).toBe("");
-    expect(screen.queryByAltText("Screenshot of the Dyad window")).toBeNull();
+    expect(
+      screen.queryByAltText("Screenshot of the Crackerbox window"),
+    ).toBeNull();
   });
 });

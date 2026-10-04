@@ -80,8 +80,11 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+// Skipped: the Crackerbox remodel (dfb08b2d) removed fetching this catalog from
+// Dyad's servers, so these remote-fetch behaviours no longer exist. Re-enable
+// them if remote fetching is ever turned back on.
 describe("remote language model catalog", () => {
-  it("keeps a nonempty remote auto-model list authoritative", async () => {
+  it.skip("keeps a nonempty remote auto-model list authoritative", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(
@@ -131,7 +134,7 @@ describe("remote language model catalog", () => {
     ).toBe(GPT_5_5_MODEL_NAME);
   });
 
-  it("reads the Codex client version from the remote catalog", async () => {
+  it.skip("reads the Codex client version from the remote catalog", async () => {
     vi.stubGlobal(
       "fetch",
       vi
@@ -148,7 +151,7 @@ describe("remote language model catalog", () => {
     expect(getCodexClientVersion()).toBe("0.156.0");
   });
 
-  it("ignores an invalid Codex client version without rejecting the catalog", async () => {
+  it.skip("ignores an invalid Codex client version without rejecting the catalog", async () => {
     vi.stubGlobal(
       "fetch",
       vi
@@ -165,7 +168,7 @@ describe("remote language model catalog", () => {
     expect(catalog.codexClientVersion).toBeUndefined();
   });
 
-  it("uses the pinned version while a remote catalog lookup is pending", async () => {
+  it.skip("uses the pinned version while a remote catalog lookup is pending", async () => {
     let finish!: (response: Response) => void;
     vi.stubGlobal(
       "fetch",
@@ -185,7 +188,7 @@ describe("remote language model catalog", () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps the last remote Codex version through catalog outages", async () => {
+  it.skip("keeps the last remote Codex version through catalog outages", async () => {
     let fetchCalls = 0;
     vi.stubGlobal(
       "fetch",
@@ -235,7 +238,7 @@ describe("remote language model catalog", () => {
     expect(fetchCalls).toBe(4);
   });
 
-  it("preserves the resolved alias apiName across a failed background refresh", async () => {
+  it.skip("preserves the resolved alias apiName across a failed background refresh", async () => {
     let fetchCalls = 0;
     vi.stubGlobal(
       "fetch",
@@ -302,7 +305,7 @@ describe("remote language model catalog", () => {
     expect(fetchCalls).toBe(2);
   });
 
-  it("serves stale remote data while a background refresh is in flight", async () => {
+  it.skip("serves stale remote data while a background refresh is in flight", async () => {
     let fetchCalls = 0;
     vi.stubGlobal(
       "fetch",
@@ -370,7 +373,7 @@ describe("remote language model catalog", () => {
     expect(fetchCalls).toBe(2);
   });
 
-  it("falls through to the fallback after the grace revalidation cycle is used", async () => {
+  it.skip("falls through to the fallback after the grace revalidation cycle is used", async () => {
     let fetchCalls = 0;
     vi.stubGlobal(
       "fetch",
@@ -429,7 +432,7 @@ describe("remote language model catalog", () => {
     expect(fetchCalls).toBe(3);
   });
 
-  it("a successful refresh after a grace-preserved cache resets the grace budget", async () => {
+  it.skip("a successful refresh after a grace-preserved cache resets the grace budget", async () => {
     let fetchCalls = 0;
     vi.stubGlobal(
       "fetch",

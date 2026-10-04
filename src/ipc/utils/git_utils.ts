@@ -34,6 +34,8 @@ import { sendTelemetryEvent } from "./telemetry";
 export { GIT_ERROR_CODES } from "@/shared/git_error_codes";
 
 const logger = log.scope("git_utils");
+// Each distinct PATH entry is logged once, not on every git call.
+const loggedWslEntries = new Set<string>();
 
 const GIT_STATE_FINGERPRINT_TIMEOUT_MS = 30_000;
 const GIT_STATE_FINGERPRINT_MAX_PATH_BYTES = 16 * 1024 * 1024;
@@ -152,7 +154,10 @@ function getWindowsSanitizedEnv():
         lowerEntry.startsWith("/bin/") ||
         lowerEntry.startsWith("/home/")
       ) {
-        logger.debug(`Filtering WSL-related PATH entry: ${entry}`);
+        if (!loggedWslEntries.has(entry)) {
+          loggedWslEntries.add(entry);
+          logger.debug(`Filtering WSL-related PATH entry: ${entry}`);
+        }
         return false;
       }
       return true;

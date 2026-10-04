@@ -20,6 +20,7 @@ import { promisify } from "node:util";
 import { registerIpcHandlers } from "./ipc/ipc_host";
 import "./main/ipc_bridge_registry"; // must load before registerIpcHandlers() below
 import { startPhoneBridgeServer } from "./main/phone_bridge_server";
+import { setPhoneMediaHandler } from "./main/phone_bridge_media";
 import dotenv from "dotenv";
 import { updateElectronApp, UpdateSourceType } from "update-electron-app";
 import log from "electron-log";
@@ -608,23 +609,24 @@ export async function onReady() {
 
   // Handle dyad-media:// requests. Media-library tiles use bounded, cached
   // derivatives while explicit previews continue to receive the source file.
-  protocol.handle(
-    "dyad-media",
-    createDyadMediaProtocolHandler({
-      cacheRoot: getMediaThumbnailCacheRoot(app.getPath("sessionData")),
-      resolveAppPath: getDyadAppPath,
-      resolveAppId: async (appId) => {
-        const appRecord = await db.query.apps.findFirst({
-          where: eq(apps.id, appId),
-          columns: { path: true },
-        });
-        return appRecord ? getDyadAppPath(appRecord.path) : null;
-      },
-      fetchFile: (url) => net.fetch(url),
-      createThumbnailFromPath: (sourcePath, size) =>
-        createPlatformThumbnailFromPath(nativeImage, sourcePath, size),
-    }),
-  );
+  const dyadMediaHandler = createDyadMediaProtocolHandler({
+    cacheRoot: getMediaThumbnailCacheRoot(app.getPath("sessionData")),
+    resolveAppPath: getDyadAppPath,
+    resolveAppId: async (appId) => {
+      const appRecord = await db.query.apps.findFirst({
+        where: eq(apps.id, appId),
+        columns: { path: true },
+      });
+      return appRecord ? getDyadAppPath(appRecord.path) : null;
+    },
+    fetchFile: (url) => net.fetch(url),
+    createThumbnailFromPath: (sourcePath, size) =>
+      createPlatformThumbnailFromPath(nativeImage, sourcePath, size),
+  });
+  protocol.handle("dyad-media", dyadMediaHandler);
+  // The phone browser cannot open dyad-media://, so it gets the same handler
+  // over plain HTTP (see phone_bridge_media.ts).
+  setPhoneMediaHandler(dyadMediaHandler);
 
   const shouldUseManagedNode =
     settings.nodeRuntimePreference === "managed" && !settings.customNodePath;
@@ -1509,14 +1511,17 @@ app.on("open-url", (event, url) => {
 });
 
 function startAppWhenReady() {
-  void app.whenReady().then(onReady).catch((error) => {
-    logger.error("Crackerbox failed to finish startup:", error);
-    dialog.showErrorBox(
-      "Crackerbox Could Not Start",
-      `Startup failed: ${getErrorMessage(error)}\n\nPlease try opening Crackerbox again.`,
-    );
-    app.quit();
-  });
+  void app
+    .whenReady()
+    .then(onReady)
+    .catch((error) => {
+      logger.error("Crackerbox failed to finish startup:", error);
+      dialog.showErrorBox(
+        "Crackerbox Could Not Start",
+        `Startup failed: ${getErrorMessage(error)}\n\nPlease try opening Crackerbox again.`,
+      );
+      app.quit();
+    });
 }
 
 function getErrorMessage(error: unknown): string {

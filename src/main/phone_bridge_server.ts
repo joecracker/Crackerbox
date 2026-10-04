@@ -26,6 +26,7 @@ import {
 } from "../ipc/preload/channels";
 import { isIpcInvokeEnvelope, unwrapIpcEnvelope } from "../ipc/contracts/core";
 import { PHONE_BRIDGE_TRUST_MARKER } from "../ipc/utils/renderer_security";
+import { PHONE_MEDIA_PATH_PREFIX, servePhoneMedia } from "./phone_bridge_media";
 
 const logger = log.scope("phone_bridge_server");
 
@@ -236,6 +237,10 @@ const PHONE_SHIM_SCRIPT = `(function () {
 
   function rewritePreviewUrl(value) {
     if (typeof value !== "string") return value;
+    var mediaPrefix = "dyad-media://media/";
+    if (value.indexOf(mediaPrefix) === 0) {
+      return location.origin + "${PHONE_MEDIA_PATH_PREFIX}" + value.slice(mediaPrefix.length);
+    }
     return value.replace(
       new RegExp("^http://(?:localhost|127[.]0[.]0[.]1):([0-9]{5})(?=/|$)"),
       function (match, port) {
@@ -673,6 +678,11 @@ export function startPhoneBridgeServer(devServerUrl: string | undefined) {
         "Cache-Control": "no-store",
       });
       res.end(PHONE_SHIM_SCRIPT);
+      return;
+    }
+
+    if (pathname.startsWith(PHONE_MEDIA_PATH_PREFIX)) {
+      void servePhoneMedia(req, res, pathname, requestUrl.search);
       return;
     }
 

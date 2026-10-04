@@ -142,6 +142,11 @@ const ignore = (file: string) => {
   if (file.startsWith("/.vite")) {
     return false;
   }
+  // Window and tray icons are loaded from app.getAppPath()/assets/icon at
+  // runtime; without this they were left out of the package (blank taskbar icon).
+  if (file === "/assets" || file.startsWith("/assets/icon")) {
+    return false;
+  }
 
   return true;
 };

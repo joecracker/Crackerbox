@@ -87,11 +87,17 @@ async function fetchRemoteMcpCatalog(): Promise<{
  * fetched — callers treat "no catalog" as a normal state (offline,
  * endpoint not deployed yet).
  */
+// Crackerbox never fetches Dyad's curated catalog. A named switch (instead of
+// an early return) keeps the fetch code below reachable for the type checker.
+const PHONE_HOME_ENABLED = false as boolean;
+
 export async function getRemoteMcpCatalog(): Promise<McpCatalogEntry[]> {
   // Crackerbox doesn't use Dyad's curated MCP server suggestions -- Tim adds
   // MCP servers directly, and every caller already treats an empty catalog
   // as a normal state. No reason to phone home for a marketing list.
-  return [];
+  if (!PHONE_HOME_ENABLED) {
+    return [];
+  }
 
   if (catalogCache && catalogCache.expiresAt > Date.now()) {
     return catalogCache.entries;

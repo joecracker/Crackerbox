@@ -212,10 +212,16 @@ describe("a broken availability check", () => {
       abortSignal: new AbortController().signal,
     }) as unknown as import("./tools/types").AgentContext;
 
+  // isEnabled is optional on tool definitions, which makes vi.spyOn type it as
+  // never; this view of the tool says it is present.
+  type EnabledCheckable = (typeof TOOL_DEFINITIONS)[number] & {
+    isEnabled: (ctx: import("./tools/types").AgentContext) => boolean;
+  };
+
   it("leaves only that tool out instead of failing the whole tool list", () => {
     const sendEmail = TOOL_DEFINITIONS.find(
       (tool) => tool.name === "send_email",
-    )!;
+    )! as EnabledCheckable;
     const spy = vi.spyOn(sendEmail, "isEnabled").mockImplementation(() => {
       throw new Error("Windows secure credential storage is unavailable.");
     });
@@ -236,7 +242,7 @@ describe("a broken availability check", () => {
   it("still offers a tool whose check passes, and drops one whose check says no", () => {
     const sendEmail = TOOL_DEFINITIONS.find(
       (tool) => tool.name === "send_email",
-    )!;
+    )! as EnabledCheckable;
     const spy = vi.spyOn(sendEmail, "isEnabled");
     try {
       const ctx = makeCtx();

@@ -387,14 +387,18 @@ export async function getModelClient(
           builtinProviderId: "openrouter",
           getRuntimeModel: () => ({
             provider: "openrouter",
-            name: fallback.modelId,
+            name: fallbackModelId(fallback),
+            effortLevel: FALLBACK_EFFORT_LEVEL,
           }),
         },
         runtimeModel: model,
         isEngineEnabled: false,
       };
     }
-    const candidates: Array<{ model: LanguageModel; selection: ModelSelection }> = [];
+    const candidates: Array<{
+      model: LanguageModel;
+      selection: ModelSelection;
+    }> = [];
     for (const autoModelAlias of AUTO_MODEL_ALIASES) {
       const resolvedModel = await resolveBuiltinModelAlias(autoModelAlias);
       if (!resolvedModel) {
@@ -421,20 +425,26 @@ export async function getModelClient(
           provider: resolvedModel.providerId,
           name: resolvedModel.apiName,
           connection: "api-key" as const,
+          effortLevel: FALLBACK_EFFORT_LEVEL,
         };
         candidates.push({
-          model: getRegularModelClient(selection, settings, providerInfo).modelClient.model,
+          model: getRegularModelClient(selection, settings, providerInfo)
+            .modelClient.model,
           selection,
         });
-        if (resolvedModel.providerId === "openrouter" &&
-            resolvedModel.apiName !== OPENROUTER_FREE_MODEL_NAME) {
+        if (
+          resolvedModel.providerId === "openrouter" &&
+          resolvedModel.apiName !== OPENROUTER_FREE_MODEL_NAME
+        ) {
           const freeSelection = {
             provider: "openrouter",
             name: OPENROUTER_FREE_MODEL_NAME,
             connection: "api-key" as const,
+            effortLevel: FALLBACK_EFFORT_LEVEL,
           };
           candidates.push({
-            model: getRegularModelClient(freeSelection, settings, providerInfo).modelClient.model,
+            model: getRegularModelClient(freeSelection, settings, providerInfo)
+              .modelClient.model,
             selection: freeSelection,
           });
         }
@@ -449,9 +459,11 @@ export async function getModelClient(
         modelClient: {
           model: fallback,
           builtinProviderId: candidates[0].selection.provider,
-          getRuntimeModel: () => candidates.find(
-            ({ model }) => model.modelId === fallback.modelId,
-          )?.selection ?? candidates[0].selection,
+          getRuntimeModel: () =>
+            candidates.find(
+              ({ model }) =>
+                fallbackModelId(model) === fallbackModelId(fallback),
+            )?.selection ?? candidates[0].selection,
         },
         runtimeModel: candidates[0].selection,
         isEngineEnabled: false,
@@ -466,36 +478,6 @@ export async function getModelClient(
   return {
     ...regular,
     runtimeModel: model,
-  };
-}
-
-function getOpenRouterAutoFallbackModelClient({
-  primaryModelName,
-  settings,
-  providerConfig,
-}: {
-  primaryModelName: string;
-  settings: UserSettings;
-  providerConfig: LanguageModelProvider;
-}): ModelClient {
-  const modelNames = Array.from(
-    new Set([primaryModelName, OPENROUTER_FREE_MODEL_NAME]),
-  );
-
-  const fallback = createFallback({
-    models: modelNames.map(
-      (name) =>
-        getRegularModelClient(
-          { provider: "openrouter", name },
-          settings,
-          providerConfig,
-        ).modelClient.model,
-    ),
-  });
-  return {
-    model: fallback,
-    builtinProviderId: "openrouter",
-    getRuntimeModel: () => ({ provider: "openrouter", name: fallback.modelId }),
   };
 }
 
@@ -995,4 +977,15 @@ function getProviderApiKeyForRequest(
     );
   }
   return normalizedValue;
+}
+
+// Only used to report which model a fallback chain ended up on; effort level
+// has no meaning there.
+const FALLBACK_EFFORT_LEVEL = "medium";
+
+// The AI SDK types a model as string | object; fallback chains are objects.
+function fallbackModelId(model: LanguageModel): string {
+  return typeof model === "object" && model !== null && "modelId" in model
+    ? String((model as { modelId: unknown }).modelId)
+    : "";
 }

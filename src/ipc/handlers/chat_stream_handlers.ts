@@ -2646,7 +2646,7 @@ This conversation includes one or more image attachments. When the user uploads 
             messages: chatMessages.filter((m) => m.content),
             onFinish: async (response) => {
               const actualModel =
-                modelClient.getRuntimeModel?.() ?? runtimeModel;
+                modelClient.getRuntimeModel?.() ?? selectedModel;
               const autoModelLabel = resolvedAutoModelLabel(
                 selectedModel,
                 actualModel,

@@ -51,13 +51,19 @@ async function fetchRemoteDesktopConfig(): Promise<RemoteDesktopConfig | null> {
   return RemoteDesktopConfigSchema.parse(json);
 }
 
+// Crackerbox never phones home for this config. A named switch (instead of an
+// early return) keeps the fetch code below reachable for the type checker.
+const PHONE_HOME_ENABLED = false as boolean;
+
 export async function getRemoteDesktopConfig(): Promise<RemoteDesktopConfig | null> {
   // Crackerbox doesn't rely on Dyad's servers for security defaults --
   // resolveEffectiveSettings() in main/settings.ts already falls back to
   // blockUnsafeNpmPackages: true when this returns null, which is exactly
   // what happened here anyway on any network failure. No reason to phone
   // home for one boolean.
-  return null;
+  if (!PHONE_HOME_ENABLED) {
+    return null;
+  }
 
   if (
     remoteDesktopConfigCache &&

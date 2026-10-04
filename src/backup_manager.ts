@@ -8,11 +8,18 @@ import { calculateFileChecksum } from "@/utils/file_checksum";
 
 const logger = log.scope("backup_manager");
 
-const MAX_BACKUPS = 3;
+const MAX_BACKUPS = 7;
+// A fresh backup is taken at startup and every few hours while the app runs,
+// but only when the newest one is older than this.
+const BACKUP_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const BACKUP_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
 interface BackupManagerOptions {
   settingsFile: string;
   dbFile: string;
+  // Test hooks: default to Electron's userData path and app version.
+  userDataPath?: string;
+  appVersion?: string;
 }
 
 interface BackupMetadata {
@@ -39,11 +46,20 @@ export class BackupManager {
   private readonly dbFilePath: string;
   private userDataPath!: string;
   private backupBasePath!: string;
+  private readonly userDataOverride?: string;
+  private readonly versionOverride?: string;
+  private schedulerTimer: NodeJS.Timeout | null = null;
 
   constructor(options: BackupManagerOptions) {
     this.maxBackups = MAX_BACKUPS;
     this.settingsFilePath = options.settingsFile;
     this.dbFilePath = options.dbFile;
+    this.userDataOverride = options.userDataPath;
+    this.versionOverride = options.appVersion;
+  }
+
+  private currentVersion(): string {
+    return this.versionOverride ?? app.getVersion();
   }
 
   /**
@@ -53,42 +69,127 @@ export class BackupManager {
     logger.info("Initializing backup system...");
 
     // Set paths after app is ready
-    this.userDataPath = app.getPath("userData");
+    this.userDataPath = this.userDataOverride ?? app.getPath("userData");
     this.backupBasePath = path.join(this.userDataPath, "backups");
 
     logger.info(
       `Backup system paths - UserData: ${this.userDataPath}, Backups: ${this.backupBasePath}`,
     );
 
-    // Check if this is a version upgrade
-    const currentVersion = app.getVersion();
+    await fs.mkdir(this.backupBasePath, { recursive: true });
+
+    // Version-change backup. A first run has no previous version: record the
+    // current one and carry on (it used to return here, so the version file was
+    // never written and no backup was ever taken).
+    const currentVersion = this.currentVersion();
     const lastVersion = await this.getLastRunVersion();
 
-    if (lastVersion === null) {
-      logger.info("No previous version found, skipping backup");
-      return;
-    }
-
-    if (lastVersion === currentVersion) {
+    if (lastVersion !== null && lastVersion !== currentVersion) {
       logger.info(
-        `No version upgrade detected. Current version: ${currentVersion}`,
+        `Version upgrade detected: ${lastVersion} -> ${currentVersion}`,
       );
-      return;
+      try {
+        await this.createBackup(`upgrade_from_${lastVersion}`);
+      } catch (error) {
+        logger.error("Upgrade backup failed", error);
+      }
+    }
+    if (lastVersion !== currentVersion) {
+      await this.saveCurrentVersion(currentVersion);
     }
 
-    // Ensure backup directory exists
-    await fs.mkdir(this.backupBasePath, { recursive: true });
-    logger.debug("Backup directory created/verified");
-
-    logger.info(`Version upgrade detected: ${lastVersion} → ${currentVersion}`);
-    await this.createBackup(`upgrade_from_${lastVersion}`);
-
-    // Save current version
-    await this.saveCurrentVersion(currentVersion);
-
-    // Clean up old backups
-    await this.cleanupOldBackups();
+    // Regular backup: at most one per day, whatever the version.
+    await this.ensureRecentBackup();
     logger.info("Backup system initialized successfully");
+  }
+
+  /**
+   * Take a backup if the newest one is missing or older than maxAgeMs, then
+   * prune old ones. Safe to call repeatedly. Never throws.
+   */
+  async ensureRecentBackup(
+    maxAgeMs: number = BACKUP_MAX_AGE_MS,
+  ): Promise<boolean> {
+    try {
+      const backups = await this.listBackups();
+      const newest = backups[0];
+      const age = newest
+        ? Date.now() - new Date(newest.timestamp).getTime()
+        : Number.POSITIVE_INFINITY;
+      if (age < maxAgeMs) {
+        return false;
+      }
+      await this.createBackup("daily");
+      await this.cleanupOldBackups();
+      return true;
+    } catch (error) {
+      logger.error("Scheduled backup failed", error);
+      return false;
+    }
+  }
+
+  /** Re-check on a timer while the app runs (covers machines left on for days). */
+  startScheduler(): void {
+    if (this.schedulerTimer) return;
+    this.schedulerTimer = setInterval(() => {
+      void this.ensureRecentBackup();
+    }, BACKUP_CHECK_INTERVAL_MS);
+    this.schedulerTimer.unref();
+  }
+
+  stopScheduler(): void {
+    if (this.schedulerTimer) {
+      clearInterval(this.schedulerTimer);
+      this.schedulerTimer = null;
+    }
+  }
+
+  /**
+   * Restore settings and database from a backup. Verifies checksums first and
+   * takes a "pre_restore" backup of the current state. Only call while the
+   * database is not open (see scripts/restore-backup.mjs).
+   */
+  async restoreBackup(backupName: string): Promise<void> {
+    const backupPath = path.join(this.backupBasePath, backupName);
+    const metadata: BackupMetadata = JSON.parse(
+      await fs.readFile(path.join(backupPath, "backup.json"), "utf8"),
+    );
+    const settingsSrc = path.join(
+      backupPath,
+      path.basename(this.settingsFilePath),
+    );
+    const dbSrc = path.join(backupPath, path.basename(this.dbFilePath));
+
+    if (metadata.files.settings) {
+      const sum = await this.getFileChecksum(settingsSrc);
+      if (sum === null || sum !== metadata.checksums.settings) {
+        throw new DyadError(
+          "Backup settings file is damaged",
+          DyadErrorKind.External,
+        );
+      }
+    }
+    if (metadata.files.database) {
+      const sum = await this.getFileChecksum(dbSrc);
+      if (sum === null || sum !== metadata.checksums.database) {
+        throw new DyadError(
+          "Backup database file is damaged",
+          DyadErrorKind.External,
+        );
+      }
+    }
+
+    await this.createBackup("pre_restore");
+
+    if (metadata.files.settings) {
+      await fs.copyFile(settingsSrc, this.settingsFilePath);
+    }
+    if (metadata.files.database) {
+      await fs.rm(`${this.dbFilePath}-wal`, { force: true });
+      await fs.rm(`${this.dbFilePath}-shm`, { force: true });
+      await fs.copyFile(dbSrc, this.dbFilePath);
+    }
+    logger.info(`Restored backup: ${backupName}`);
   }
 
   /**
@@ -96,7 +197,7 @@ export class BackupManager {
    */
   async createBackup(reason: string = "manual"): Promise<string> {
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const version = app.getVersion();
+    const version = this.currentVersion();
     const backupName = `v${version}_${timestamp}_${reason}`;
     const backupPath = path.join(this.backupBasePath, backupName);
 

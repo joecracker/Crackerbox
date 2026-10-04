@@ -452,6 +452,7 @@ export async function onReady() {
       dbFile: getDatabasePath(),
     });
     await backupManager.initialize();
+    backupManager.startScheduler();
   } catch (e) {
     logger.error("Error initializing backup manager", e);
   }

@@ -2,6 +2,7 @@
 //   node scripts/restore-backup.mjs --list
 //   node scripts/restore-backup.mjs --restore latest
 //   node scripts/restore-backup.mjs --restore <backup-folder-name>
+//   (rehearsal on a copy: add --data <copy> --allow-running)
 // Optional: --data <folder>  (default: %APPDATA%\Crackerbox)
 import { createHash } from "node:crypto";
 import { execSync } from "node:child_process";
@@ -49,7 +50,17 @@ if (opt("--list") || !opt("--restore")) {
   process.exit(0);
 }
 
-if (process.platform === "win32") {
+// For rehearsals on a COPY of the data folder while Crackerbox is open. It only
+// works together with --data so it can never touch the live folder by accident.
+const allowRunning = args.includes("--allow-running");
+if (allowRunning && !opt("--data")) {
+  console.error(
+    "--allow-running only works together with --data <a copy of the data folder>.",
+  );
+  process.exit(1);
+}
+
+if (process.platform === "win32" && !allowRunning) {
   const running = execSync('tasklist /FI "IMAGENAME eq Crackerbox.exe" /NH', {
     encoding: "utf8",
   });

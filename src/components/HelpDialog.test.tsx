@@ -8,7 +8,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Provider, createStore, useSetAtom } from "jotai";
 import { useEffect } from "react";
-import { HelpDialog } from "./HelpDialog";
+import { HelpDialog, reportSessionUpload } from "./HelpDialog";
 import { helpDialogAtom } from "@/atoms/helpDialogAtom";
 import { selectedChatIdAtom } from "@/atoms/chatAtoms";
 import { PROSE_BUDGET, SCREENSHOT_PASTE_REMINDER } from "@/lib/issueBody";
@@ -281,6 +281,8 @@ beforeEach(() => {
   // unconsumed mock*Once queue in place, so a test that stops short of
   // draining its own queue would hand the leftovers to the next one.
   vi.resetAllMocks();
+  // These tests exercise the upload code, which is off by default.
+  reportSessionUpload.enabled = true;
   mocks.settings = null;
   mocks.chatById = null;
   mocks.getSystemDebugInfo.mockResolvedValue(debugInfo);
@@ -307,6 +309,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  reportSessionUpload.enabled = false;
 });
 
 describe("HelpDialog report flow", () => {
@@ -578,6 +581,18 @@ describe("HelpDialog disclosures", () => {
     fireEvent.click(
       await screen.findByRole("checkbox", { name: "Chat session" }),
     );
+    await fileIt();
+
+    expect(mocks.uploadToSignedUrl).not.toHaveBeenCalled();
+    expect(bodyOfOpenedIssue()).not.toContain("Session ID");
+  });
+
+  it("never uploads a session while upload is switched off", async () => {
+    reportSessionUpload.enabled = false;
+    await openForm();
+    expect(
+      await screen.findByText("Crackerbox does not upload chat sessions."),
+    ).toBeTruthy();
     await fileIt();
 
     expect(mocks.uploadToSignedUrl).not.toHaveBeenCalled();

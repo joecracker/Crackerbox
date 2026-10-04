@@ -169,6 +169,7 @@
     "sessionLoading": "Loading chat session...",
     "sessionExpand": "Expand to load the session that will be uploaded.",
     "sessionUnavailable": "Open a chat first to include a session.",
+    "sessionNotUploaded": "Crackerbox does not upload chat sessions.",
     "reportAnIssue": "Report an issue",
     "reportBugBlurb": "Tell us what went wrong. You choose what to send along with it.",
     "reportBugHeading": "Report a bug",

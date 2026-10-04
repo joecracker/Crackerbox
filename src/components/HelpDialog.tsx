@@ -6,12 +6,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import {
-  BookOpenIcon,
-  BugIcon,
-  ChevronLeftIcon,
-  SparklesIcon,
-} from "lucide-react";
+import { BugIcon, ChevronLeftIcon, SparklesIcon } from "lucide-react";
 import { ipc } from "@/ipc/types";
 import { type ReactNode, useState, useEffect, useRef } from "react";
 import { useAtom, useAtomValue } from "jotai";
@@ -44,6 +39,11 @@ import { ReportDisclosures } from "./ReportDisclosures";
 import { ScreenshotCaptureBar } from "./ScreenshotCaptureBar";
 
 const UPLOAD_URL_ENDPOINT = "https://upload-logs.dyad.sh/generate-upload-url";
+
+// Crackerbox does not send chat sessions to Dyad's log service. Bug reports
+// still open a prefilled GitHub issue on our own repository. The flag is an
+// object so tests can switch it on to keep exercising the upload code.
+export const reportSessionUpload = { enabled: false };
 
 /**
  * How long the screenshot bar gets to leave the screen before the capture.
@@ -482,6 +482,7 @@ export function HelpDialog() {
     loaded: SessionDebugBundle | null,
     token: number,
   ): Promise<string | null> => {
+    if (!reportSessionUpload.enabled) return null;
     const alreadyUploaded = uploadedSession.current;
     if (alreadyUploaded) return alreadyUploaded;
 
@@ -704,7 +705,8 @@ export function HelpDialog() {
       description,
       screenshot: screenshot ?? { status: "declined" },
       includeSystemInfo,
-      includeSession: includeSession && sessionChatId != null,
+      includeSession:
+        reportSessionUpload.enabled && includeSession && sessionChatId != null,
       chatId: sessionChatId ?? null,
       bundle: debugBundle,
       captureId,
@@ -877,8 +879,8 @@ export function HelpDialog() {
             onClick={() => setIsHelpBotOpen(true)}
             className="w-full py-6 border-primary/50 shadow-sm shadow-primary/10 transition-all hover:shadow-md hover:shadow-primary/15"
           >
-            <SparklesIcon className="mr-2 h-5 w-5" /> Chat with Crackerbox help bot
-            (Pro)
+            <SparklesIcon className="mr-2 h-5 w-5" /> Chat with Crackerbox help
+            bot (Pro)
           </Button>
         ) : null}
 
@@ -962,14 +964,20 @@ export function HelpDialog() {
               onIncludeSystemInfoChange={setIncludeSystemInfo}
               bundle={debugBundle}
               bundleLoading={bundleLoading}
-              includeSession={includeSession && sessionChatId != null}
+              includeSession={
+                reportSessionUpload.enabled &&
+                includeSession &&
+                sessionChatId != null
+              }
               onIncludeSessionChange={setIncludeSession}
               onSessionExpand={loadSessionBundle}
               locked={isFiling}
               sessionUnavailableReason={
-                sessionChatId == null
-                  ? t("home:report.sessionUnavailable")
-                  : undefined
+                !reportSessionUpload.enabled
+                  ? t("home:report.sessionNotUploaded")
+                  : sessionChatId == null
+                    ? t("home:report.sessionUnavailable")
+                    : undefined
               }
             />
           }

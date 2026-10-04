@@ -166,6 +166,7 @@
     "sessionLoading": "正在加载聊天会话...",
     "sessionExpand": "展开以加载将要上传的会话。",
     "sessionUnavailable": "请先打开一个聊天以包含会话。",
+    "sessionNotUploaded": "Crackerbox does not upload chat sessions.",
     "reportAnIssue": "报告问题",
     "reportBugBlurb": "告诉我们出了什么问题。您可以选择一并发送哪些内容。",
     "reportBugHeading": "报告错误",

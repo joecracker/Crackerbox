@@ -169,6 +169,7 @@
     "sessionLoading": "Sohbet oturumu yükleniyor...",
     "sessionExpand": "Gönderilecek oturumu yüklemek için genişletin.",
     "sessionUnavailable": "Oturumu dahil etmek için önce bir sohbet açın.",
+    "sessionNotUploaded": "Crackerbox does not upload chat sessions.",
     "reportAnIssue": "Sorun bildir",
     "reportBugBlurb": "Ne ters gittiğini bize anlatın. Yanında ne gönderileceğini siz seçersiniz.",
     "reportBugHeading": "Hata bildir",

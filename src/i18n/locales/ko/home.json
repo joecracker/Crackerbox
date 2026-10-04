@@ -165,6 +165,7 @@
     "sessionLoading": "채팅 세션을 불러오는 중...",
     "sessionExpand": "펼치면 업로드될 세션을 불러옵니다.",
     "sessionUnavailable": "세션을 포함하려면 먼저 채팅을 여세요.",
+    "sessionNotUploaded": "Crackerbox does not upload chat sessions.",
     "reportAnIssue": "문제 신고",
     "reportBugBlurb": "무엇이 잘못되었는지 알려주세요. 함께 보낼 내용은 직접 선택할 수 있습니다.",
     "reportBugHeading": "버그 신고",

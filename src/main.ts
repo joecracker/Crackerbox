@@ -1471,6 +1471,12 @@ if (initialDeepLink) {
 // avoids the far worse failure mode of a dead renderer.
 app.disableHardwareAcceleration();
 
+// Explicit Windows AppUserModelID so the taskbar button, pinned shortcuts and
+// the window all agree on one identity (and one icon).
+if (process.platform === "win32") {
+  app.setAppUserModelId("app.crackerbox.desktop");
+}
+
 if (IS_TEST_BUILD) {
   startAppWhenReady();
 } else {

@@ -76,7 +76,7 @@ import {
 } from "@/lib/freeProModel";
 import { useRouterState } from "@tanstack/react-router";
 import { useChatMode } from "@/hooks/useChatMode";
-import { useChatMessages } from "@/hooks/useChatMessages";
+import { useLatestChatMessageSummary } from "@/hooks/useChatMessages";
 import {
   createModelSelection,
   formatCompactEffortLevel,
@@ -215,7 +215,9 @@ export function ModelPicker() {
     selectedMode,
     setChatSelection,
   } = useChatMode(isChatRoute ? chatId : null);
-  const chatMessages = useChatMessages(isChatRoute ? chatId : null);
+  const latestLiveMessage = useLatestChatMessageSummary(
+    isChatRoute ? chatId : null,
+  );
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const posthog = usePostHog();
@@ -602,7 +604,7 @@ export function ModelPicker() {
   )
     .replace(/\s*\([^)]*\)/g, "")
     .trim();
-  const latestChatMessage = chatMessages.at(-1) ?? chat?.messages.at(-1);
+  const latestChatMessage = latestLiveMessage ?? chat?.messages.at(-1);
   const modelDisplayName =
     selectedModel.provider === "claude-code"
       ? `${selectedClaudeModelName} (Claude Code)`

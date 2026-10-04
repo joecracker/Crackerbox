@@ -171,7 +171,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/hooks/useChatMessages", () => ({
-  useChatMessages: () => mocks.liveMessages,
+  useLatestChatMessageSummary: () => mocks.liveMessages.at(-1),
 }));
 
 vi.mock("@/hooks/useSelectChat", () => ({

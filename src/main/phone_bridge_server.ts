@@ -192,7 +192,8 @@ function onSocketMessage(conn: PhoneConnection, ws: WebSocket, raw: RawData) {
 // Electron's contextBridge) when the page is opened in a normal browser tab.
 // Plain ES5-ish JS -- no build step, has to run as-is in any phone browser.
 // ---------------------------------------------------------------------------
-const PHONE_SHIM_SCRIPT = `(function () {
+// Exported so tests can check the address rewriting.
+export const PHONE_SHIM_SCRIPT = `(function () {
 
   // Insecure (plain-http, non-localhost) contexts don't expose
   // crypto.randomUUID -- it's spec-restricted to secure contexts. The phone
@@ -238,8 +239,10 @@ const PHONE_SHIM_SCRIPT = `(function () {
   function rewritePreviewUrl(value) {
     if (typeof value !== "string") return value;
     var mediaPrefix = "dyad-media://media/";
-    if (value.indexOf(mediaPrefix) === 0) {
-      return location.origin + "${PHONE_MEDIA_PATH_PREFIX}" + value.slice(mediaPrefix.length);
+    // Anywhere in the text, so pictures inside chat messages (markdown) work
+    // as well as values that are a bare picture address.
+    if (value.indexOf(mediaPrefix) !== -1) {
+      return value.split(mediaPrefix).join(location.origin + "${PHONE_MEDIA_PATH_PREFIX}");
     }
     return value.replace(
       new RegExp("^http://(?:localhost|127[.]0[.]0[.]1):([0-9]{5})(?=/|$)"),

@@ -78,6 +78,15 @@ function getXmlAttributes(args: ListFilesArgs, count?: number, total?: number) {
   return `${dirAttr}${appNameAttr}${recursiveAttr}${includeIgnoredAttr}${countAttr}${totalAttr}${truncatedAttr}`;
 }
 
+function isDyadInternalRelativePath(relativePath: string): boolean {
+  return (
+    relativePath === ".dyad" ||
+    relativePath.startsWith(".dyad/") ||
+    relativePath.includes("/.dyad/") ||
+    relativePath.endsWith("/.dyad")
+  );
+}
+
 export const listFilesTool: ToolDefinition<ListFilesArgs> = {
   name: "list_files",
   description:
@@ -148,14 +157,19 @@ export const listFilesTool: ToolDefinition<ListFilesArgs> = {
         ignore: ignoredGlobs,
       });
 
+      const listed = ignoredPaths.map((entry) => ({
+        path: path
+          .relative(targetAppPath, entry.fullpath())
+          .split(path.sep)
+          .join("/"),
+        isDirectory: entry.isDirectory(),
+      }));
+      // The ignore globs above can miss on Windows paths, so also drop .dyad
+      // internals by name when listing another app.
       allPaths = sortListedPaths(
-        ignoredPaths.map((entry) => ({
-          path: path
-            .relative(targetAppPath, entry.fullpath())
-            .split(path.sep)
-            .join("/"),
-          isDirectory: entry.isDirectory(),
-        })),
+        args.app_name
+          ? listed.filter((p) => !isDyadInternalRelativePath(p.path))
+          : listed,
       );
     } else {
       const { files } = await listCodebaseFileMetadata({

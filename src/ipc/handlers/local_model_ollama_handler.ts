@@ -3,6 +3,7 @@ import { createTypedHandler } from "./base";
 import { languageModelContracts } from "../types/language-model";
 import type { LocalModel } from "../types/language-model";
 import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
+import { getConfiguredOllamaHost } from "../utils/local_ai_hosts";
 
 const logger = log.scope("ollama_handler");
 
@@ -40,7 +41,7 @@ export function parseOllamaHost(host?: string): string {
 }
 
 export function getOllamaApiUrl(): string {
-  return parseOllamaHost(process.env.OLLAMA_HOST);
+  return parseOllamaHost(getConfiguredOllamaHost() ?? process.env.OLLAMA_HOST);
 }
 
 interface OllamaModel {

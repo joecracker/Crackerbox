@@ -330,6 +330,13 @@ export type Supabase = z.infer<typeof SupabaseSchema>;
  * half can be set without the other -- entity listing only needs the token,
  * file access only needs SSH.
  */
+// Where the user's own AI computer lives, for people who run Ollama or LM Studio
+// on another machine. Blank means "this computer".
+export const LocalAiSchema = z.object({
+  ollamaHost: z.string().optional(),
+  lmStudioUrl: z.string().optional(),
+});
+
 export const HomeAssistantSchema = z.object({
   baseUrl: z.string().optional(),
   accessToken: SecretSchema.optional(),
@@ -521,6 +528,7 @@ const BaseUserSettingsFields = {
   supabase: SupabaseSchema.optional(),
   neon: NeonSchema.optional(),
   homeAssistant: HomeAssistantSchema.optional(),
+  localAi: LocalAiSchema.optional(),
   autoApproveChanges: z.boolean().optional(),
   telemetryConsent: z.enum(["opted_in", "opted_out", "unset"]).optional(),
   telemetryUserId: z.string().optional(),

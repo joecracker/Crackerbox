@@ -4,7 +4,6 @@ import { ProviderSettingsGrid } from "@/components/ProviderSettings";
 import ConfirmationDialog from "@/components/ConfirmationDialog";
 import { ipc } from "@/ipc/types";
 import { showSuccess, showError } from "@/lib/toast";
-import { TelemetrySwitch } from "@/components/TelemetrySwitch";
 import { MaxToolCallStepsSelector } from "@/components/MaxToolCallStepsSelector";
 import { useSettings } from "@/hooks/useSettings";
 import { useAppVersion } from "@/hooks/useAppVersion";
@@ -29,6 +28,7 @@ import { AutoUpdateSwitch } from "@/components/AutoUpdateSwitch";
 import { ReleaseChannelSelector } from "@/components/ReleaseChannelSelector";
 import { NeonIntegration } from "@/components/NeonIntegration";
 import { HomeAssistantSettings } from "@/components/HomeAssistantSettings";
+import { LocalAiSettings } from "@/components/settings/LocalAiSettings";
 import { RuntimeModeSelector } from "@/components/RuntimeModeSelector";
 import { NodePathSelector } from "@/components/NodePathSelector";
 import { AgentToolsSettings } from "@/components/settings/AgentToolsSettings";
@@ -196,26 +196,20 @@ export default function SettingsPage() {
             description="Connect the AI providers Crackerbox uses to build and run your apps."
           >
             <ProviderSettingsGrid />
+            <div className="mt-6">
+              <LocalAiSettings />
+            </div>
           </SettingsSection>
 
           <SettingsSection
             id={SECTION_IDS.telemetry}
-            title="Telemetry"
-            description="Anonymous usage data that helps improve Crackerbox."
+            title="Privacy"
+            description="Crackerbox does not collect or send usage data."
           >
-            <div id={SETTING_IDS.telemetry} className="space-y-1.5">
-              <TelemetrySwitch />
-              <p className={hint}>
-                This records anonymous usage data to improve the product.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
-              <span className="font-medium">Telemetry ID</span>
-              <span className="rounded-md border border-border/60 bg-muted/50 px-2 py-0.5 font-mono text-foreground">
-                {settings ? settings.telemetryUserId : "n/a"}
-              </span>
-            </div>
+            <p id={SETTING_IDS.telemetry} className={hint}>
+              Nothing about how you use Crackerbox leaves your computer except
+              the requests you send to the AI services you choose.
+            </p>
           </SettingsSection>
 
           <SettingsSection

@@ -110,18 +110,26 @@ document.addEventListener("visibilitychange", () => {
   }
 });
 
+// Hard off switch: Dyad's PostHog project is not ours to send data to.
+const TELEMETRY_ENABLED = false as boolean;
+
 const posthogClient = posthog.init(
   "phc_5Vxx0XT8Ug3eWROhP6mm4D6D2DgIIKT232q4AKxC2ab",
   {
     api_host: "https://us.i.posthog.com",
+    // Crackerbox never reports usage to Dyad's analytics. Capturing is off from
+    // the start and before_send below drops anything that slips through.
+    opt_out_capturing_by_default: true,
+    advanced_disable_decide: true,
+    disable_surveys: true,
     // @ts-ignore
     debug: import.meta.env.MODE === "development",
     autocapture: false,
     capture_exceptions: true,
     capture_pageview: false,
     before_send: (event) => {
-      if (!isTelemetryOptedIn()) {
-        console.debug("Telemetry not opted in, skipping event");
+      if (!TELEMETRY_ENABLED || !isTelemetryOptedIn()) {
+        console.debug("Telemetry is off, skipping event");
         return null;
       }
 

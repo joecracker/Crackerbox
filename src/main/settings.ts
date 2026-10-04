@@ -51,7 +51,8 @@ export const DEFAULT_SETTINGS: UserSettings = {
     provider: "auto",
   },
   providerSettings: {},
-  telemetryConsent: "unset",
+  // Crackerbox never sends usage data anywhere, so nobody is ever asked.
+  telemetryConsent: "opted_out",
   telemetryUserId: uuidv4(),
   hasRunBefore: false,
   experiments: {},

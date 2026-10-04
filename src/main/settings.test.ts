@@ -146,7 +146,7 @@ describe("readSettings", () => {
           },
           "selectedTemplateId": "react",
           "selectedThemeId": "default",
-          "telemetryConsent": "unset",
+          "telemetryConsent": "opted_out",
           "telemetryUserId": "[scrubbed]",
         }
       `);
@@ -591,7 +591,7 @@ describe("readSettings", () => {
           },
           "selectedTemplateId": "react",
           "selectedThemeId": "default",
-          "telemetryConsent": "unset",
+          "telemetryConsent": "opted_out",
           "telemetryUserId": "[scrubbed]",
         }
       `);

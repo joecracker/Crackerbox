@@ -79,7 +79,7 @@ export const PROMO_MESSAGES: PromoMessageConfig[] = [
     id: "github-star",
     text: "Enjoying Crackerbox? Star us on GitHub.",
     cta: "Star on GitHub",
-    target: { type: "url", url: "https://github.com/joecracker/dyad" },
+    target: { type: "url", url: "https://github.com/joecracker/Crackerbox" },
     weight: 1,
   },
 ];

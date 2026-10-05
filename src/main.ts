@@ -679,7 +679,7 @@ export async function onReady() {
     // straight off GitHub's own "latest release" download URL � no update
     // server of our own required.
     const baseUrl =
-      "https://github.com/joecracker/dyad/releases/latest/download";
+      "https://github.com/joecracker/Crackerbox/releases/latest/download";
     logger.info("Auto-update source=", baseUrl);
     // update-electron-app logs updater errors at info level, which the
     // warn-filtered bug-report logs drop � leaving only the orphaned stack

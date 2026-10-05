@@ -240,12 +240,12 @@ const config: ForgeConfig = {
         ? {
             windowsSign,
             iconUrl:
-              "https://raw.githubusercontent.com/joecracker/dyad/main/assets/icon/logo.ico",
+              "https://raw.githubusercontent.com/joecracker/Crackerbox/main/assets/icon/logo.ico",
             setupIcon: "./assets/icon/logo.ico",
           }
         : {
             iconUrl:
-              "https://raw.githubusercontent.com/joecracker/dyad/main/assets/icon/logo.ico",
+              "https://raw.githubusercontent.com/joecracker/Crackerbox/main/assets/icon/logo.ico",
             setupIcon: "./assets/icon/logo.ico",
           },
     ),
@@ -272,7 +272,7 @@ const config: ForgeConfig = {
       config: {
         repository: {
           owner: "joecracker",
-          name: "dyad",
+          name: "Crackerbox",
         },
         draft: true,
         force: true,

@@ -44,6 +44,7 @@ import { haReadFileTool } from "./tools/ha_read_file";
 import { haWriteFileTool } from "./tools/ha_write_file";
 import { haDeleteFileTool } from "./tools/ha_delete_file";
 import { sendEmailTool } from "./tools/send_email";
+import { githubReposTool } from "./tools/github_repos";
 import { viewPreviewTool } from "./tools/view_preview";
 import { generateTestAssertionsTool } from "./tools/generate_test_assertions";
 import {
@@ -199,6 +200,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinition[] = [
   haWriteFileTool,
   haDeleteFileTool,
   sendEmailTool,
+  githubReposTool,
   viewPreviewTool,
   runTestsTool,
   generateTestAssertionsTool,

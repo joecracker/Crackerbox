@@ -560,8 +560,9 @@ function isAttachmentAccessToolCall(toolName: string, input: unknown): boolean {
     typeof input.script === "string"
   ) {
     return (
-      /\b(?:read_file|file_stats|image_info)\s*\(\s*["']attachments:/.test(input.script) ||
-      /\blist_files\s*\(\s*["']attachments:?["']\s*\)/.test(input.script)
+      /\b(?:read_file|file_stats|image_info)\s*\(\s*["']attachments:/.test(
+        input.script,
+      ) || /\blist_files\s*\(\s*["']attachments:?["']\s*\)/.test(input.script)
     );
   }
   if (toolName === "read_file" && typeof input.path === "string") {
@@ -1714,6 +1715,12 @@ export async function handleLocalAgentStream(
               logger.error(
                 "Local agent stream error:",
                 getErrorMessage(normalizedError),
+                {
+                  statusCode: (normalizedError as any)?.statusCode,
+                  responseBody: String(
+                    (normalizedError as any)?.responseBody ?? "",
+                  ).slice(0, 2000),
+                },
               );
             },
           });

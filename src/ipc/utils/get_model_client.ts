@@ -947,7 +947,13 @@ function getRegularModelClient(
           modelClient: {
             model: provider(model.name),
             builtinProviderId: providerConfig.id,
-            reasoningEffortProviderId: providerConfig.id,
+            // NVIDIA Build models take a numeric reasoning_effort (1-100) and reject
+            // the word levels, so let the model use its own default there.
+            reasoningEffortProviderId: isNvidiaEndpoint(
+              providerConfig.apiBaseUrl,
+            )
+              ? undefined
+              : providerConfig.id,
           },
           backupModelClients: [],
         };
@@ -958,6 +964,14 @@ function getRegularModelClient(
         DyadErrorKind.Validation,
       );
     }
+  }
+}
+
+function isNvidiaEndpoint(apiBaseUrl: string | undefined): boolean {
+  try {
+    return !!apiBaseUrl && new URL(apiBaseUrl).hostname.endsWith(".nvidia.com");
+  } catch {
+    return false;
   }
 }
 

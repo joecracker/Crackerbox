@@ -1,7 +1,6 @@
 import { useState, useMemo } from "react";
 import {
   Plus,
-  Paperclip,
   ChartColumnIncreasing,
   Palette,
   Check,
@@ -156,19 +155,11 @@ export function AuxiliaryActionsMenu({
         <DropdownMenuContent align="end">
           {/* Codebase Context */}
 
-          {/* Attach Files Submenu */}
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="py-2 px-3">
-              <Paperclip size={16} className="mr-2" />
-              Attach files
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent>
-              <FileAttachmentDropdown
-                onFileSelect={onFileSelect}
-                closeMenu={() => setIsOpen(false)}
-              />
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
+          {/* Attach file (single option: chat context) */}
+          <FileAttachmentDropdown
+            onFileSelect={onFileSelect}
+            closeMenu={() => setIsOpen(false)}
+          />
 
           {(onSelectApp || onImportApp) && <DropdownMenuSeparator />}
           {onSelectApp && (

@@ -146,9 +146,7 @@ export function useAttachments(chatId?: number | null) {
 
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const files = Array.from(e.dataTransfer.files);
-      if (validateFiles(files, attachments)) {
-        setPendingFiles(files);
-      }
+      addAttachments(files, "chat-context");
     }
   };
 
@@ -253,8 +251,8 @@ export function useAttachments(chatId?: number | null) {
         }
       }
 
-      if (imageFiles.length > 0 && validateFiles(imageFiles, attachments)) {
-        setPendingFiles(imageFiles);
+      if (imageFiles.length > 0) {
+        addAttachments(imageFiles, "chat-context");
       }
     }
   };

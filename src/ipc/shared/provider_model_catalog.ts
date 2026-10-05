@@ -212,3 +212,91 @@ export async function getProviderModels(
   if (current) return current.models;
   return (await pending[providerId]) ?? fallback;
 }
+
+// ---------------------------------------------------------------------------
+// Generic OpenAI-compatible catalog for custom providers (e.g. NVIDIA Build).
+// Calls GET {apiBaseUrl}/models, caches for an hour, and never throws: if the
+// provider is unreachable the caller simply keeps its hand-added models.
+// ---------------------------------------------------------------------------
+const CustomModelListSchema = z.object({
+  data: z.array(z.object({ id: z.string() })),
+});
+
+// Skip models that are obviously not chat models.
+const NON_CHAT_MODEL =
+  /(embed|rerank|reward|guard|safety|nvclip|clip|vila|parse|retriev|ocr|whisper|asr|tts|riva|image|diffusion|flux|stable-|segment|detect|pii|classif)/i;
+
+const customCache = new Map<string, CacheEntry>();
+const customPending = new Map<string, Promise<LanguageModel[]>>();
+
+async function fetchCustomProviderModels(
+  providerId: string,
+  apiBaseUrl: string,
+  apiKey: string | undefined,
+): Promise<LanguageModel[]> {
+  const cacheKey = `${providerId}|${apiBaseUrl}`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const response = await fetch(`${apiBaseUrl.replace(/\/+$/, "")}/models`, {
+      headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : undefined,
+      signal: controller.signal,
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const { data } = CustomModelListSchema.parse(await response.json());
+    const models: LanguageModel[] = data
+      .filter((model) => !NON_CHAT_MODEL.test(model.id))
+      .map((model) => ({
+        apiName: model.id,
+        displayName: model.id,
+        description: "",
+        type: "cloud" as const,
+      }))
+      .sort((a, b) => a.apiName.localeCompare(b.apiName));
+    customCache.set(cacheKey, {
+      models,
+      expiresAt: Date.now() + CACHE_TTL_MS,
+    });
+    logger.info("Updated custom provider model catalog", {
+      providerId,
+      count: models.length,
+    });
+    return models;
+  } catch (error) {
+    logger.warn("Could not fetch custom provider model catalog", {
+      providerId,
+      error,
+    });
+    const previous = customCache.get(cacheKey);
+    customCache.set(cacheKey, {
+      models: previous?.models ?? [],
+      expiresAt: Date.now() + RETRY_TTL_MS,
+    });
+    return previous?.models ?? [];
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+export async function getCustomProviderModels(
+  providerId: string,
+  apiBaseUrl: string | undefined,
+  apiKey: string | undefined,
+): Promise<LanguageModel[]> {
+  if (!apiBaseUrl || !/^https?:\/\//i.test(apiBaseUrl)) return [];
+  const cacheKey = `${providerId}|${apiBaseUrl}`;
+  const current = customCache.get(cacheKey);
+  if (current && current.expiresAt > Date.now()) return current.models;
+  let inFlight = customPending.get(cacheKey);
+  if (!inFlight) {
+    inFlight = fetchCustomProviderModels(
+      providerId,
+      apiBaseUrl,
+      apiKey,
+    ).finally(() => {
+      customPending.delete(cacheKey);
+    });
+    customPending.set(cacheKey, inFlight);
+  }
+  return inFlight;
+}

@@ -13,7 +13,11 @@ import {
   PROVIDER_TO_ENV_VAR,
 } from "./language_model_constants";
 import { getBuiltinLanguageModelCatalog } from "./remote_language_model_catalog";
-import { getProviderModels } from "./provider_model_catalog";
+import {
+  getCustomProviderModels,
+  getProviderModels,
+} from "./provider_model_catalog";
+import { readSettings } from "@/main/settings";
 
 const logger = log.scope("language_model_helpers");
 /**
@@ -179,6 +183,19 @@ export async function getLanguageModels({
 
   if (providerId === "openrouter" || providerId === "google") {
     hardcodedModels = await getProviderModels(providerId, hardcodedModels);
+  }
+
+  // Custom OpenAI-compatible providers: also list whatever the provider's own
+  // /models endpoint offers. Hand-added models win on name clashes.
+  if (provider.type === "custom") {
+    const key = readSettings().providerSettings?.[providerId]?.apiKey?.value;
+    const fetched = await getCustomProviderModels(
+      providerId,
+      provider.apiBaseUrl,
+      key,
+    );
+    const known = new Set(customModels.map((model) => model.apiName));
+    hardcodedModels = fetched.filter((model) => !known.has(model.apiName));
   }
 
   return [...hardcodedModels, ...customModels];

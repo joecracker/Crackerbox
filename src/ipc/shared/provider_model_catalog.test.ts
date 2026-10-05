@@ -85,3 +85,46 @@ describe("provider model catalog", () => {
     expect(await getProviderModels("openrouter", fallback)).toBe(fallback);
   });
 });
+
+describe("custom provider catalog", () => {
+  it("lists chat models from an OpenAI-compatible /models endpoint", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: [
+          { id: "deepseek-ai/deepseek-v4.1-flash" },
+          { id: "nvidia/nv-embedqa-e5-v5" },
+          { id: "moonshotai/kimi-k3" },
+        ],
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { getCustomProviderModels } =
+      await import("./provider_model_catalog");
+    const models = await getCustomProviderModels(
+      "custom::nvidia",
+      "https://integrate.api.nvidia.com/v1/",
+      "nvapi-test",
+    );
+    expect(models.map((m) => m.apiName)).toEqual([
+      "deepseek-ai/deepseek-v4.1-flash",
+      "moonshotai/kimi-k3",
+    ]);
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      "https://integrate.api.nvidia.com/v1/models",
+    );
+  });
+
+  it("returns an empty list instead of throwing when the provider is down", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+    const { getCustomProviderModels } =
+      await import("./provider_model_catalog");
+    expect(
+      await getCustomProviderModels(
+        "custom::x",
+        "https://example.invalid/v1",
+        undefined,
+      ),
+    ).toEqual([]);
+  });
+});

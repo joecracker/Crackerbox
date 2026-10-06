@@ -20,6 +20,15 @@ describe("office tools round trip", () => {
     await fs.rm(appPath, { recursive: true, force: true });
   });
 
+  it("refuses office files over the size limit", async () => {
+    await fs.writeFile(
+      path.join(appPath, "huge.xlsx"),
+      Buffer.alloc(26 * 1024 * 1024),
+    );
+    await expect(
+      readOfficeFileTool.execute({ path: "huge.xlsx" }, ctx),
+    ).rejects.toThrow(/too large/);
+  });
   it("writes, edits and reads a spreadsheet with formulas", async () => {
     await writeSpreadsheetTool.execute(
       {

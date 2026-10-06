@@ -11,6 +11,9 @@ import { getFileWriteKey, withLock } from "@/ipc/utils/lock_utils";
 import { queueCloudSandboxSnapshotSync } from "@/ipc/utils/cloud_sandbox_provider";
 import type { AgentContext } from "../types";
 
+/** Largest office file the tools will open (they parse in the main process). */
+export const MAX_OFFICE_INPUT_BYTES = 25 * 1024 * 1024;
+
 /** Resolve an `attachments:<name>` or app-relative path to an existing file. */
 export async function resolveInputFile(
   ctx: AgentContext,
@@ -36,6 +39,27 @@ export async function resolveInputFile(
     const stat = await fsp.stat(fullPath);
     if (!stat.isFile()) {
       throw new DyadError(`Not a file: ${inputPath}`, DyadErrorKind.Validation);
+    }
+    if (stat.size > MAX_OFFICE_INPUT_BYTES) {
+      throw new DyadError(
+        `File is too large to open (${Math.round(stat.size / 1048576)} MB; limit is ${MAX_OFFICE_INPUT_BYTES / 1048576} MB): ${inputPath}`,
+        DyadErrorKind.Validation,
+      );
+    }
+    if (!inputPath.startsWith("attachments:")) {
+      // safeJoin only checks the path text; make sure a symlink cannot lead
+      // outside the app folder.
+      const [realFile, realRoot] = await Promise.all([
+        fsp.realpath(fullPath),
+        fsp.realpath(ctx.appPath),
+      ]);
+      const rel = path.relative(realRoot, realFile);
+      if (rel.startsWith("..") || path.isAbsolute(rel)) {
+        throw new DyadError(
+          `Path resolves outside the app folder: ${inputPath}`,
+          DyadErrorKind.Validation,
+        );
+      }
     }
   } catch (error) {
     if (error instanceof DyadError) throw error;

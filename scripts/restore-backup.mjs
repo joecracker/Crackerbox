@@ -102,7 +102,7 @@ const safety = path.join(
   `pre_restore_${new Date().toISOString().replace(/[:.]/g, "-")}`,
 );
 fs.mkdirSync(safety, { recursive: true });
-for (const f of [live.settings, live.db]) {
+for (const f of [live.settings, live.db, `${live.db}-wal`, `${live.db}-shm`]) {
   if (fs.existsSync(f)) fs.copyFileSync(f, path.join(safety, path.basename(f)));
 }
 

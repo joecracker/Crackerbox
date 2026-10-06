@@ -22,6 +22,16 @@ import { getNeonProjectInfoTool } from "./tools/get_neon_project_info";
 import { getDatabaseTableSchemaTool } from "./tools/get_database_table_schema";
 
 import { readFileTool } from "./tools/read_file";
+import { readOfficeFileTool } from "./tools/office/read_office_file";
+import {
+  writeSpreadsheetTool,
+  editSpreadsheetTool,
+} from "./tools/office/spreadsheet_tools";
+import {
+  writeDocumentTool,
+  writePresentationTool,
+  convertOfficeFileTool,
+} from "./tools/office/document_tools";
 import { listFilesTool } from "./tools/list_files";
 import { getSupabaseProjectInfoTool } from "./tools/get_supabase_project_info";
 import { setChatSummaryTool } from "./tools/set_chat_summary";
@@ -159,6 +169,12 @@ export const TOOL_DEFINITIONS: readonly ToolDefinition[] = [
   addDependencyTool,
   executeSqlTool,
   readFileTool,
+  readOfficeFileTool,
+  writeSpreadsheetTool,
+  editSpreadsheetTool,
+  writeDocumentTool,
+  writePresentationTool,
+  convertOfficeFileTool,
   listFilesTool,
   gitStatusTool,
   gitDiffTool,

@@ -15,13 +15,7 @@ import {
   DialogTitle,
   DialogClose,
 } from "@/components/ui/dialog";
-import {
-  Shield,
-  ChevronDown,
-  ExternalLink,
-  Pencil,
-  Wrench,
-} from "lucide-react";
+import { Shield, ChevronDown, Pencil, Wrench } from "lucide-react";
 import { getSeverityIcon, SeverityBadge } from "@/components/security/severity";
 import { useStreamChat } from "@/hooks/useStreamChat";
 import { showError } from "@/lib/toast";

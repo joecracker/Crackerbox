@@ -180,7 +180,7 @@ If \`search_replace\` fails twice in a row on the same edit (e.g., the target te
 
 function appBlueprintWorkflowStep({
   hasAppBlueprint,
-  planningQuestionnaireAvailable,
+
   appBlueprintQuestionnaireCompleted,
 }: {
   hasAppBlueprint: boolean;
@@ -496,7 +496,7 @@ When you reach the Implement step and the implementation requires a server layer
 
 function appBlueprintBlock({
   hasAppBlueprint,
-  planningQuestionnaireAvailable,
+
   appBlueprintQuestionnaireCompleted,
   appBlueprint,
 }: {

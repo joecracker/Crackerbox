@@ -3,7 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { ipc } from "@/ipc/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Database, Loader2 } from "lucide-react";
+import { Database, Loader2 } from "lucide-react";
 import { showSuccess, showError } from "@/lib/toast";
 import { useVersions } from "@/hooks/useVersions";
 

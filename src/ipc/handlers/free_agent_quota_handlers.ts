@@ -7,7 +7,6 @@ import log from "electron-log";
 import { IS_TEST_BUILD } from "../utils/test_utils";
 import { registerTrustedIpcHandler } from "./trusted_handle";
 import { FREE_AGENT_QUOTA_LIMIT } from "@/lib/free_agent_quota_limit";
-import fetch from "node-fetch";
 import { withLock } from "../utils/lock_utils";
 import { shouldSimulateFreeAgentQuotaExceeded } from "../utils/free_agent_quota_fixture";
 
@@ -15,9 +14,6 @@ const logger = log.scope("free_agent_quota_handlers");
 const FREE_AGENT_QUOTA_ADMISSION_LOCK = "free-agent-quota-admission";
 const pendingQuotaReservations = new Set<number>();
 let nextQuotaReservationId = 1;
-
-/** Timeout for server time fetch in milliseconds */
-const SERVER_TIME_TIMEOUT_MS = 5000;
 
 /**
  * Returns the current time for quota-window bookkeeping.

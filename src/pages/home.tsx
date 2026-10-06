@@ -8,7 +8,7 @@ import {
   homeSelectedAppAtom,
 } from "../atoms/chatAtoms";
 import { useSettings } from "@/hooks/useSettings";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useEffect, useCallback, useMemo } from "react";
 import { HomeChatInput } from "@/components/chat/HomeChatInput";
 import { usePostHog } from "posthog-js/react";
 import { PrivacyBanner } from "@/components/TelemetryBanner";
@@ -42,7 +42,7 @@ export interface HomeSubmitOptions {
 
 export default function HomePage() {
   const { t } = useTranslation("home");
-  const [inputValue, setInputValue] = useAtom(homeChatInputValueAtom);
+  const [inputValue] = useAtom(homeChatInputValueAtom);
   const selectedApp = useAtomValue(homeSelectedAppAtom);
   const attachments = useAtomValue(attachmentsAtom);
   const firstPromptSaga = useFirstPromptSaga();

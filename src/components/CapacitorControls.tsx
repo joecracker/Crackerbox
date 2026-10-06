@@ -3,13 +3,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ipc } from "@/ipc/types";
 import { showSuccess } from "@/lib/toast";
-import {
-  Smartphone,
-  TabletSmartphone,
-  Loader2,
-  ExternalLink,
-  Copy,
-} from "lucide-react";
+import { Smartphone, TabletSmartphone, Loader2, Copy } from "lucide-react";
 import {
   Dialog,
   DialogContent,

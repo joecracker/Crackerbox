@@ -16,7 +16,6 @@ import {
   cancelOrphanedBaseStream,
   fastTextOutput,
 } from "../../../../ipc/utils/stream_text_utils";
-import { v4 as uuidv4 } from "uuid";
 import type {
   SetAppThemeParams,
   GetAppThemeParams,
@@ -36,7 +35,6 @@ import {
   resolveBuiltinModelAlias,
 } from "@/ipc/shared/remote_language_model_catalog";
 import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
-import { getDyadEngineBaseUrl } from "@/ipc/utils/dyad_engine_url";
 
 const logger = log.scope("themes_handlers");
 const handle = createLoggedHandler(logger);
@@ -641,5 +639,4 @@ images: ${imagesPart}`;
       }
     },
   );
-
 }

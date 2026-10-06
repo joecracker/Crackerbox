@@ -8,7 +8,7 @@ import {
 import { useSummarizeInNewChat } from "./SummarizeInNewChatButton";
 
 const CONTEXT_LIMIT_THRESHOLD = 40_000;
-const LONG_CONTEXT_THRESHOLD = 60_000;
+const LONG_CONTEXT_THRESHOLD = 80_000;
 
 interface ContextLimitBannerProps {
   totalTokens?: number | null;

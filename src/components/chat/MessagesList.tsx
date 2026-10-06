@@ -463,7 +463,7 @@ function FooterComponent({ context }: { context?: FooterContext }) {
         />
       )}
       {!isStreaming && !showModifiedFilesCard && (
-        <div className="hidden max-w-3xl mx-auto gap-2 md:flex">
+        <div className="hidden">
           {isLastMessageAssistant && (
             <Button
               variant="outline"

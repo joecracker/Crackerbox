@@ -5,7 +5,11 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { AgentContext } from "../types";
 import { readOfficeFileTool } from "./read_office_file";
 import { writeSpreadsheetTool, editSpreadsheetTool } from "./spreadsheet_tools";
-import { writeDocumentTool, writePresentationTool } from "./document_tools";
+import {
+  convertOfficeFileTool,
+  writeDocumentTool,
+  writePresentationTool,
+} from "./document_tools";
 
 describe("office tools round trip", () => {
   let appPath: string;
@@ -18,6 +22,31 @@ describe("office tools round trip", () => {
 
   afterEach(async () => {
     await fs.rm(appPath, { recursive: true, force: true });
+  });
+
+  it("does not count office or PDF work as a code mutation", () => {
+    expect([
+      readOfficeFileTool,
+      writeSpreadsheetTool,
+      editSpreadsheetTool,
+      writeDocumentTool,
+      writePresentationTool,
+      convertOfficeFileTool,
+    ]).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ mutationTracking: "none" }),
+      ]),
+    );
+    for (const tool of [
+      readOfficeFileTool,
+      writeSpreadsheetTool,
+      editSpreadsheetTool,
+      writeDocumentTool,
+      writePresentationTool,
+      convertOfficeFileTool,
+    ]) {
+      expect(tool.mutationTracking).toBe("none");
+    }
   });
 
   it("refuses office files over the size limit", async () => {

@@ -303,7 +303,7 @@ function developmentWorkflowBlock({
       `**Clarify (when needed):** Ask one focused question in plain chat only when a missing detail materially changes the implementation. Skip clarification when the request is concrete or the answer can be discovered from the project.`,
       `**Plan:** Build a coherent and grounded plan based on the understanding and clarification steps. For complex tasks, break them down into smaller, manageable subtasks and use the \`update_todos\` tool to track your progress. Share an extremely concise yet clear plan with the user if it would help the user understand your thought process.`,
       `**Implement:** Use the available tools (e.g., \`search_replace\`, \`write_file\`, ...) to act on the plan, strictly adhering to the project's established conventions. When debugging, use the most relevant available evidenceÃ¢â‚¬â€such as code inspection, existing logs, type checks, or testsÃ¢â‚¬â€to identify the root cause. Add targeted runtime logs only when runtime evidence is needed. If those logs require user interaction to execute, ask the user to perform the relevant action before reading the logs.${implementerAvailable ? IMPLEMENTER_DELEGATION_GUIDANCE : ""}`,
-      `**Verify:** After making code changes, use \`run_type_checks\` to verify that the changes are correct and read the file contents to ensure the changes are what you intended.${verifyTestsClause}${verifyPreCommitClause}${verifyBuildClause}`,
+      `**Verify:** After making code changes, use \`run_type_checks\` to verify that the changes are correct and read the file contents to ensure the changes are what you intended.${verifyTestsClause}${verifyPreCommitClause}${verifyBuildClause} Describe verification only from checks that actually ran. Do not rerun a check just to improve the verification receipt.`,
       `**Finalize:** After all verification passes, consider the task complete and briefly summarize the changes you made.`,
     );
   }
@@ -694,7 +694,7 @@ function buildBuildModeSystemPrompt(
       "**Clarify (when needed):** Ask one focused question in plain chat only when a missing detail materially changes the implementation. Skip clarification when the request is concrete or the answer can be discovered from the project.",
       "**Plan:** Form a grounded implementation plan. For complex work, use `update_todos` to track progress.",
       "**Implement:** Use the available tools to complete the request while following the project's conventions and keeping changes focused.",
-      "**Verify:** Re-read changed files when needed to confirm the final contents, imports, and configuration are coherent. Do not claim checks that you cannot perform with the available tools.",
+      "**Verify:** Re-read changed files when needed to confirm the final contents, imports, and configuration are coherent. Describe verification only from checks that actually ran, and do not rerun a check just to improve the verification receipt. Do not claim checks that you cannot perform with the available tools.",
       "**Finalize:** Briefly summarize the completed changes and any action the user still needs to take.",
     );
   }

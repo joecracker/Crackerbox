@@ -33,6 +33,7 @@ import {
   escapeXmlAttr,
   escapeXmlContent,
 } from "./types";
+import { addVerificationEntry } from "./verification_ledger";
 import { trackWorkspaceMutation } from "./tool_invocation";
 
 export { isPreCommitHookAvailable } from "@/ipc/services/pre_commit_service";
@@ -319,7 +320,21 @@ export const runPreCommitTool: ToolDefinition<
   getConsentPreview: () => "Stage all changes and run the pre-commit hook",
 
   execute: async (_args, ctx) => {
-    return appOperationCoordinator.run(
+    const mutationCountAtStart = ctx.mutationCount ?? 0;
+    const record = (
+      outcome: "passed" | "failed" | "incomplete" | "unavailable",
+      summary: string,
+    ) => {
+      addVerificationEntry(ctx.verificationLedger, {
+        check: "pre-commit",
+        outcome,
+        scope: { kind: "whole-project" },
+        summary,
+        mutationCountAtStart,
+        mutationCountAtFinish: ctx.mutationCount ?? 0,
+      });
+    };
+    const result = await appOperationCoordinator.run(
       {
         appId: ctx.appId,
         operation: "run-local-agent-pre-commit",
@@ -625,5 +640,15 @@ export const runPreCommitTool: ToolDefinition<
         );
       },
     );
+    if (result.startsWith("Pre-commit passed. Do not run it again")) {
+      record("passed", "Pre-commit passed.");
+    } else if (result.startsWith("Pre-commit failed with exit code")) {
+      record("failed", "Pre-commit failed.");
+    } else if (result.includes("hook is missing or is not executable")) {
+      record("unavailable", "Pre-commit hook unavailable.");
+    } else {
+      record("incomplete", "Pre-commit did not produce a current pass.");
+    }
+    return result;
   },
 };

@@ -105,6 +105,10 @@ import {
 import { buildImplementerFailureReport } from "./subagents/subagent_failure_reporting";
 import { isImplementerSubagentEnabled } from "@/lib/autoSidekick";
 import { COMPLETED_PLANNING_QUESTIONNAIRE_RESULT_PREFIX } from "./tools/planning_questionnaire";
+import {
+  createVerificationLedger,
+  deriveVerificationReceipt,
+} from "./tools/verification_ledger";
 
 import type {
   ChatStreamParams,
@@ -1042,6 +1046,7 @@ export async function handleLocalAgentStream(
       preCommitHookAvailable,
       testingEnabled: Boolean(chat.app.testingEnabled),
       testRunAttempts: new Map(),
+      verificationLedger: createVerificationLedger(),
       appBlueprintQuestionnaireCompleted: hasCompletedAppBlueprintQuestionnaire(
         chat.messages,
       ),
@@ -2346,6 +2351,24 @@ export async function handleLocalAgentStream(
       });
     }
 
+    const workspaceChanged =
+      (ctx.fileMutationCount ?? 0) > 0 || ctx.workspaceMutated === true;
+    const verificationReceipt = deriveVerificationReceipt({
+      workspaceChanged,
+      finalMutationCount: ctx.mutationCount ?? 0,
+      ledger: ctx.verificationLedger ?? createVerificationLedger(),
+    });
+    if (verificationReceipt) {
+      const receiptText = `\n\n${verificationReceipt.text}`;
+      fullResponse += receiptText;
+      accumulatedAiMessages.push({
+        role: "assistant",
+        content: [{ type: "text", text: receiptText }],
+      });
+      await updateResponseInDb(placeholderMessageId, fullResponse);
+      sendChunk(fullResponse);
+    }
+
     // Save the AI SDK messages for multi-turn tool call preservation
     try {
       const aiMessagesJson = getAiMessagesJsonIfWithinLimit(
@@ -2408,8 +2431,6 @@ export async function handleLocalAgentStream(
       }
     }
 
-    const workspaceChanged =
-      (ctx.mutationCount ?? 0) > 0 || ctx.workspaceMutated === true;
     // Successful MCP tools may have changed app files even though their
     // schemas do not tell Dyad which tools are mutating. Preserve preview
     // refresh for that conservative case without treating it as sufficient
@@ -2436,6 +2457,7 @@ export async function handleLocalAgentStream(
       streamId: req.streamId,
       updatedFiles,
       chatSummary: ctx.chatSummary,
+      verificationReceipt,
       warningMessages:
         warningMessages.length > 0 ? [...new Set(warningMessages)] : undefined,
       pausePromptQueue: hitStepLimit || reviewBarrierRequested || undefined,

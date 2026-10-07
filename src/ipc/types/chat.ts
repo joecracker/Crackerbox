@@ -288,6 +288,16 @@ export const ChatResponseEndSchema = z.object({
   totalTokens: z.number().optional(),
   contextWindow: z.number().optional(),
   chatSummary: z.string().optional(),
+  verificationReceipt: z
+    .object({
+      status: z.enum([
+        "changed-unverified",
+        "verification-passed",
+        "verification-failed",
+      ]),
+      text: z.string(),
+    })
+    .optional(),
   /** Indicates the stream was cancelled by the user, not completed successfully */
   wasCancelled: z.boolean().optional(),
   /** Indicates queued prompts should be paused after this stream completes */

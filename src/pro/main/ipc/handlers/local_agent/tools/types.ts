@@ -14,6 +14,7 @@ import type { SqlConsentMetadata } from "@/shared/sqlConsentMetadata";
 import type { McpToolDef } from "./mcp_type_defs";
 import type { SuggestablePlugin } from "./suggest_plugin";
 import type { MutationActivityOwner } from "../subagents/mutation_activity_tracker";
+import type { VerificationLedger } from "./verification_ledger";
 
 // ============================================================================
 // XML Escape Helpers
@@ -148,6 +149,8 @@ export interface AgentContext {
    * through ANY mutating tool â€” not just write_file/search_replace.
    */
   mutationCount?: number;
+  /** Shared turn-scoped evidence from dedicated verification tools. */
+  verificationLedger?: VerificationLedger;
   /** Propagates successful child-tool mutations to the owning root turn. */
   onWorkspaceMutation?: (didMutateFile?: boolean) => void;
   /** Whether Git had an executable pre-commit hook when this turn started. */

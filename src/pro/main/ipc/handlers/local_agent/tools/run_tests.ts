@@ -7,6 +7,10 @@ import {
   escapeXmlAttr,
 } from "./types";
 import {
+  addVerificationEntry,
+  type VerificationOutcome,
+} from "./verification_ledger";
+import {
   runAppTestsWithIsolation,
   getRunningTestBaseUrl,
   normalizeRunTestFile,
@@ -603,22 +607,50 @@ export const runTestsTool: ToolDefinition<RunTestsArgs> = {
   },
 
   execute: async (args, ctx: AgentContext) => {
+    const mutationCountAtStart = ctx.mutationCount ?? 0;
+    let verificationPaths = args.testFiles
+      ? [...args.testFiles]
+      : ["all specs"];
+    const record = (outcome: VerificationOutcome, summary: string) => {
+      addVerificationEntry(ctx.verificationLedger, {
+        check: "tests",
+        outcome,
+        scope: args.grep
+          ? {
+              kind: "filtered-tests",
+              paths: verificationPaths,
+              grep: args.grep,
+            }
+          : args.testFiles
+            ? { kind: "paths", paths: verificationPaths }
+            : { kind: "whole-project" },
+        summary,
+        mutationCountAtStart,
+        mutationCountAtFinish: ctx.mutationCount ?? 0,
+      });
+    };
     // Also fail closed for direct callers: a legacy testFile must never be
     // stripped into an empty object and accidentally select the whole suite.
     const parsed = runTestsSchema.safeParse(args);
     if (!parsed.success) {
       const body = `Invalid run_tests arguments: ${parsed.error.message}. Use testFiles with a nonempty list, or omit it to run all specs. Nothing ran.`;
       completeWarning(ctx, "Invalid test selection", body);
+      record("incomplete", "Invalid test selection.");
       return body;
     }
     const resolved = await resolveSpecPaths(ctx, args.testFiles);
-    if ("error" in resolved) return resolved.error;
+    if ("error" in resolved) {
+      record("incomplete", "Test selection could not be resolved.");
+      return resolved.error;
+    }
     const { testFiles, specs, selectionNote } = resolved;
+    verificationPaths = [...testFiles];
     const withSelectionNote = (body: string) =>
       [selectionNote, body].filter(Boolean).join("\n\n");
     const warn = (title: string, body: string) => {
       const message = withSelectionNote(body);
       completeWarning(ctx, title, message);
+      record("incomplete", title);
       return message;
     };
     const selections = [];
@@ -788,6 +820,14 @@ export const runTestsTool: ToolDefinition<RunTestsArgs> = {
     if (unverifiedFiles > 0 && failedFiles === 0)
       completeWarning(ctx, title, withSelectionNote(body));
     else completeStatus(ctx, title, withSelectionNote(body));
+    record(
+      failedFiles > 0
+        ? "failed"
+        : unverifiedFiles > 0
+          ? "incomplete"
+          : "passed",
+      title,
+    );
     return withSelectionNote([body, ...agentDetails].join("\n\n"));
   },
 };

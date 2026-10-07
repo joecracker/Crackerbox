@@ -35,6 +35,10 @@ import type { AppFrameworkType } from "@/lib/framework_constants";
 import { getUserDataPath } from "@/paths/paths";
 import type { AgentContext, ToolDefinition } from "./types";
 import { escapeXmlAttr, escapeXmlContent } from "./types";
+import {
+  addVerificationEntry,
+  type VerificationOutcome,
+} from "./verification_ledger";
 
 const runBuildSchema = z.object({});
 
@@ -425,11 +429,23 @@ export const runBuildTool: ToolDefinition<z.infer<typeof runBuildSchema>> = {
       : '<dyad-status title="Running production build"></dyad-status>',
 
   execute: async (_args, ctx) => {
+    const mutationCountAtStart = ctx.mutationCount ?? 0;
+    const finish = (outcome: VerificationOutcome, summary: string) => {
+      addVerificationEntry(ctx.verificationLedger, {
+        check: "build",
+        outcome,
+        scope: { kind: "whole-project" },
+        summary,
+        mutationCountAtStart,
+        mutationCountAtFinish: ctx.mutationCount ?? 0,
+      });
+      return summary;
+    };
     if (activeBuilds.has(ctx.appId)) {
       const body =
         "A production build is already running for this app. Wait for it to finish instead of starting another one.";
       completeStatus(ctx, "Build already running", body, "warning");
-      return body;
+      return finish("incomplete", body);
     }
 
     activeBuilds.add(ctx.appId);
@@ -459,7 +475,7 @@ export const runBuildTool: ToolDefinition<z.infer<typeof runBuildSchema>> = {
           if (state.count >= MAX_BUILD_RUNS_PER_TURN) {
             const body = `The ${MAX_BUILD_RUNS_PER_TURN}-build limit for this turn has been reached. Stop retrying and summarize the remaining build issue for the user.`;
             completeStatus(ctx, "Build limit reached", body, "warning");
-            return body;
+            return finish("incomplete", body);
           }
           if (
             state.count > 0 &&
@@ -468,13 +484,13 @@ export const runBuildTool: ToolDefinition<z.infer<typeof runBuildSchema>> = {
             const body =
               "The workspace has not changed since the previous production build. Do not run it again until you make a relevant fix.";
             completeStatus(ctx, "Build not repeated", body, "warning");
-            return body;
+            return finish("incomplete", body);
           }
           if (state.mutationCountAtLastSetupFailure === currentMutationCount) {
             const body =
               "Isolated build setup already failed for this unchanged workspace. Do not run the production build again until you make a relevant fix.";
             completeStatus(ctx, "Build setup not repeated", body, "warning");
-            return body;
+            return finish("incomplete", body);
           }
 
           const packageJson = await readPackageJson(ctx.appPath);
@@ -544,7 +560,7 @@ export const runBuildTool: ToolDefinition<z.infer<typeof runBuildSchema>> = {
                 state.mutationCountAtLastSetupFailure = currentMutationCount;
                 const body = `Production build timed out after 10 minutes during dependency installation.\n\n${installOutput}`;
                 completeStatus(ctx, "Build timed out", body, "warning");
-                return body;
+                return finish("incomplete", body);
               }
               if (installResult.aborted) {
                 throw new DyadError(
@@ -561,7 +577,7 @@ export const runBuildTool: ToolDefinition<z.infer<typeof runBuildSchema>> = {
                   body,
                   "warning",
                 );
-                return body;
+                return finish("incomplete", body);
               }
               state.mutationCountAtLastSetupFailure = undefined;
             } else {
@@ -595,7 +611,7 @@ export const runBuildTool: ToolDefinition<z.infer<typeof runBuildSchema>> = {
             if (abortScope.timedOut() || result.timedOut) {
               const body = `Production build timed out after 10 minutes. ${timing}\n\n${output}`;
               completeStatus(ctx, "Build timed out", body, "warning");
-              return body;
+              return finish("incomplete", body);
             }
             if (result.aborted) {
               throw new DyadError(
@@ -606,11 +622,11 @@ export const runBuildTool: ToolDefinition<z.infer<typeof runBuildSchema>> = {
             if (result.code !== 0) {
               const body = `Production build failed with exit code ${result.code}. ${timing}\n\n${output}`;
               completeStatus(ctx, "Build failed", body, "warning");
-              return body;
+              return finish("failed", body);
             }
             const body = `Production build passed. ${timing}${output ? `\n\n${output}` : ""}`;
             completeStatus(ctx, "Build passed", body);
-            return body;
+            return finish("passed", body);
           } catch (error) {
             if (phase === "snapshot setup" && !ctx.abortSignal?.aborted) {
               state.mutationCountAtLastSetupFailure = currentMutationCount;
@@ -619,7 +635,7 @@ export const runBuildTool: ToolDefinition<z.infer<typeof runBuildSchema>> = {
               const elapsedMs = Date.now() - operationStartedAt;
               const body = `Production build timed out after 10 minutes during ${phase}. Elapsed: ${elapsedMs} ms.`;
               completeStatus(ctx, "Build timed out", body, "warning");
-              return body;
+              return finish("incomplete", body);
             }
             throw error;
           } finally {
@@ -633,6 +649,14 @@ export const runBuildTool: ToolDefinition<z.infer<typeof runBuildSchema>> = {
           }
         },
       );
+    } catch (error) {
+      finish(
+        error instanceof DyadError && error.kind === DyadErrorKind.Precondition
+          ? "unavailable"
+          : "incomplete",
+        error instanceof Error ? error.message : String(error),
+      );
+      throw error;
     } finally {
       activeBuilds.delete(ctx.appId);
     }

@@ -13,6 +13,10 @@ import {
 import type { Problem, ProblemReport } from "@/ipc/types";
 import { broadcastToRegisteredWindows } from "@/ipc/utils/window_broadcast";
 import { DyadErrorKind, isDyadError } from "@/errors/dyad_error";
+import {
+  addVerificationEntry,
+  type VerificationScope,
+} from "./verification_ledger";
 
 import { normalizePath } from "../../../../../../../shared/normalizePath";
 
@@ -173,6 +177,11 @@ export const runTypeChecksTool: ToolDefinition<
 
   execute: async (args, ctx: AgentContext) => {
     const paths = ctx.runTypeScriptForWholeProject ? undefined : args.paths;
+    const mutationCountAtStart = ctx.mutationCount ?? 0;
+    const scope: VerificationScope =
+      paths && paths.length > 0
+        ? { kind: "paths", paths: [...paths] }
+        : { kind: "whole-project" };
     // Stream initial XML with in-progress state
     const title =
       paths && paths.length > 0
@@ -216,6 +225,15 @@ export const runTypeChecksTool: ToolDefinition<
         `<dyad-output type="warning" message="${escapeXmlAttr("Type checking unavailable")}">\n${escapeXmlContent(result)}\n</dyad-output>`,
       );
 
+      addVerificationEntry(ctx.verificationLedger, {
+        check: "type-check",
+        outcome: "unavailable",
+        scope,
+        summary: "Type checking was unavailable.",
+        mutationCountAtStart,
+        mutationCountAtFinish: ctx.mutationCount ?? 0,
+      });
+
       return result;
     }
 
@@ -253,6 +271,20 @@ export const runTypeChecksTool: ToolDefinition<
     ctx.onXmlComplete(
       `<dyad-status title="${escapeXmlAttr(completedTitle)}" state="${completedState}">\n${escapeXmlContent(result)}\n</dyad-status>`,
     );
+
+    addVerificationEntry(ctx.verificationLedger, {
+      check: "type-check",
+      outcome:
+        outcome === "passed"
+          ? "passed"
+          : outcome === "errors"
+            ? "failed"
+            : "incomplete",
+      scope,
+      summary: completedTitle,
+      mutationCountAtStart,
+      mutationCountAtFinish: ctx.mutationCount ?? 0,
+    });
 
     return result;
   },

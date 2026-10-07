@@ -11,6 +11,11 @@ import {
   requireToolConsentOrThrow,
   trackAppMutation,
 } from "./tool_invocation";
+import {
+  addVerificationEntry,
+  createVerificationLedger,
+  deriveVerificationReceipt,
+} from "./verification_ledger";
 
 function tool(
   name: string,
@@ -178,8 +183,56 @@ describe("file mutation policy", () => {
     );
   });
 
-  it("does not inspect Git when pre-commit is unavailable", async () => {
-    const execGit = vi.spyOn(gitUtils, "execGit");
+  it.each([false, undefined])(
+    "counts Git-visible edits and produces a receipt when pre-commit availability is %s",
+    async (preCommitHookAvailable) => {
+      const execGit = vi.spyOn(gitUtils, "execGit").mockResolvedValue({
+        exitCode: 0,
+        stdout: " M src/file.ts\0",
+        stderr: "",
+      } as never);
+      const verificationLedger = createVerificationLedger();
+      const ctx = {
+        appPath: "/tmp/app",
+        preCommitHookAvailable,
+        verificationLedger,
+      } as AgentContext;
+
+      const didMutateFile = await shouldTrackToolFileMutation(
+        tool("search_replace"),
+        { path: "src/file.ts" },
+        "success",
+        ctx,
+      );
+      trackAppMutation(ctx, "search_replace", true, didMutateFile);
+      addVerificationEntry(verificationLedger, {
+        check: "type-check",
+        outcome: "passed",
+        scope: { kind: "paths", paths: ["src/file.ts"] },
+        summary: "Type check passed.",
+        mutationCountAtStart: 1,
+        mutationCountAtFinish: 1,
+      });
+
+      expect(execGit).toHaveBeenCalledTimes(1);
+      expect(ctx.fileMutationCount).toBe(1);
+      expect(
+        deriveVerificationReceipt({
+          workspaceChanged: (ctx.fileMutationCount ?? 0) > 0,
+          finalMutationCount: ctx.mutationCount ?? 0,
+          ledger: verificationLedger,
+        }),
+      ).toMatchObject({ status: "verification-passed" });
+      execGit.mockRestore();
+    },
+  );
+
+  it("does not count a Git-ignored edit when pre-commit is unavailable", async () => {
+    const execGit = vi.spyOn(gitUtils, "execGit").mockResolvedValue({
+      exitCode: 0,
+      stdout: "",
+      stderr: "",
+    } as never);
     const ctx = {
       appPath: "/tmp/app",
       preCommitHookAvailable: false,
@@ -193,7 +246,7 @@ describe("file mutation policy", () => {
         ctx,
       ),
     ).toBe(false);
-    expect(execGit).not.toHaveBeenCalled();
+    expect(execGit).toHaveBeenCalledTimes(1);
     execGit.mockRestore();
   });
 

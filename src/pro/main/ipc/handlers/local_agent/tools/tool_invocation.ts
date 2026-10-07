@@ -64,7 +64,7 @@ async function arePathsGitVisible(
   ctx: AgentContext,
   filePaths: string[],
 ): Promise<boolean> {
-  if (ctx.preCommitHookAvailable !== true || filePaths.length === 0) {
+  if (filePaths.length === 0) {
     return false;
   }
 
@@ -127,11 +127,6 @@ export async function shouldTrackToolFileMutation<T>(
   result: string,
   ctx: AgentContext,
 ): Promise<boolean> {
-  // The counter is consumed only by run_pre_commit. Avoid putting a Git
-  // subprocess on every edit's critical path when that tool is unavailable.
-  if (ctx.preCommitHookAvailable !== true) {
-    return false;
-  }
   const policy =
     FILE_MUTATION_POLICIES[tool.name as MutationToolName] ?? "never";
   switch (policy) {

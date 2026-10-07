@@ -2012,6 +2012,7 @@ describe("handleLocalAgentStream", () => {
         updatedFiles: true,
         pausePromptQueue: true,
         reviewBarrierRequested: true,
+        verificationReceipt: undefined,
       });
     });
 

@@ -2352,9 +2352,11 @@ export async function handleLocalAgentStream(
     }
 
     const workspaceChanged =
+      (ctx.mutationCount ?? 0) > 0 || ctx.workspaceMutated === true;
+    const receiptWorkspaceChanged =
       (ctx.fileMutationCount ?? 0) > 0 || ctx.workspaceMutated === true;
     const verificationReceipt = deriveVerificationReceipt({
-      workspaceChanged,
+      workspaceChanged: receiptWorkspaceChanged,
       finalMutationCount: ctx.mutationCount ?? 0,
       ledger: ctx.verificationLedger ?? createVerificationLedger(),
     });

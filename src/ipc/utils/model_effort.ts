@@ -6,6 +6,7 @@ import type {
 import { createModelSelection, getModelPreferenceKey } from "@/lib/modelEffort";
 import { findLanguageModel } from "./findLanguageModel";
 import { modelForChatBackend } from "@/shared/execution_backend";
+import { LOCAL_PROVIDERS } from "@/ipc/shared/language_model_constants";
 
 export async function resolveModelSelection({
   model,
@@ -28,6 +29,25 @@ export async function resolveDefaultModelSelection(
   settings: UserSettings,
 ): Promise<ModelSelection> {
   const selectedModel = modelForChatBackend(undefined, settings);
+  if (selectedModel.provider in LOCAL_PROVIDERS) {
+    return createModelSelection({
+      model: selectedModel,
+      preferredEffortLevel:
+        settings.modelEffortPreferences?.[getModelPreferenceKey(selectedModel)],
+    });
+  }
+  if (
+    selectedModel.provider !== "auto" &&
+    selectedModel.provider !== "claude-code" &&
+    !(await findLanguageModel(selectedModel))
+  ) {
+    const autoModel = { provider: "auto", name: "auto" };
+    return resolveModelSelection({
+      model: autoModel,
+      preferredEffortLevel:
+        settings.modelEffortPreferences?.[getModelPreferenceKey(autoModel)],
+    });
+  }
   return resolveModelSelection({
     model: selectedModel,
     preferredEffortLevel:

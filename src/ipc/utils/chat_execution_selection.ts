@@ -9,10 +9,7 @@ export async function initialChatExecution(
   settings: UserSettings = readSettings(),
 ) {
   const selected =
-    modelSelection ??
-    (settings.selectedModel.provider === "claude-code"
-      ? await resolveDefaultModelSelection(settings)
-      : undefined);
+    modelSelection ?? (await resolveDefaultModelSelection(settings));
   return {
     modelSelection: selected,
     executionBackend: executionBackendForModel(selected),

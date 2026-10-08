@@ -12,6 +12,11 @@ const mocks = vi.hoisted(() => ({
   clearStorageData: vi.fn().mockResolvedValue(undefined),
   safeSend: vi.fn(),
   restoreAppFromTestBranch: vi.fn(),
+  findLanguageModel: vi.fn().mockResolvedValue({
+    apiName: "auto",
+    displayName: "Auto",
+    description: "",
+  }),
   runningApps: new Map<number, any>(),
   readSettings: vi.fn().mockReturnValue({
     runtimeMode2: "host",
@@ -57,6 +62,9 @@ vi.mock("../../paths/paths", () => ({
 }));
 vi.mock("./tests_handlers", () => ({ isTestRunActive: mocks.isTestRunActive }));
 vi.mock("@/main/settings", () => ({ readSettings: mocks.readSettings }));
+vi.mock("../utils/findLanguageModel", () => ({
+  findLanguageModel: mocks.findLanguageModel,
+}));
 vi.mock("electron-log", () => ({
   default: {
     scope: () => ({
@@ -572,7 +580,10 @@ describe("recording:start / recording:stop", () => {
       appId: 1,
       title: "New chat",
       executionBackend: "dyad",
-      modelSelection: undefined,
+      modelSelection: expect.objectContaining({
+        provider: "auto",
+        name: "auto",
+      }),
       initialCommitHash: "abc123",
       chatMode: null,
     });

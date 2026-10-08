@@ -204,7 +204,11 @@ function tierFor(dollarSigns: number | undefined): Tier {
   );
 }
 
-export function ModelPicker() {
+export function ModelPicker({
+  settingsView = false,
+}: {
+  settingsView?: boolean;
+}) {
   const { settings, updateSettings, loading: settingsLoading } = useSettings();
   const routerState = useRouterState();
   const isChatRoute = routerState.location.pathname === "/chat";
@@ -352,7 +356,6 @@ export function ModelPicker() {
         modelSelection,
       });
       await updateSettings({
-        selectedModel: model,
         ...(fallbackChatMode ? { selectedChatMode: fallbackChatMode } : {}),
         ...preferenceUpdate,
         ...recentModelsUpdate,
@@ -378,7 +381,6 @@ export function ModelPicker() {
         await updateSettings({
           ...preferenceUpdate,
           ...recentModelsUpdate,
-          ...(model.provider === "claude-code" ? { selectedModel: model } : {}),
         });
       }
     } else {
@@ -590,6 +592,21 @@ export function ModelPicker() {
     selectedCatalogModel.id !== undefined
       ? { ...selectedModel, customModelId: selectedCatalogModel.id }
       : selectedModel;
+  const savedDefaultUnavailable =
+    settingsView &&
+    !loading &&
+    (settings.selectedModel.provider !== selectedModel.provider ||
+      settings.selectedModel.name !== selectedModel.name ||
+      (settings.selectedModel.provider !== "auto" &&
+        settings.selectedModel.provider !== "claude-code" &&
+        settings.selectedModel.provider !== "ollama" &&
+        settings.selectedModel.provider !== "lmstudio" &&
+        !modelsByProviders?.[settings.selectedModel.provider]?.some((model) =>
+          settings.selectedModel.customModelId !== undefined
+            ? model.type === "custom" &&
+              model.id === settings.selectedModel.customModelId
+            : model.apiName === settings.selectedModel.name,
+        )));
   const selectedEffortLevel = createModelSelection({
     model: selectedModel,
     catalogModel: selectedCatalogModel,
@@ -1830,7 +1847,12 @@ export function ModelPicker() {
       <DropdownMenu open={open} onOpenChange={handleOpenChange}>
         <DropdownMenuTrigger
           disabled={isChatRoute && chatId != null && chatLoading}
-          className="inline-flex items-center justify-center whitespace-nowrap rounded-lg text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border-none bg-transparent shadow-none text-foreground/80 hover:text-foreground hover:bg-muted/60 h-7 max-w-[170px] sm:max-w-[220px] px-2 gap-1.5 cursor-pointer min-w-0"
+          className={cn(
+            "inline-flex items-center justify-center whitespace-nowrap rounded-lg text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-transparent shadow-none text-foreground/80 hover:text-foreground hover:bg-muted/60 h-7 px-2 gap-1.5 cursor-pointer min-w-0",
+            settingsView
+              ? "w-full max-w-md justify-between border bg-background"
+              : "max-w-[170px] border-none sm:max-w-[220px]",
+          )}
           data-testid="model-picker"
           aria-label={modelDisplayName}
           title={modelDisplayName}
@@ -2119,20 +2141,22 @@ export function ModelPicker() {
                   </div>
                 ) : (
                   <>
-                    {!isTrial && !hideAutoInAgentMode && autoModels.length > 0 && (
-                      <>
-                        {autoModels.map((model) =>
-                          renderCloudModelItem({
-                            providerId: "auto",
-                            model,
-                            showPrice: false,
-                          }),
-                        )}
-                        {recentModelEntries.length > 0 && (
-                          <DropdownMenuSeparator />
-                        )}
-                      </>
-                    )}
+                    {!isTrial &&
+                      !hideAutoInAgentMode &&
+                      autoModels.length > 0 && (
+                        <>
+                          {autoModels.map((model) =>
+                            renderCloudModelItem({
+                              providerId: "auto",
+                              model,
+                              showPrice: false,
+                            }),
+                          )}
+                          {recentModelEntries.length > 0 && (
+                            <DropdownMenuSeparator />
+                          )}
+                        </>
+                      )}
 
                     {cloudCatalogError && autoModels.length === 0 && (
                       <div className="px-2 py-1.5 text-sm text-muted-foreground">
@@ -2270,6 +2294,15 @@ export function ModelPicker() {
           )}
         </DialogContent>
       </Dialog>
+      {savedDefaultUnavailable && (
+        <p
+          role="status"
+          className="mt-1.5 text-xs text-amber-700 dark:text-amber-300"
+        >
+          The saved default is unavailable. New chats will use Auto until you
+          choose an available model.
+        </p>
+      )}
     </>
   );
 }

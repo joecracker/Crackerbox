@@ -27,6 +27,7 @@ export const SETTING_IDS = {
   testingForNewApps: "setting-testing-for-new-apps",
   sandboxedE2eTests: "setting-sandboxed-e2e-tests",
   chatEventNotification: "setting-chat-event-notification",
+  defaultAiModel: "setting-default-ai-model",
   maxToolCallSteps: "setting-max-tool-call-steps",
   contextCompaction: "setting-context-compaction",
   telemetry: "setting-telemetry",
@@ -132,7 +133,14 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
     label: "Customize Apps Folder",
     description:
       "Set the top-level folder that Dyad will store new applications in",
-    keywords: ["customize", "apps", "path", "folder", "directory", "crackerbox-apps"],
+    keywords: [
+      "customize",
+      "apps",
+      "path",
+      "folder",
+      "directory",
+      "crackerbox-apps",
+    ],
     sectionId: SECTION_IDS.general,
     sectionLabel: "General",
   },
@@ -245,6 +253,14 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
   },
 
   // AI Settings
+  {
+    id: SETTING_IDS.defaultAiModel,
+    label: "Default AI Model",
+    description: "Choose the model used when starting new chats",
+    keywords: ["model", "default", "auto", "new chat", "provider"],
+    sectionId: SECTION_IDS.ai,
+    sectionLabel: "AI",
+  },
   {
     id: SETTING_IDS.maxToolCallSteps,
     label: "Max Tool Calls (Agent)",
@@ -374,7 +390,8 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
   {
     id: SETTING_IDS.homeAssistant,
     label: "Home Assistant Integration",
-    description: "Connect Home Assistant for entity lookups and dashboard file access",
+    description:
+      "Connect Home Assistant for entity lookups and dashboard file access",
     keywords: [
       "home assistant",
       "ha",

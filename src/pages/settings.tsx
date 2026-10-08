@@ -50,6 +50,7 @@ import { SubagentSettings } from "@/components/settings/SubagentSettings";
 import { RunTypeScriptForWholeProjectSwitch } from "@/components/RunTypeScriptForWholeProjectSwitch";
 import { WorkspaceColorSettings } from "@/components/settings/WorkspaceColorSettings";
 import { GmailIntegration } from "@/components/GmailIntegration";
+import { ModelPicker } from "@/components/ModelPicker";
 
 const hint = "text-[13px] leading-relaxed text-muted-foreground";
 
@@ -632,6 +633,15 @@ export function AISettings() {
       title="AI"
       description="Control conversation context and agent limits."
     >
+      <div id={SETTING_IDS.defaultAiModel} className="space-y-1.5">
+        <Label>Default AI Model</Label>
+        <ModelPicker settingsView />
+        <p className={hint}>
+          Saved automatically and used when you start a new chat. A chat keeps
+          the model it started with.
+        </p>
+      </div>
+
       <div id={SETTING_IDS.maxToolCallSteps}>
         <MaxToolCallStepsSelector />
       </div>

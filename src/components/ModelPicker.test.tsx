@@ -38,9 +38,7 @@ const mocks = vi.hoisted(() => ({
   refetchModelsByProviders: vi.fn(),
   anthropicModels: [] as import("@/ipc/types").LanguageModel[],
   openrouterModels: [] as import("@/ipc/types").LanguageModel[],
-  claudeModels: [
-    { value: "sonnet", displayName: "sonnet", description: "" },
-  ] as
+  claudeModels: [{ value: "sonnet", displayName: "sonnet", description: "" }] as
     | Array<{
         value: string;
         resolvedModel?: string;
@@ -424,7 +422,7 @@ vi.mock("@/hooks/useLanguageModelProviders", () => ({
       if (provider === "openrouter") {
         return Boolean(
           mocks.settings.providerSettings.openrouter.apiKey.value ||
-            mocks.envVars.OPENROUTER_API_KEY,
+          mocks.envVars.OPENROUTER_API_KEY,
         );
       }
       return false;
@@ -863,6 +861,19 @@ describe("ModelPicker", () => {
     mocks.settingsAvailable = true;
     expect(() => rerender(<ModelPicker />)).not.toThrow();
     expect(screen.getByTestId("model-picker")).toBeTruthy();
+  });
+
+  it("explains when a saved default is no longer available", () => {
+    mocks.settings.selectedModel = {
+      provider: "openai",
+      name: "removed-model",
+    };
+
+    render(<ModelPicker settingsView />);
+
+    expect(screen.getByRole("status").textContent).toContain(
+      "New chats will use Auto",
+    );
   });
 
   it("preserves the selected-model fallback when switching to Auto", async () => {
@@ -1418,6 +1429,33 @@ describe("ModelPicker", () => {
     expect(mocks.updateChat).not.toHaveBeenCalled();
   });
 
+  it("does not change the global default when an established chat changes model", async () => {
+    mocks.pathname = "/chat";
+    mocks.search = { id: 42 };
+    mocks.settings.selectedModel = {
+      provider: "google",
+      name: "gemini-2.5-pro",
+    };
+    mocks.chat = {
+      id: 42,
+      messages: [{ id: 1 }],
+      modelSelection: {
+        provider: "auto",
+        name: "auto",
+        effortLevel: "medium",
+      },
+    };
+    mocks.renderSubContent = true;
+
+    render(<ModelPicker />);
+    fireEvent.click(screen.getAllByText("GPT 5")[0]);
+
+    await waitFor(() => expect(mocks.setChatSelection).toHaveBeenCalled());
+    expect(mocks.updateSettings).not.toHaveBeenCalledWith(
+      expect.objectContaining({ selectedModel: expect.anything() }),
+    );
+  });
+
   it("selects a subscription-eligible model in an existing chat without replacing its history", async () => {
     mocks.renderSubContent = true;
     mocks.pathname = "/chat";
@@ -1557,9 +1595,7 @@ describe("ModelPicker", () => {
       { target: { value: "all" } },
     );
     fireEvent.click(within(catalog).getByRole("button", { name: "Vision" }));
-    fireEvent.click(
-      within(catalog).getByRole("button", { name: "Favorites" }),
-    );
+    fireEvent.click(within(catalog).getByRole("button", { name: "Favorites" }));
     expect(within(catalog).getByText("Qwen Vision")).toBeTruthy();
     expect(within(catalog).queryByText("Claude Sonnet 4.5")).toBeNull();
   });

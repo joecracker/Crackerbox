@@ -25,6 +25,11 @@ const CUSTOM_TAG_NAMES = [
   "dyad-script",
   "think",
   "dyad-command",
+  "dyad-ha-write-file",
+  "dyad-ha-delete-file",
+  "dyad-ha-read-file",
+  "dyad-ha-list-files",
+  "dyad-ha-list-entities",
 ];
 export const useCopyToClipboard = () => {
   const [copied, setCopied] = useState(false);
@@ -142,6 +147,20 @@ export const useCopyToClipboard = () => {
         writeResult += `\`\`\`${language}\n${content}\n\`\`\`\n\n`;
         return writeResult;
       }
+
+      case "dyad-ha-write-file": {
+        const writePath = attributes.path || "file";
+        const language = getLanguage(writePath);
+        return `### Home Assistant file: ${writePath}\n\n\`\`\`${language}\n${content}\n\`\`\`\n\n`;
+      }
+
+      case "dyad-ha-delete-file":
+        return `### Delete Home Assistant file: ${attributes.path || ""}\n\n`;
+
+      case "dyad-ha-read-file":
+      case "dyad-ha-list-files":
+      case "dyad-ha-list-entities":
+        return "";
 
       case "dyad-edit": {
         const editPath = attributes.path || "file";

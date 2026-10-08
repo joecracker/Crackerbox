@@ -395,6 +395,41 @@
     "connectFailed": "플러그인을 연결할 수 없습니다. 다시 시도하거나 플러그인 페이지에서 관리하세요."
   },
   "guide": "가이드",
+  "homeAssistant": {
+    "badge": "HOME ASSISTANT",
+    "write-file": "Writing file",
+    "delete-file": "Deleting file",
+    "read-file": "Reading file",
+    "list-files": "Listing files",
+    "list-entities": "Listing entities",
+    "running": "Running",
+    "interrupted": "Interrupted"
+  },
+  "activity": {
+    "title": "Activity",
+    "running": "running",
+    "failed": "failed",
+    "retried": "retried",
+    "interrupted": "interrupted",
+    "kinds": {
+      "files_one": "{{count}} file action",
+      "files_other": "{{count}} file actions",
+      "search_one": "{{count}} search",
+      "search_other": "{{count}} searches",
+      "command_one": "{{count}} command",
+      "command_other": "{{count}} commands",
+      "web_one": "{{count}} web lookup",
+      "web_other": "{{count}} web lookups",
+      "database_one": "{{count}} database action",
+      "database_other": "{{count}} database actions",
+      "git_one": "{{count}} version check",
+      "git_other": "{{count}} version checks",
+      "homeAssistant_one": "{{count}} Home Assistant action",
+      "homeAssistant_other": "{{count}} Home Assistant actions",
+      "other_one": "{{count}} activity",
+      "other_other": "{{count}} activities"
+    }
+  },
   "annotations": {
     "addToChat": "채팅에 추가",
     "commentOnSelection": "선택한 텍스트에 댓글 달기",

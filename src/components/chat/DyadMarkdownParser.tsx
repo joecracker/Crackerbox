@@ -69,6 +69,15 @@ import { DyadReadGuide } from "./DyadReadGuide";
 import { DyadScript } from "./DyadScript";
 import { DyadGit } from "./DyadGit";
 import { DyadSubagent } from "./DyadSubagent";
+import {
+  DyadActivityGroup,
+  type ActivityGroupState,
+  type ActivityKind,
+} from "./DyadActivityGroup";
+import {
+  DyadHomeAssistant,
+  type HomeAssistantAction,
+} from "./DyadHomeAssistant";
 import { mapActionToButton } from "./ChatInput";
 import { SuggestedAction } from "@/lib/schemas";
 import { FixAllErrorsButton } from "./FixAllErrorsButton";
@@ -174,15 +183,16 @@ export const DyadMarkdownParser: React.FC<DyadMarkdownParserProps> = ({
 
   const closedBlocks = parserState.blocks;
   const openBlock = getOpenBlock(parserState);
+  const blocks = useMemo(
+    () => (openBlock ? [...closedBlocks, openBlock] : closedBlocks),
+    [closedBlocks, openBlock],
+  );
 
   // Pair MCP tool-call blocks with their tool-result blocks by call-id so the
   // renderer can collapse the two into one card. Keyed on `closedBlocks`, which
   // only changes when a block closes (not per streamed token), so the scan
   // stays off the streaming hot path.
-  const mcpPairing = useMemo(
-    () => buildMcpPairing(closedBlocks),
-    [closedBlocks],
-  );
+  const mcpPairing = useMemo(() => buildMcpPairing(blocks), [blocks]);
 
   // The button is hidden while streaming, so avoid scanning the block list on
   // every chunk. Do the full scan only for settled content.
@@ -218,7 +228,7 @@ export const DyadMarkdownParser: React.FC<DyadMarkdownParserProps> = ({
   return (
     <>
       <MemoClosedBlocks
-        blocks={closedBlocks}
+        blocks={blocks}
         lastErrorIndex={lastErrorIndex}
         errorMessages={errorMessages}
         showFixAll={showFixAll}
@@ -227,7 +237,6 @@ export const DyadMarkdownParser: React.FC<DyadMarkdownParserProps> = ({
         callIds={mcpPairing.callIds}
         isStreaming={isStreaming}
       />
-      {openBlock ? renderOpenBlock(openBlock, isStreaming, mcpPairing) : null}
       {showStreamingPreview && chatId !== null && chatId !== undefined && (
         <StreamingPreviewBlocks chatId={chatId} isStreaming={isStreaming} />
       )}
@@ -342,7 +351,177 @@ function renderClosedBlock(
       return null;
     }
   }
-  return renderBlock(block, false);
+  return renderBlock(
+    block,
+    isStreaming && block.kind === "custom-tag" && block.inProgress,
+  );
+}
+
+const PASSIVE_ACTIVITY_TAGS = new Set([
+  "dyad-write",
+  "dyad-generate-test",
+  "dyad-edit",
+  "dyad-search-replace",
+  "dyad-rename",
+  "dyad-copy",
+  "dyad-delete",
+  "dyad-add-dependency",
+  "dyad-execute-sql",
+  "dyad-read-logs",
+  "dyad-grep",
+  "dyad-explore-code",
+  "dyad-codebase-context",
+  "dyad-web-search-result",
+  "dyad-web-search",
+  "dyad-web-fetch",
+  "dyad-code-search-result",
+  "dyad-code-search",
+  "dyad-read",
+  "dyad-git",
+  "dyad-mcp-tool-call",
+  "dyad-mcp-tool-result",
+  "dyad-mcp-tool-search",
+  "dyad-mcp-tool-schema",
+  "dyad-list-files",
+  "dyad-database-schema",
+  "dyad-db-table-schema",
+  "dyad-supabase-table-schema",
+  "dyad-supabase-project-info",
+  "dyad-neon-project-info",
+  "dyad-neon-table-schema",
+  "dyad-read-guide",
+  "dyad-status",
+  "dyad-claude-tool",
+  "dyad-image-generation",
+  "dyad-script",
+  "dyad-search-chats",
+  "dyad-read-chat",
+  "dyad-explore-chat-history",
+  "dyad-test-assertions",
+  "dyad-output",
+  "dyad-ha-write-file",
+  "dyad-ha-delete-file",
+  "dyad-ha-read-file",
+  "dyad-ha-list-files",
+  "dyad-ha-list-entities",
+]);
+
+interface ActivityRun {
+  blocks: Block[];
+  firstIndex: number;
+  lastIndex: number;
+}
+
+function isPassiveActivity(block: Block): boolean {
+  return block.kind === "custom-tag" && PASSIVE_ACTIVITY_TAGS.has(block.tag);
+}
+
+function buildActivityRuns(blocks: Block[]): ActivityRun[] {
+  const runs: ActivityRun[] = [];
+  let current: ActivityRun | null = null;
+
+  blocks.forEach((block, index) => {
+    if (isPassiveActivity(block)) {
+      if (!current) {
+        current = { blocks: [], firstIndex: index, lastIndex: index };
+        runs.push(current);
+      }
+      current.blocks.push(block);
+      current.lastIndex = index;
+      return;
+    }
+
+    if (
+      current &&
+      block.kind === "markdown" &&
+      block.content.trim().length === 0
+    ) {
+      current.blocks.push(block);
+      current.lastIndex = index;
+      return;
+    }
+
+    current = null;
+    runs.push({ blocks: [block], firstIndex: index, lastIndex: index });
+  });
+
+  return runs;
+}
+
+function activityKey(block: CustomTagBlock): string {
+  const target =
+    block.attributes.path ||
+    block.attributes.query ||
+    block.attributes.tool ||
+    block.attributes.operation ||
+    block.attributes.table ||
+    block.attributes.directory ||
+    "";
+  return `${block.tag}:${target}`;
+}
+
+function getActivityState(
+  blocks: Block[],
+  isStreaming: boolean,
+): ActivityGroupState {
+  const activities = blocks.filter(
+    (block): block is CustomTagBlock => block.kind === "custom-tag",
+  );
+  if (activities.some((block) => block.inProgress)) {
+    return isStreaming ? "running" : "interrupted";
+  }
+
+  const unresolvedFailures = new Set<string>();
+  let precedingActivityKey = "";
+  let failureCount = 0;
+  for (const block of activities) {
+    if (block.tag === "dyad-output" && block.attributes.type === "error") {
+      failureCount++;
+      unresolvedFailures.add(precedingActivityKey || `error:${block.id}`);
+      continue;
+    }
+    const key = activityKey(block);
+    if (unresolvedFailures.has(key)) unresolvedFailures.delete(key);
+    precedingActivityKey = key;
+  }
+
+  if (unresolvedFailures.size > 0) return "failed";
+  if (failureCount > 0) return "retried";
+  return "finished";
+}
+
+function getActivityKind(block: CustomTagBlock): ActivityKind | null {
+  if (block.tag === "dyad-mcp-tool-result") return null;
+  if (block.tag === "dyad-output") return null;
+  if (block.tag.startsWith("dyad-ha-")) return "homeAssistant";
+  if (
+    [
+      "dyad-write",
+      "dyad-generate-test",
+      "dyad-edit",
+      "dyad-search-replace",
+      "dyad-rename",
+      "dyad-copy",
+      "dyad-delete",
+      "dyad-read",
+      "dyad-list-files",
+    ].includes(block.tag)
+  )
+    return "files";
+  if (block.tag.includes("search") || block.tag.includes("grep"))
+    return "search";
+  if (block.tag.includes("web-")) return "web";
+  if (
+    block.tag.includes("database") ||
+    block.tag.includes("table-schema") ||
+    block.tag.includes("project-info") ||
+    block.tag === "dyad-execute-sql"
+  )
+    return "database";
+  if (block.tag === "dyad-git") return "git";
+  if (block.tag === "dyad-script" || block.tag === "dyad-claude-tool")
+    return "command";
+  return "other";
 }
 
 // One card for an MCP tool call + its result. Memoizes on both block refs;
@@ -415,24 +594,50 @@ const MemoClosedBlocks = React.memo(function MemoClosedBlocks({
 }) {
   // Hoisted once per render rather than allocated per block in the map.
   const mcpCtx = { resultByCallId, callIds, isStreaming };
+  const runs = buildActivityRuns(blocks);
   return (
     <>
-      {blocks.map((block, index) => (
-        <React.Fragment key={block.id}>
-          {renderClosedBlock(block, mcpCtx)}
-          {showFixAll &&
-            index === lastErrorIndex &&
-            chatId !== null &&
-            chatId !== undefined && (
-              <div className="mt-3 w-full flex">
-                <FixAllErrorsButton
-                  errorMessages={errorMessages}
-                  chatId={chatId}
-                />
-              </div>
+      {runs.map((run) => {
+        const activityBlocks = run.blocks.filter(
+          (block): block is CustomTagBlock => block.kind === "custom-tag",
+        );
+        const isActivityRun = activityBlocks.length > 1;
+        const firstBlock = run.blocks[0];
+        return (
+          <React.Fragment key={firstBlock.id}>
+            {isActivityRun ? (
+              <DyadActivityGroup
+                kinds={activityBlocks
+                  .map(getActivityKind)
+                  .filter((kind): kind is ActivityKind => kind !== null)}
+                state={getActivityState(run.blocks, isStreaming)}
+              >
+                {run.blocks.map((block) => (
+                  <React.Fragment key={block.id}>
+                    {block.kind === "markdown"
+                      ? null
+                      : renderClosedBlock(block, mcpCtx)}
+                  </React.Fragment>
+                ))}
+              </DyadActivityGroup>
+            ) : (
+              renderClosedBlock(firstBlock, mcpCtx)
             )}
-        </React.Fragment>
-      ))}
+            {showFixAll &&
+              lastErrorIndex >= run.firstIndex &&
+              lastErrorIndex <= run.lastIndex &&
+              chatId !== null &&
+              chatId !== undefined && (
+                <div className="mt-3 w-full flex">
+                  <FixAllErrorsButton
+                    errorMessages={errorMessages}
+                    chatId={chatId}
+                  />
+                </div>
+              )}
+          </React.Fragment>
+        );
+      })}
     </>
   );
 });
@@ -517,6 +722,22 @@ function renderCustomTag(
   const { tag, attributes, content, inProgress } = block;
 
   switch (tag) {
+    case "dyad-ha-write-file":
+    case "dyad-ha-delete-file":
+    case "dyad-ha-read-file":
+    case "dyad-ha-list-files":
+    case "dyad-ha-list-entities":
+      return (
+        <DyadHomeAssistant
+          action={tag.slice("dyad-ha-".length) as HomeAssistantAction}
+          path={attributes.path}
+          domain={attributes.domain}
+          search={attributes.search}
+          state={getState({ isStreaming, inProgress })}
+        >
+          {content}
+        </DyadHomeAssistant>
+      );
     case "dyad-subagent": {
       const subagentChatId = Number(attributes["chat-id"]);
       if (!Number.isSafeInteger(subagentChatId)) return null;

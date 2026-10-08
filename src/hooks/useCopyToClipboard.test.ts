@@ -225,6 +225,16 @@ describe("useCopyToClipboard", () => {
   });
 
   describe("user-facing response copy", () => {
+    it("copies Home Assistant writes as a clean file section", async () => {
+      const out = await copy(
+        '<dyad-ha-write-file path="www/bubble-float.html">&lt;main&gt;Bubble&lt;/main&gt;</dyad-ha-write-file>',
+      );
+
+      expect(out).toContain("### Home Assistant file: www/bubble-float.html");
+      expect(extractFence(out, "html")).toBe("<main>Bubble</main>");
+      expect(out).not.toContain("dyad-ha-write-file");
+    });
+
     it("omits hidden reasoning and internal read operations", async () => {
       const out = await copy(
         'Visible answer.<think>Private reasoning</think><dyad-read path="src/index.css"></dyad-read>More answer.',
@@ -238,7 +248,7 @@ describe("useCopyToClipboard", () => {
 
     it("omits internal search and file-list results", async () => {
       const out = await copy(
-        "Before<dyad-grep query=\"app\">secret result</dyad-grep><dyad-list-files>src/App.tsx</dyad-list-files>After",
+        'Before<dyad-grep query="app">secret result</dyad-grep><dyad-list-files>src/App.tsx</dyad-list-files>After',
       );
 
       expect(out).toBe("BeforeAfter");

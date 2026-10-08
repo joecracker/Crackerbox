@@ -392,6 +392,41 @@
     "connectFailed": "Não foi possível conectar o plugin. Tente novamente ou gerencie-o na página de Plugins."
   },
   "guide": "Guia",
+  "homeAssistant": {
+    "badge": "HOME ASSISTANT",
+    "write-file": "Writing file",
+    "delete-file": "Deleting file",
+    "read-file": "Reading file",
+    "list-files": "Listing files",
+    "list-entities": "Listing entities",
+    "running": "Running",
+    "interrupted": "Interrupted"
+  },
+  "activity": {
+    "title": "Activity",
+    "running": "running",
+    "failed": "failed",
+    "retried": "retried",
+    "interrupted": "interrupted",
+    "kinds": {
+      "files_one": "{{count}} file action",
+      "files_other": "{{count}} file actions",
+      "search_one": "{{count}} search",
+      "search_other": "{{count}} searches",
+      "command_one": "{{count}} command",
+      "command_other": "{{count}} commands",
+      "web_one": "{{count}} web lookup",
+      "web_other": "{{count}} web lookups",
+      "database_one": "{{count}} database action",
+      "database_other": "{{count}} database actions",
+      "git_one": "{{count}} version check",
+      "git_other": "{{count}} version checks",
+      "homeAssistant_one": "{{count}} Home Assistant action",
+      "homeAssistant_other": "{{count}} Home Assistant actions",
+      "other_one": "{{count}} activity",
+      "other_other": "{{count}} activities"
+    }
+  },
   "annotations": {
     "addToChat": "Adicionar ao chat",
     "commentOnSelection": "Comentar o texto selecionado",

@@ -37,6 +37,29 @@ function feedAll(content: string, splits: number[]) {
 }
 
 describe("streamingMessageParser", () => {
+  it("parses persisted Home Assistant tool tags as custom blocks", () => {
+    const tags = [
+      '<dyad-ha-write-file path="www/card.html">content</dyad-ha-write-file>',
+      '<dyad-ha-delete-file path="www/old.html"></dyad-ha-delete-file>',
+      '<dyad-ha-read-file path="configuration.yaml"></dyad-ha-read-file>',
+      '<dyad-ha-list-files path="www"></dyad-ha-list-files>',
+      '<dyad-ha-list-entities domain="light" search="kitchen"></dyad-ha-list-entities>',
+    ];
+
+    const { blocks } = parseFullMessage(tags.join("\n"));
+    expect(
+      blocks
+        .filter((block) => block.kind === "custom-tag")
+        .map((block) => block.tag),
+    ).toEqual([
+      "dyad-ha-write-file",
+      "dyad-ha-delete-file",
+      "dyad-ha-read-file",
+      "dyad-ha-list-files",
+      "dyad-ha-list-entities",
+    ]);
+  });
+
   it("parses pure markdown as a single block", () => {
     const content = "Hello **world**\n\nSecond paragraph";
     const { blocks } = parseFullMessage(content);

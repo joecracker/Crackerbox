@@ -50,6 +50,105 @@ vi.mock("@/hooks/useChatStream", () => ({
 
 import { DyadMarkdownParser } from "./DyadMarkdownParser";
 
+describe("DyadMarkdownParser compact activity", () => {
+  afterEach(() => {
+    mockStreamState.current = { type: "idle" };
+    cleanup();
+  });
+
+  it("renders an old Home Assistant write tag as an expandable card", () => {
+    render(
+      <DyadMarkdownParser
+        content={
+          '<dyad-ha-write-file path="www/bubble-float.html">&lt;main&gt;Bubble&lt;/main&gt;</dyad-ha-write-file>'
+        }
+      />,
+    );
+
+    expect(screen.queryByText(/dyad-ha-write-file/)).toBeNull();
+    expect(screen.getByText("www/bubble-float.html")).toBeTruthy();
+    const card = screen.getByTestId("dyad-ha-write-file");
+    expect(card.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(card);
+    expect(card.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByText("<main>Bubble</main>")).toBeTruthy();
+  });
+
+  it("groups consecutive passive tool activity into one collapsed line", () => {
+    render(
+      <DyadMarkdownParser
+        content={
+          '<dyad-read path="src/a.ts"></dyad-read>\n<dyad-grep query="button"></dyad-grep>\n<dyad-write path="src/a.ts">updated</dyad-write>\n<dyad-git operation="status"></dyad-git>'
+        }
+      />,
+    );
+
+    const group = screen.getByTestId("dyad-activity-group");
+    expect(group.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.getByText(/2 file actions/)).toBeTruthy();
+    fireEvent.click(group);
+    expect(screen.getByText("src/a.ts")).toBeTruthy();
+  });
+
+  it("keeps an expanded activity group open as streaming adds another tool", () => {
+    const first =
+      '<dyad-read path="src/a.ts"></dyad-read><dyad-grep query="button"></dyad-grep>';
+    const { rerender } = render(<DyadMarkdownParser content={first} />);
+    const group = screen.getByTestId("dyad-activity-group");
+    fireEvent.click(group);
+    expect(group.getAttribute("aria-expanded")).toBe("true");
+
+    rerender(
+      <DyadMarkdownParser
+        content={`${first}<dyad-write path="src/a.ts">updated</dyad-write>`}
+      />,
+    );
+
+    expect(
+      screen.getByTestId("dyad-activity-group").getAttribute("aria-expanded"),
+    ).toBe("true");
+  });
+
+  it("shows unresolved failures in red and recovered retries in amber", () => {
+    const failed = render(
+      <DyadMarkdownParser
+        content={
+          '<dyad-write path="src/a.ts">first</dyad-write><dyad-output type="error" message="Tool failed">details</dyad-output>'
+        }
+      />,
+    );
+    expect(screen.getByText("failed")).toBeTruthy();
+    expect(screen.getByTestId("dyad-activity-group").className).toContain(
+      "border-l-red-500",
+    );
+
+    failed.unmount();
+    render(
+      <DyadMarkdownParser
+        content={
+          '<dyad-write path="src/a.ts">first</dyad-write><dyad-output type="error" message="Tool failed">details</dyad-output><dyad-write path="src/a.ts">second</dyad-write>'
+        }
+      />,
+    );
+    expect(screen.getByText("retried")).toBeTruthy();
+    expect(screen.getByTestId("dyad-activity-group").className).toContain(
+      "border-l-amber-500",
+    );
+  });
+
+  it("keeps interactive cards outside passive activity groups", () => {
+    render(
+      <DyadMarkdownParser
+        content={
+          '<dyad-read path="src/a.ts"></dyad-read><dyad-questionnaire>{"questions":[]}</dyad-questionnaire><dyad-write path="src/b.ts">b</dyad-write>'
+        }
+      />,
+    );
+
+    expect(screen.queryByTestId("dyad-activity-group")).toBeNull();
+  });
+});
+
 describe("DyadMarkdownParser dyad-status", () => {
   afterEach(() => {
     mockStreamState.current = { type: "idle" };

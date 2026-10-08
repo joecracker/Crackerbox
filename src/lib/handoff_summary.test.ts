@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { looksLikeHandoffSummary } from "./handoff_summary";
+import {
+  formatHandoffSummaryRejection,
+  inspectHandoffSummary,
+  looksLikeHandoffSummary,
+} from "./handoff_summary";
 
 const GOOD = `## What was done
 - Fixed the splash gradient in index.html
@@ -54,5 +58,40 @@ describe("looksLikeHandoffSummary", () => {
       "I could write about what was done, the current state and the open problems " +
       "but I am just chatting here and not writing any structured sections at all.";
     expect(looksLikeHandoffSummary(prose)).toBe(false);
+  });
+
+  it("records why a completed reply was rejected", () => {
+    const reply =
+      "## What was done\n" +
+      "I made progress, but this reply omitted the other required sections. ".repeat(
+        6,
+      );
+    const inspection = inspectHandoffSummary(reply);
+
+    expect(inspection).toEqual({
+      accepted: false,
+      foundHeadings: ["what was done"],
+      missingHeadings: [
+        "current state",
+        "open problems",
+        "parked ideas",
+        "relevant files",
+      ],
+      length: reply.length,
+      preview: reply.replace(/\s+/g, " ").trim().slice(0, 300),
+    });
+
+    expect(formatHandoffSummaryRejection(inspection)).toContain(
+      "The summary came back in an unexpected format",
+    );
+    expect(formatHandoffSummaryRejection(inspection)).toContain(
+      "Headings found (1/5): what was done",
+    );
+    expect(formatHandoffSummaryRejection(inspection)).toContain(
+      "Headings missing: current state, open problems, parked ideas, relevant files",
+    );
+    expect(formatHandoffSummaryRejection(inspection)).toContain(
+      `Reply length: ${reply.length} characters`,
+    );
   });
 });

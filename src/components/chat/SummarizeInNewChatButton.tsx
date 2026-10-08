@@ -8,7 +8,10 @@ import { ipc } from "@/ipc/types";
 import { showError, toast } from "@/lib/toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/queryKeys";
-import { looksLikeHandoffSummary } from "@/lib/handoff_summary";
+import {
+  formatHandoffSummaryRejection,
+  inspectHandoffSummary,
+} from "@/lib/handoff_summary";
 
 // Source chats being summarized right now (shared by every Summarize button).
 const summarizing = new Set<number>();
@@ -76,19 +79,19 @@ export function useSummarizeInNewChat() {
 
         // Check that the reply really is a summary, not just text: a blank or
         // off-topic reply would leave the new chat with the wrong context.
-        let summaryOk = false;
+        let inspection = inspectHandoffSummary(undefined);
         if (outcome === "done") {
-          for (let i = 0; i < 10 && !summaryOk; i++) {
+          for (let i = 0; i < 10 && !inspection.accepted; i++) {
             const newChat = await ipc.chat.getChat(createdId);
             const lastAssistant = [...newChat.messages]
               .reverse()
               .find((m) => m.role === "assistant");
-            summaryOk =
-              !!lastAssistant && looksLikeHandoffSummary(lastAssistant.content);
-            if (!summaryOk) await new Promise((r) => setTimeout(r, 1000));
+            inspection = inspectHandoffSummary(lastAssistant?.content);
+            if (!inspection.accepted)
+              await new Promise((r) => setTimeout(r, 1000));
           }
         }
-        return { createdId, outcome, summaryOk };
+        return { createdId, outcome, inspection };
       };
 
       let attempt = await runAttempt();
@@ -96,20 +99,39 @@ export function useSummarizeInNewChat() {
         let n = 1;
         n < MAX_SUMMARY_ATTEMPTS &&
         attempt.outcome === "done" &&
-        !attempt.summaryOk;
+        !attempt.inspection.accepted;
         n++
       ) {
         await deleteQuietly(attempt.createdId);
         attempt = await runAttempt();
       }
-      const { createdId, outcome, summaryOk } = attempt;
+      const { createdId, outcome, inspection } = attempt;
 
-      if (outcome === "failed" || (outcome === "done" && !summaryOk)) {
+      if (outcome === "failed") {
         showError(
           "The summary didn't finish, so no new chat was made. Your old chat is untouched. Try Summarize again.",
         );
         await deleteQuietly(createdId);
         await queryClient.invalidateQueries({ queryKey: queryKeys.chats.all });
+        return;
+      }
+      if (outcome === "done" && !inspection.accepted) {
+        const diagnostic = {
+          sourceChatId,
+          summaryChatId: createdId,
+          ...inspection,
+        };
+        console.warn("Handoff summary rejected", diagnostic);
+        await queryClient.invalidateQueries({ queryKey: queryKeys.chats.all });
+        showError(formatHandoffSummaryRejection(inspection), {
+          persist: true,
+          action: {
+            label: "Use it anyway",
+            onClick: () => {
+              void navigate({ to: "/chat", search: { id: createdId } });
+            },
+          },
+        });
         return;
       }
       if (outcome === "timeout") {

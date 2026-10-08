@@ -30,7 +30,7 @@ import {
 } from "./state";
 import { transition, type UserInputIgnoreReason } from "./transition";
 
-const CONSENT_DEADLINE_MS = 5 * 60 * 1_000;
+const CONSENT_DEADLINE_MS = 30 * 60 * 1_000;
 const INTEGRATION_DEADLINE_MS = 30 * 60 * 1_000;
 /**
  * Reviewing an assertion plan is an editing session — rewording checks, adding

@@ -37,10 +37,10 @@ describe("user-input registry", () => {
       classifier: "none",
     });
     expect(requestId).toBe("agent-consent:1");
-    expect(registry.getPending()[0].deadlineAt).toBe(301_000);
+    expect(registry.getPending()[0].deadlineAt).toBe(1_801_000);
     expect(clock.pendingTimerCount()).toBe(1);
     const park = registry.park(requestId);
-    clock.advanceBy(300_000);
+    clock.advanceBy(1_800_000);
     await expect(park).resolves.toBeNull();
     expect(registry.getPending()).toEqual([]);
     expect(broadcast).toHaveBeenCalledWith("user-input:settled", {
@@ -49,7 +49,7 @@ describe("user-input registry", () => {
     });
   });
 
-  it("gives an assertion review the long deadline, not the consent one", async () => {
+  it("keeps assertion review on its dedicated thirty-minute deadline", async () => {
     const { registry, clock } = setup();
     const requestId = registry.request({
       kind: "test-assertions",
@@ -60,8 +60,8 @@ describe("user-input registry", () => {
       classifier: "none",
     });
 
-    // Reviewing a plan is an editing session; a five-minute consent deadline
-    // would cut it off mid-edit.
+    // Reviewing a plan is an editing session, so it retains the explicit
+    // review deadline.
     expect(registry.getPending()[0].deadlineAt).toBe(1_801_000);
     const park = registry.park(requestId);
     clock.advanceBy(300_000);

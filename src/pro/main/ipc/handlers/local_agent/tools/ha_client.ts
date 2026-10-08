@@ -21,7 +21,7 @@ const DEFAULT_CONFIG_PATH = "/config";
 const DEFAULT_SSH_PORT = 22;
 
 const NOT_CONFIGURED_MESSAGE =
-  'Home Assistant isn\'t connected yet. Add its connection details under Settings > Integrations > Home Assistant.';
+  "Home Assistant isn't connected yet. Add its connection details under Settings > Integrations > Home Assistant.";
 
 export function getHomeAssistantSettings(): HomeAssistant {
   const ha = readSettings().homeAssistant;
@@ -41,7 +41,10 @@ export function requireHaRest(ha: HomeAssistant): {
       DyadErrorKind.Precondition,
     );
   }
-  return { baseUrl: ha.baseUrl.replace(/\/+$/, ""), token: ha.accessToken.value };
+  return {
+    baseUrl: ha.baseUrl.replace(/\/+$/, ""),
+    token: ha.accessToken.value,
+  };
 }
 
 /** GET/POST against the HA REST API. Throws a friendly DyadError on failure. */
@@ -113,7 +116,10 @@ export function getHaConfigRoot(ha: HomeAssistant): string {
  * the HA host is always Linux (HAOS or a container), unlike the user's own
  * machine, which `resolveDirectoryWithinAppPath` has to handle both ways.
  */
-export function resolveHaPath(configRoot: string, relativePath: string): string {
+export function resolveHaPath(
+  configRoot: string,
+  relativePath: string,
+): string {
   const trimmed = relativePath.trim();
   if (/(^|[\\/])\.\.([\\/]|$)/.test(trimmed)) {
     throw new DyadError(
@@ -125,7 +131,8 @@ export function resolveHaPath(configRoot: string, relativePath: string): string 
   const resolved = path.posix.resolve(root, trimmed);
   const rel = path.posix.relative(root, resolved);
   const withinRoot =
-    rel === "" || (!rel.startsWith("../") && rel !== ".." && !path.posix.isAbsolute(rel));
+    rel === "" ||
+    (!rel.startsWith("../") && rel !== ".." && !path.posix.isAbsolute(rel));
   if (!withinRoot) {
     throw new DyadError(
       `Invalid path: "${relativePath}" escapes Home Assistant's config folder (${root})`,
@@ -181,6 +188,32 @@ export async function runHaCommand(
     );
   }
   return result.stdout;
+}
+
+/** Retries a denied HA mutation once through passwordless sudo. */
+export async function runHaCommandWithSudoFallback(
+  session: SshSession,
+  command: string,
+  sudoCommand: string,
+  options: { input?: string; timeoutMs?: number } | undefined,
+  sudoDeniedMessage: string,
+): Promise<string> {
+  try {
+    return await runHaCommand(session, command, options);
+  } catch (error) {
+    if (
+      !(error instanceof Error) ||
+      !/permission denied/i.test(error.message)
+    ) {
+      throw error;
+    }
+  }
+
+  try {
+    return await runHaCommand(session, sudoCommand, options);
+  } catch {
+    throw new DyadError(sudoDeniedMessage, DyadErrorKind.External);
+  }
 }
 
 /** Shell-quotes a single argument for the (POSIX) HA host. */

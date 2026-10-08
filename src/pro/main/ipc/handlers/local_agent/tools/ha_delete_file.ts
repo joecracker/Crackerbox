@@ -5,9 +5,12 @@ import {
   getHaConfigRoot,
   resolveHaPath,
   withHaSsh,
-  runHaCommand,
+  runHaCommandWithSudoFallback,
   shQuote,
 } from "./ha_client";
+
+const SUDO_DENIED_MESSAGE =
+  "Home Assistant denied the delete, and sudo isn't allowed for this SSH user.";
 
 const haDeleteFileSchema = z.object({
   path: z
@@ -52,7 +55,13 @@ export const haDeleteFileTool: ToolDefinition<
     }
 
     await withHaSsh(ha, (session) =>
-      runHaCommand(session, `rm -rf ${shQuote(target)}`),
+      runHaCommandWithSudoFallback(
+        session,
+        `rm -rf ${shQuote(target)}`,
+        `sudo -n rm -rf ${shQuote(target)}`,
+        undefined,
+        SUDO_DENIED_MESSAGE,
+      ),
     );
 
     return `Deleted ${target}.`;

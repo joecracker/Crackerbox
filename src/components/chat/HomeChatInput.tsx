@@ -85,7 +85,7 @@ export function HomeChatInput({
 
   // Custom submit function that wraps the provided onSubmit
   const handleCustomSubmit = async (
-    requestedChatMode: "ask" | "local-agent" = "ask",
+    requestedChatMode?: "ask" | "local-agent",
   ) => {
     if (
       (!inputValue.trim() && attachments.length === 0) ||
@@ -201,7 +201,7 @@ export function HomeChatInput({
                   <TooltipTrigger
                     render={
                       <button
-                        onClick={() => handleCustomSubmit("ask")}
+                        onClick={() => handleCustomSubmit()}
                         disabled={
                           disabled ||
                           (!inputValue.trim() && attachments.length === 0)
@@ -213,7 +213,7 @@ export function HomeChatInput({
                   >
                     <SendHorizontalIcon size={20} />
                   </TooltipTrigger>
-                  <TooltipContent>Send without changing files</TooltipContent>
+                  <TooltipContent>Send message</TooltipContent>
                 </Tooltip>
               </div>
             )}

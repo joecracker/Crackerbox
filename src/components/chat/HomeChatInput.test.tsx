@@ -97,8 +97,14 @@ vi.mock("./FileAttachmentTypeDialog", () => ({
   FileAttachmentTypeDialog: () => null,
 }));
 vi.mock("./LexicalChatInput", () => ({
-  LexicalChatInput: ({ disabled }: { disabled: boolean }) => (
-    <button type="button" disabled={disabled}>
+  LexicalChatInput: ({
+    disabled,
+    onSubmit,
+  }: {
+    disabled: boolean;
+    onSubmit: () => void;
+  }) => (
+    <button type="button" disabled={disabled} onClick={() => onSubmit()}>
       Editor
     </button>
   ),
@@ -233,14 +239,14 @@ describe("HomeChatInput", () => {
     expect(screen.queryByTestId("home-app-selector")).toBeNull();
   });
 
-  it("sends chat and build as explicit one-turn capabilities", async () => {
+  it("uses the home default for send and keeps build as an explicit one-turn capability", async () => {
     mocks.selectedApp = { id: 1, name: "Existing" };
     const onSubmit = vi.fn().mockResolvedValue(true);
     render(<HomeChatInput onSubmit={onSubmit} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Send message" }));
     expect(onSubmit).toHaveBeenLastCalledWith(
-      expect.objectContaining({ requestedChatMode: "ask" }),
+      expect.objectContaining({ requestedChatMode: undefined }),
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Build this" }));
@@ -249,16 +255,16 @@ describe("HomeChatInput", () => {
     );
   });
 
-  it("starts a read-only idea chat when no app is selected", () => {
+  it("uses the home default when Enter submits the editor", () => {
     const onSubmit = vi.fn().mockResolvedValue(true);
     render(<HomeChatInput onSubmit={onSubmit} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Send message" }));
+    fireEvent.click(screen.getByRole("button", { name: "Editor" }));
 
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
         selectedApp: undefined,
-        requestedChatMode: "ask",
+        requestedChatMode: undefined,
       }),
     );
   });

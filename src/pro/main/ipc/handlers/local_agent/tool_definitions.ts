@@ -455,6 +455,8 @@ function serializeActivityOutput(result: ToolResult): string {
 }
 
 export interface BuildAgentToolSetOptions {
+  /** If provided, expose only these tools for this turn. */
+  allowedToolNames?: readonly AgentToolName[];
   /**
    * Selects the fail-closed surface for the active writable mode. Build mode
    * intentionally exposes only the tools needed to create an app without
@@ -736,6 +738,12 @@ export function shouldIncludeTool(
   options: BuildAgentToolSetOptions = {},
   phase: "discovery" | "invocation" = "discovery",
 ): boolean {
+  if (
+    options.allowedToolNames &&
+    !options.allowedToolNames.includes(tool.name)
+  ) {
+    return false;
+  }
   if (getAgentToolConsent(tool.name) === "never") {
     return false;
   }

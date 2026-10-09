@@ -616,6 +616,7 @@ export async function handleLocalAgentStream(
     externalModelAdmission,
     freeModelMode,
     toolProfile = "agent",
+    allowedToolNames,
     preCommitHookAvailable = false,
     referencedApps = [],
     currentTurnHasOnDiskAttachment,
@@ -649,6 +650,8 @@ export async function handleLocalAgentStream(
     freeModelMode?: boolean;
     /** Fail-closed tool and orchestration surface for this mode. */
     toolProfile?: "agent" | "build";
+    /** If provided, expose only these local-agent tools for this turn. */
+    allowedToolNames?: readonly AgentToolName[];
     /** Snapshot shared by the prompt and toolset for this writable turn. */
     preCommitHookAvailable?: boolean;
     /**
@@ -1143,6 +1146,7 @@ export async function handleLocalAgentStream(
     // we can't tell if they modify state); plan mode includes only planning tools.
     const buildOptions = {
       toolProfile,
+      allowedToolNames,
       readOnly,
       planModeOnly,
       basicAgentMode: !readOnly && !planModeOnly && isBasicAgentMode(settings),
@@ -1164,7 +1168,7 @@ export async function handleLocalAgentStream(
     // the tool out anyway, and Build mode has no MCP tools to gain. A user
     // who turned the tool off skips the catalog read entirely. Suggestions
     // are optional, so nothing in here may fail the turn.
-    if (!buildMode && !readOnly && !planModeOnly) {
+    if (!buildMode && !readOnly && !planModeOnly && !allowedToolNames) {
       try {
         if (getAgentToolConsent("suggest_plugin") !== "never") {
           ctx.suggestablePlugins = await collectSuggestablePlugins({
@@ -1223,7 +1227,11 @@ export async function handleLocalAgentStream(
     // only advertise it in the description when it actually registered.
     const hasGetSchemaTool = agentTools.get_mcp_tool_schema != undefined;
     const mcpToolsForRegistration: ToolSet =
-      !buildMode && !readOnly && !planModeOnly && !mcpInSandboxEnabled
+      !buildMode &&
+      !readOnly &&
+      !planModeOnly &&
+      !allowedToolNames &&
+      !mcpInSandboxEnabled
         ? await getMcpTools(event, ctx)
         : {};
     if (agentTools.execute_sandbox_script != undefined) {

@@ -1164,22 +1164,25 @@ export function registerChatStreamHandlers() {
       // value is cleared on clean exit.
       setSentinelActiveChat(req.chatId);
 
+      const isSummarizeRequest = req.prompt.startsWith(
+        "Summarize from chat-id=",
+      );
+      const summaryModelSelection = {
+        provider: "openrouter",
+        name: "deepseek/deepseek-v4.1-flash",
+        effortLevel: "low",
+      } as const;
       let baseSettings = readSettings();
-      let selectedModel = chat.modelSelection
-        ? await normalizeModelSelection(chat.modelSelection)
-        : await resolveDefaultModelSelection({
-            ...baseSettings,
-            selectedModel: modelForChatBackend(chat, baseSettings),
-          });
       // Chat summaries always run on a fixed cheap model with low thinking,
       // whatever model the chat itself uses.
-      if (req.prompt.startsWith("Summarize from chat-id=")) {
-        selectedModel = await normalizeModelSelection({
-          provider: "openrouter",
-          name: "deepseek/deepseek-v4.1-flash",
-          effortLevel: "low",
-        } as Parameters<typeof normalizeModelSelection>[0]);
-      }
+      let selectedModel = isSummarizeRequest
+        ? await normalizeModelSelection(summaryModelSelection)
+        : chat.modelSelection
+          ? await normalizeModelSelection(chat.modelSelection)
+          : await resolveDefaultModelSelection({
+              ...baseSettings,
+              selectedModel: modelForChatBackend(chat, baseSettings),
+            });
       let { settings: storedSettings, mode: selectedChatMode } =
         await resolveChatModeForTurn({
           storedChatMode: chat.chatMode,
@@ -1634,12 +1637,14 @@ ${componentSnippet}
           const candidates: AutoModelCandidates = new Map();
           const prepared = await awaitTurnPreflight(
             (async () => {
-              const model = snapshot.modelSelection
-                ? await normalizeModelSelection(snapshot.modelSelection)
-                : await resolveDefaultModelSelection({
-                    ...attemptSettings,
-                    selectedModel: modelForChatBackend(chat, attemptSettings),
-                  });
+              const model = isSummarizeRequest
+                ? await normalizeModelSelection(summaryModelSelection)
+                : snapshot.modelSelection
+                  ? await normalizeModelSelection(snapshot.modelSelection)
+                  : await resolveDefaultModelSelection({
+                      ...attemptSettings,
+                      selectedModel: modelForChatBackend(chat, attemptSettings),
+                    });
               const { mode } = await resolveChatModeForTurn({
                 storedChatMode: snapshot.chatMode,
                 requestedChatMode:
@@ -1797,7 +1802,7 @@ ${componentSnippet}
         return req.chatId;
       }
 
-      if (acceptedTurn.authoritativeModel) {
+      if (acceptedTurn.authoritativeModel && !isSummarizeRequest) {
         const connection = selectedModel.connection;
         selectedModel = {
           ...(await normalizeModelSelection(acceptedTurn.authoritativeModel)),
@@ -2432,9 +2437,7 @@ ${componentSnippet}
         ) {
           systemPrompt += "\n\n" + SUPABASE_NOT_AVAILABLE_SYSTEM_PROMPT;
         }
-        const isSummarizeIntent = req.prompt.startsWith(
-          "Summarize from chat-id=",
-        );
+        const isSummarizeIntent = isSummarizeRequest;
         if (isSummarizeIntent) {
           systemPrompt = SUMMARIZE_CHAT_SYSTEM_PROMPT;
         }
@@ -2768,6 +2771,32 @@ This conversation includes one or more image attachments. When the user uploads 
           return fullResponse;
         };
 
+        if (isSummarizeIntent) {
+          finishedNaturally = await handleLocalAgentStream(
+            event,
+            req,
+            abortController,
+            {
+              placeholderMessageId: placeholderAssistantMessage.id,
+              systemPrompt: SUMMARIZE_CHAT_SYSTEM_PROMPT,
+              dyadRequestId: dyadRequestId ?? "[no-request-id]",
+              readOnly: true,
+              allowedToolNames: ["set_chat_summary"],
+              messageOverride: chatMessages,
+              settingsOverride: settings,
+              modelSelectionOverride: selectedModel,
+              autoModelCandidates,
+              externalModelAdmission,
+              freeModelMode,
+              referencedApps: [],
+              currentTurnHasOnDiskAttachment: false,
+              supabaseProviderToolsAvailable: false,
+              neonProviderToolsAvailable: false,
+            },
+          );
+          return;
+        }
+
         // Handle ask mode: use local-agent in read-only mode
         // This gives users access to code reading tools while in ask mode
         // Ask mode does not consume free agent quota
@@ -2808,7 +2837,6 @@ This conversation includes one or more image attachments. When the user uploads 
               systemPrompt: readOnlySystemPrompt,
               dyadRequestId: dyadRequestId ?? "[no-request-id]",
               readOnly: true,
-              messageOverride: isSummarizeIntent ? chatMessages : undefined,
               settingsOverride: settings,
               modelSelectionOverride: selectedModel,
               autoModelCandidates,
@@ -2858,7 +2886,6 @@ This conversation includes one or more image attachments. When the user uploads 
               systemPrompt: planModeSystemPrompt,
               dyadRequestId: dyadRequestId ?? "[no-request-id]",
               planModeOnly: true,
-              messageOverride: isSummarizeIntent ? chatMessages : undefined,
               settingsOverride: settings,
               modelSelectionOverride: selectedModel,
               autoModelCandidates,
@@ -2878,7 +2905,7 @@ This conversation includes one or more image attachments. When the user uploads 
         // a fail-closed app-building tool profile: no sub-agents, Engine tools,
         // logs, verification commands, sandbox scripts, or MCP servers.
         if (isBuildMode) {
-          const readOnlyBuildTurn = isSecurityReviewIntent || isSummarizeIntent;
+          const readOnlyBuildTurn = isSecurityReviewIntent;
           finishedNaturally = await handleLocalAgentStream(
             event,
             req,
@@ -2889,7 +2916,6 @@ This conversation includes one or more image attachments. When the user uploads 
               dyadRequestId: dyadRequestId ?? "[no-request-id]",
               readOnly: readOnlyBuildTurn,
               toolProfile: "build",
-              messageOverride: isSummarizeIntent ? chatMessages : undefined,
               settingsOverride: settings,
               modelSelectionOverride: selectedModel,
               autoModelCandidates,
@@ -2921,7 +2947,6 @@ This conversation includes one or more image attachments. When the user uploads 
               placeholderMessageId: placeholderAssistantMessage.id,
               systemPrompt,
               dyadRequestId: dyadRequestId ?? "[no-request-id]",
-              messageOverride: isSummarizeIntent ? chatMessages : undefined,
               settingsOverride: settings,
               modelSelectionOverride: selectedModel,
               autoModelCandidates,

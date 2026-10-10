@@ -53,6 +53,7 @@ import {
 } from "@/hooks/useChatMessages";
 import { stopSpeechPlayback } from "@/lib/speechPlayback";
 import { playSpeech } from "@/lib/speechPlayback";
+import { showError } from "@/lib/toast";
 import { speechTextFromAssistantResponse } from "@/lib/speechText";
 import { useSpeechPlayback } from "@/hooks/useSpeechPlayback";
 
@@ -159,7 +160,10 @@ export function ChatPanel({
       voice: settings.speechVoice ?? "af_bella",
       speed: settings.speechRate ?? 1,
     }).catch(() => {
-      // Speech is optional. The text conversation continues uninterrupted.
+      // Speech is optional, but say why nothing played.
+      showError(
+        "Crackerbox couldn't play her voice. The reply is still here as text.",
+      );
     });
   }, [isStreaming, messages, settings]);
 

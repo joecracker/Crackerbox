@@ -44,27 +44,41 @@ export function stopSpeechPlayback() {
   publish({ messageId: null, status: "idle" });
 }
 
-function playAudio(
-  data: Uint8Array<ArrayBuffer>,
-  mimeType: string,
-  version: number,
-) {
+function base64ToBytes(base64: string) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+function playAudio(audioBase64: string, mimeType: string, version: number) {
   return new Promise<void>((resolve, reject) => {
-    const blob = new Blob([data], { type: mimeType });
+    const blob = new Blob([base64ToBytes(audioBase64)], { type: mimeType });
     const url = URL.createObjectURL(blob);
-    const finish = () => {
+    const cleanup = () => {
       URL.revokeObjectURL(url);
       if (audio?.src === url) audio = null;
       if (resolveActivePlayback === finish) resolveActivePlayback = null;
+    };
+    const finish = () => {
+      cleanup();
       resolve();
     };
     resolveActivePlayback = finish;
     audio = new Audio(url);
     audio.onended = finish;
-    audio.onerror = finish;
+    audio.onerror = () => {
+      cleanup();
+      if (version === requestVersion) {
+        reject(new Error("This device could not play the generated speech."));
+      } else {
+        resolve();
+      }
+    };
     audio.play().catch((error) => {
-      finish();
+      cleanup();
       if (version === requestVersion) reject(error);
+      else resolve();
     });
   });
 }
@@ -101,7 +115,7 @@ export async function playSpeech({
       pending = i + 1 < chunks.length ? synthesize(chunks[i + 1]) : null;
       pending?.catch(() => {});
       publish({ messageId, status: "playing" });
-      await playAudio(result.audioData, result.mimeType, version);
+      await playAudio(result.audioBase64, result.mimeType, version);
       if (version !== requestVersion) return;
     }
     if (version === requestVersion) stopSpeechPlayback();

@@ -56,7 +56,9 @@ export const SynthesizeSpeechParamsSchema = z.object({
 });
 
 export const SynthesizeSpeechResultSchema = z.object({
-  audioData: z.instanceof(Uint8Array),
+  // Base64 text, not raw bytes: the phone link carries IPC as JSON, which
+  // turns a Uint8Array into a plain object the phone cannot play.
+  audioBase64: z.string().min(1),
   mimeType: z.literal("audio/wav"),
 });
 

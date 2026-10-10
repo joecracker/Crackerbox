@@ -70,6 +70,56 @@ const kokoroRuntimeDependencies = [
   "onnxruntime-node",
   "onnxruntime-common",
   "sharp",
+  "@protobufjs/aspromise",
+  "@protobufjs/base64",
+  "@protobufjs/codegen",
+  "@protobufjs/eventemitter",
+  "@protobufjs/fetch",
+  "@protobufjs/float",
+  "@protobufjs/path",
+  "@protobufjs/pool",
+  "@protobufjs/utf8",
+  "boolean",
+  "chownr",
+  "color",
+  "color-convert",
+  "color-name",
+  "color-string",
+  "define-data-property",
+  "define-properties",
+  "detect-libc",
+  "detect-node",
+  "es-define-property",
+  "es-errors",
+  "es6-error",
+  "escape-string-regexp",
+  "flatbuffers",
+  "fs-minipass",
+  "global-agent",
+  "globalthis",
+  "gopd",
+  "guid-typescript",
+  "has-property-descriptors",
+  "is-arrayish",
+  "json-stringify-safe",
+  "long",
+  "matcher",
+  "minipass",
+  "minizlib",
+  "mkdirp",
+  "object-keys",
+  "onnxruntime-web",
+  "platform",
+  "protobufjs",
+  "roarr",
+  "semver",
+  "semver-compare",
+  "serialize-error",
+  "simple-swizzle",
+  "sprintf-js",
+  "tar",
+  "type-fest",
+  "yallist",
 ] as const;
 
 function isRuntimeDependency(
@@ -119,6 +169,12 @@ const ignore = (file: string) => {
     return false;
   }
   if (isRuntimeDependency(file, ssh2RuntimeDependencies)) {
+    return false;
+  }
+  if (file === "/node_modules/@protobufjs") {
+    return false;
+  }
+  if (file === "/node_modules/@huggingface") {
     return false;
   }
   if (isRuntimeDependency(file, kokoroRuntimeDependencies)) {

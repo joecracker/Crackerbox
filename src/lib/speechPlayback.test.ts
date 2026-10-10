@@ -36,7 +36,7 @@ describe("playSpeech", () => {
     FakeAudio.instances = [];
     synthesizeSpeech.mockReset();
     synthesizeSpeech.mockImplementation(async () => ({
-      audioData: new Uint8Array([1, 2, 3]),
+      audioBase64: "AQID",
       mimeType: "audio/wav",
     }));
     vi.stubGlobal("Audio", FakeAudio);
@@ -87,10 +87,49 @@ describe("playSpeech", () => {
     expect(synthesizeSpeech).toHaveBeenCalledTimes(2);
   });
 
+  it("turns the base64 audio back into the original bytes", async () => {
+    let seen: Blob | undefined;
+    (
+      URL.createObjectURL as unknown as ReturnType<typeof vi.fn>
+    ).mockImplementation((blob: Blob) => {
+      seen = blob;
+      return "blob:speech";
+    });
+    const done = playSpeech({
+      messageId: 4,
+      text: FIRST,
+      voice: "af_bella",
+      speed: 1,
+    });
+    await vi.waitFor(() => expect(FakeAudio.instances).toHaveLength(1));
+    expect(Array.from(new Uint8Array(await seen!.arrayBuffer()))).toEqual([
+      1, 2, 3,
+    ]);
+    expect(seen!.type).toBe("audio/wav");
+    FakeAudio.instances[0].onended?.();
+    await done;
+  });
+
+  it("reports audio that the device cannot play", async () => {
+    const done = playSpeech({
+      messageId: 5,
+      text: FIRST,
+      voice: "af_bella",
+      speed: 1,
+    });
+    const outcome = done.then(
+      () => "resolved",
+      (error: Error) => error.message,
+    );
+    await vi.waitFor(() => expect(FakeAudio.instances).toHaveLength(1));
+    FakeAudio.instances[0].onerror?.();
+    await expect(outcome).resolves.toMatch(/could not play/);
+  });
+
   it("reports a failed chunk instead of staying silent", async () => {
     synthesizeSpeech
       .mockResolvedValueOnce({
-        audioData: new Uint8Array([1]),
+        audioBase64: "AQ==",
         mimeType: "audio/wav",
       })
       .mockRejectedValueOnce(new Error("no speech"));

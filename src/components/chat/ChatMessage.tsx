@@ -62,6 +62,7 @@ import { useSettings } from "@/hooks/useSettings";
 import { useSpeechPlayback } from "@/hooks/useSpeechPlayback";
 import { speechTextFromAssistantResponse } from "@/lib/speechText";
 import { playSpeech, stopSpeechPlayback } from "@/lib/speechPlayback";
+import { showError } from "@/lib/toast";
 
 /** Extract <dyad-attachment> tags from message content and return parsed attachment data. */
 function extractAttachments(content: string): {
@@ -185,7 +186,10 @@ const ChatMessage = ({
       voice: settings?.speechVoice ?? "af_bella",
       speed: settings?.speechRate ?? 1,
     }).catch(() => {
-      // The assistant response remains fully usable when local speech is unavailable.
+      // The assistant response stays usable as text, but say why nothing played.
+      showError(
+        "Crackerbox couldn't play her voice. The reply is still here as text.",
+      );
     });
   };
   // Find the version that was active when this message was sent

@@ -12,6 +12,11 @@ let resolveActivePlayback: (() => void) | null = null;
 let requestVersion = 0;
 const listeners = new Set<(state: SpeechPlaybackState) => void>();
 
+// A short first chunk means the voice starts after about one sentence instead of
+// after the whole opening paragraph has been generated.
+const FIRST_CHUNK_MAX_LENGTH = 160;
+const CHUNK_MAX_LENGTH = 420;
+
 function publish(next: SpeechPlaybackState) {
   state = next;
   for (const listener of listeners) listener(state);
@@ -80,13 +85,21 @@ export async function playSpeech({
   publish({ messageId, status: "loading" });
 
   try {
-    for (const sentence of splitSpeechText(text)) {
-      const result = await ipc.audio.synthesizeSpeech({
-        text: sentence,
-        voice,
-        speed,
-      });
+    const chunks = splitSpeechText(
+      text,
+      CHUNK_MAX_LENGTH,
+      FIRST_CHUNK_MAX_LENGTH,
+    );
+    const synthesize = (chunk: string) =>
+      ipc.audio.synthesizeSpeech({ text: chunk, voice, speed });
+    let pending = chunks.length > 0 ? synthesize(chunks[0]) : null;
+    for (let i = 0; i < chunks.length; i++) {
+      const result = await pending!;
       if (version !== requestVersion) return;
+      // Generate the next chunk while this one plays, so there is no silent gap
+      // between chunks. If it fails, the error surfaces when its turn comes.
+      pending = i + 1 < chunks.length ? synthesize(chunks[i + 1]) : null;
+      pending?.catch(() => {});
       publish({ messageId, status: "playing" });
       await playAudio(result.audioData, result.mimeType, version);
       if (version !== requestVersion) return;

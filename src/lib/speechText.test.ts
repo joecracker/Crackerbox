@@ -27,4 +27,17 @@ describe("speechTextFromAssistantResponse", () => {
       splitSpeechText("One short sentence. Two short sentences! Three?", 30),
     ).toEqual(["One short sentence.", "Two short sentences! Three?"]);
   });
+
+  it("can start with a shorter first chunk so speech begins sooner", () => {
+    expect(
+      splitSpeechText(
+        "First sentence here. Second sentence here. Third sentence here.",
+        60,
+        20,
+      ),
+    ).toEqual([
+      "First sentence here.",
+      "Second sentence here. Third sentence here.",
+    ]);
+  });
 });

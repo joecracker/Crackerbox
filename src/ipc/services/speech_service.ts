@@ -15,6 +15,9 @@ export interface SpeechProvider {
 
 class KokoroSpeechProvider implements SpeechProvider {
   private ttsPromise: Promise<import("kokoro-js").KokoroTTS> | null = null;
+  // One generation at a time. A stopped reply can leave a request running, and
+  // the next reply should wait for it rather than run alongside it.
+  private queue: Promise<unknown> = Promise.resolve();
 
   private load() {
     if (!this.ttsPromise) {
@@ -38,7 +41,13 @@ class KokoroSpeechProvider implements SpeechProvider {
     return this.ttsPromise;
   }
 
-  async synthesize({ text, voice, speed }: SpeechSynthesisInput) {
+  synthesize(input: SpeechSynthesisInput) {
+    const run = this.queue.then(() => this.generate(input));
+    this.queue = run.catch(() => undefined);
+    return run;
+  }
+
+  private async generate({ text, voice, speed }: SpeechSynthesisInput) {
     const tts = await this.load();
     const audio = await tts.generate(text, { voice: voice as never, speed });
     return new Uint8Array(audio.toWav().slice(0));

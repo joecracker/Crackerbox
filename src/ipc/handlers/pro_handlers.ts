@@ -19,6 +19,7 @@ import {
   MAX_AUDIO_REQUEST_ID_LENGTH,
 } from "../types/audio";
 import type { TranscribeAudioParams } from "../types/audio";
+import { synthesizeSpeech } from "../services/speech_service";
 import { transcribeWithDyadEngine } from "../utils/llm_engine_provider";
 import { getDyadEngineBaseUrl } from "../utils/dyad_engine_url";
 import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
@@ -115,6 +116,9 @@ export function parseBillingActionUrl(value: string) {
 }
 
 export function registerProHandlers() {
+  typedHandle(audioContracts.synthesizeSpeech, async (_event, input) => {
+    return synthesizeSpeech(input);
+  });
   // This method should try to avoid throwing errors because this is auxiliary
   // information and isn't critical to using the app
   handle("get-user-budget", async (): Promise<UserBudgetInfo | null> => {

@@ -18,6 +18,8 @@ import {
   Ban,
   Undo2,
   Loader2,
+  Volume2,
+  Square,
 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { useVersions } from "@/hooks/useVersions";
@@ -56,6 +58,10 @@ import {
 } from "./messageApprovalStatus";
 import { ChatMessageAnnotationLayer } from "./ChatMessageAnnotationLayer";
 import { isChatMessageAnnotatable } from "./chatAnnotationEligibility";
+import { useSettings } from "@/hooks/useSettings";
+import { useSpeechPlayback } from "@/hooks/useSpeechPlayback";
+import { speechTextFromAssistantResponse } from "@/lib/speechText";
+import { playSpeech, stopSpeechPlayback } from "@/lib/speechPlayback";
 
 /** Extract <dyad-attachment> tags from message content and return parsed attachment data. */
 function extractAttachments(content: string): {
@@ -115,6 +121,8 @@ const ChatMessage = ({
   executionBackend,
 }: ChatMessageProps) => {
   const { isStreaming } = useStreamChat();
+  const { settings } = useSettings();
+  const speechPlayback = useSpeechPlayback();
   const appId = useAtomValue(selectedAppIdAtom);
   const { versions: liveVersions } = useVersions(appId);
   const {
@@ -159,6 +167,26 @@ const ChatMessage = ({
     await copyMessageContent(
       message.role === "assistant" ? assistantTextContent : message.content,
     );
+  };
+  const speechText = useMemo(
+    () => speechTextFromAssistantResponse(assistantTextContent),
+    [assistantTextContent],
+  );
+  const isSpeakingThisMessage = speechPlayback.messageId === message.id;
+  const handleSpeak = () => {
+    if (isSpeakingThisMessage) {
+      stopSpeechPlayback();
+      return;
+    }
+    if (!speechText) return;
+    void playSpeech({
+      messageId: message.id,
+      text: speechText,
+      voice: settings?.speechVoice ?? "af_bella",
+      speed: settings?.speechRate ?? 1,
+    }).catch(() => {
+      // The assistant response remains fully usable when local speech is unavailable.
+    });
   };
   // Find the version that was active when this message was sent
   const messageVersion = useMemo(() => {
@@ -416,28 +444,61 @@ const ChatMessage = ({
                 } text-xs`}
               >
                 {hasAssistantText && !isStreaming && (
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={
-                        <button
-                          data-testid="copy-message-button"
-                          onClick={handleCopyFormatted}
-                          aria-label="Copy"
-                          className="flex items-center space-x-1 px-2 py-1 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors duration-200 cursor-pointer"
-                        />
-                      }
-                    >
-                      {copied ? (
-                        <Check className="h-4 w-4 text-green-500" />
-                      ) : (
-                        <Copy className="h-4 w-4" />
-                      )}
-                      <span className="hidden sm:inline"></span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {copied ? "Copied!" : "Copy"}
-                    </TooltipContent>
-                  </Tooltip>
+                  <div className="flex items-center gap-1">
+                    {message.role === "assistant" && speechText && (
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={
+                            <button
+                              data-testid="speak-message-button"
+                              onClick={handleSpeak}
+                              aria-label={
+                                isSpeakingThisMessage
+                                  ? "Stop speaking"
+                                  : "Speak response"
+                              }
+                              className="flex h-7 w-7 items-center justify-center rounded text-gray-500 transition-colors duration-200 hover:bg-black/10 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-gray-200"
+                            />
+                          }
+                        >
+                          {isSpeakingThisMessage ? (
+                            speechPlayback.status === "loading" ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Square className="h-3.5 w-3.5" />
+                            )
+                          ) : (
+                            <Volume2 className="h-4 w-4" />
+                          )}
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {isSpeakingThisMessage ? "Stop" : "Speak"}
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <button
+                            data-testid="copy-message-button"
+                            onClick={handleCopyFormatted}
+                            aria-label="Copy"
+                            className="flex items-center space-x-1 px-2 py-1 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors duration-200 cursor-pointer"
+                          />
+                        }
+                      >
+                        {copied ? (
+                          <Check className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                        <span className="hidden sm:inline"></span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {copied ? "Copied!" : "Copy"}
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
                 )}
                 <div className="flex flex-wrap gap-2">
                   {visibleApprovalState && (

@@ -51,6 +51,7 @@ import { RunTypeScriptForWholeProjectSwitch } from "@/components/RunTypeScriptFo
 import { WorkspaceColorSettings } from "@/components/settings/WorkspaceColorSettings";
 import { GmailIntegration } from "@/components/GmailIntegration";
 import { ModelPicker } from "@/components/ModelPicker";
+import { VoiceSettings } from "@/components/VoiceSettings";
 
 const hint = "text-[13px] leading-relaxed text-muted-foreground";
 
@@ -652,6 +653,9 @@ export function AISettings() {
           Automatically compact long conversations to stay within context
           limits. Original messages are preserved in the app data directory.
         </p>
+      </div>
+      <div id={SETTING_IDS.autoSpeak} className="space-y-1.5">
+        <VoiceSettings />
       </div>
     </SettingsSection>
   );

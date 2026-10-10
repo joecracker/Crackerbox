@@ -624,6 +624,11 @@ const BaseUserSettingsFields = {
   isRunning: z.boolean().optional(),
   lastKnownPerformance: LastKnownPerformanceSchema.optional(),
   enableContextCompaction: z.boolean().optional(),
+  // Voice playback is device-local: each Crackerbox install decides whether
+  // completed assistant replies should start speaking automatically.
+  autoSpeakResponses: z.boolean().optional(),
+  speechVoice: z.string().optional(),
+  speechRate: z.number().min(0.7).max(1.35).optional(),
   skipNotificationBanner: z.boolean().optional(),
   previewIdleTimeoutPolicy: z.enum(["default", "never"]).optional(),
 };

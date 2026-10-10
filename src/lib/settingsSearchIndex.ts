@@ -30,6 +30,7 @@ export const SETTING_IDS = {
   defaultAiModel: "setting-default-ai-model",
   maxToolCallSteps: "setting-max-tool-call-steps",
   contextCompaction: "setting-context-compaction",
+  autoSpeak: "setting-auto-speak",
   telemetry: "setting-telemetry",
   github: "setting-github",
   vercel: "setting-vercel",
@@ -294,6 +295,14 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
     ],
     sectionId: SECTION_IDS.ai,
     sectionLabel: "AI",
+  },
+  {
+    id: SETTING_IDS.autoSpeak,
+    label: "Auto-speak responses",
+    description: "Read new assistant replies aloud with a local voice",
+    keywords: ["voice", "speech", "text to speech", "tts", "playback"],
+    sectionId: SECTION_IDS.workflow,
+    sectionLabel: "Workflow",
   },
   // Provider Settings
   {

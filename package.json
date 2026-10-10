@@ -127,6 +127,7 @@
     "jsonrepair": "^3.13.1",
     "jszip": "^3.10.2",
     "kill-port": "^2.0.1",
+    "kokoro-js": "1.2.1",
     "konva": "^10.0.12",
     "lexical": "^0.33.1",
     "lexical-beautiful-mentions": "^0.1.47",

@@ -60,6 +60,18 @@ const ssh2RuntimeDependencies = [
   "tweetnacl",
 ] as const;
 
+// Kokoro's runtime is intentionally kept external: ONNX loads its native
+// binding and Kokoro loads voice packs from disk.
+const kokoroRuntimeDependencies = [
+  "kokoro-js",
+  "phonemizer",
+  "@huggingface/transformers",
+  "@huggingface/jinja",
+  "onnxruntime-node",
+  "onnxruntime-common",
+  "sharp",
+] as const;
+
 function isRuntimeDependency(
   file: string,
   packages: readonly string[],
@@ -107,6 +119,12 @@ const ignore = (file: string) => {
     return false;
   }
   if (isRuntimeDependency(file, ssh2RuntimeDependencies)) {
+    return false;
+  }
+  if (isRuntimeDependency(file, kokoroRuntimeDependencies)) {
+    return false;
+  }
+  if (file.startsWith("/node_modules/@img")) {
     return false;
   }
   if (file.startsWith("/node_modules/mustardscript")) {
@@ -221,7 +239,7 @@ const config: ForgeConfig = {
     asar: {
       // Native modules and node-pty helper binaries must be loadable from disk.
       unpackDir:
-        "{node_modules/dyad-keychain-reader,node_modules/node-pty,node_modules/mustardscript,node_modules/@mustardscript}",
+        "{node_modules/dyad-keychain-reader,node_modules/node-pty,node_modules/mustardscript,node_modules/@mustardscript,node_modules/onnxruntime-node,node_modules/sharp,node_modules/@img}",
     },
     ignore,
     extraResource: ["node_modules/dugite/git", "node_modules/@vscode"],

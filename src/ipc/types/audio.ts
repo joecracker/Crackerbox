@@ -49,11 +49,27 @@ export const TranscribeAudioResultSchema = z.object({
 
 export type TranscribeAudioResult = z.infer<typeof TranscribeAudioResultSchema>;
 
+export const SynthesizeSpeechParamsSchema = z.object({
+  text: z.string().min(1).max(12_000),
+  voice: z.string().min(1).max(64),
+  speed: z.number().min(0.7).max(1.35),
+});
+
+export const SynthesizeSpeechResultSchema = z.object({
+  audioData: z.instanceof(Uint8Array),
+  mimeType: z.literal("audio/wav"),
+});
+
 // =============================================================================
 // Contracts
 // =============================================================================
 
 export const audioContracts = {
+  synthesizeSpeech: defineContract({
+    channel: "speech:synthesize" as const,
+    input: SynthesizeSpeechParamsSchema,
+    output: SynthesizeSpeechResultSchema,
+  }),
   transcribeAudio: defineContract({
     channel: "pro:transcribe-audio" as const,
     input: TranscribeAudioParamsSchema,

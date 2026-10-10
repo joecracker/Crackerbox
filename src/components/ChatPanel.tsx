@@ -30,7 +30,7 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from "@/components/ui/tooltip";
-import { ArrowDown } from "lucide-react";
+import { ArrowDown, Square } from "lucide-react";
 import { useSettings } from "@/hooks/useSettings";
 import { useFreeAgentQuota } from "@/hooks/useFreeAgentQuota";
 import { useChatMode } from "@/hooks/useChatMode";
@@ -44,12 +44,17 @@ import { useVersionPreview } from "@/hooks/useVersionPreview";
 import { useChatStreamState } from "@/hooks/useChatStream";
 import { useChatStreamManager } from "@/chat_stream/ChatStreamProvider";
 import { streamInvocationRef } from "@/chat_stream/transition";
+import { isStreamActive } from "@/chat_stream/transition";
 import { useChatScroll } from "./chat/scroll/useChatScroll";
 import { automaticChatScrollReason } from "./chatPanelScroll";
 import {
   useChatMessages,
   useChatMessagesLoaded,
 } from "@/hooks/useChatMessages";
+import { stopSpeechPlayback } from "@/lib/speechPlayback";
+import { playSpeech } from "@/lib/speechPlayback";
+import { speechTextFromAssistantResponse } from "@/lib/speechText";
+import { useSpeechPlayback } from "@/hooks/useSpeechPlayback";
 
 const TerminalPanel = lazy(() => import("./chat/TerminalPanel"));
 
@@ -99,6 +104,9 @@ export function ChatPanel({
   const streamState = useChatStreamState(chatId) ?? { type: "idle" };
   const chatStreamManager = useChatStreamManager();
   const { settings } = useSettings();
+  const speechPlayback = useSpeechPlayback();
+  const autoSpeakSawActiveStreamRef = useRef(false);
+  const autoSpokenMessageIdsRef = useRef(new Set<number>());
   const { selectedMode, selectedModel, setChatMode } = useChatMode(chatId);
   const { isQuotaExceeded } = useFreeAgentQuota();
   const showFreeAgentQuotaBanner =
@@ -117,9 +125,43 @@ export function ChatPanel({
 
   // Scroll to bottom when a new stream starts (user sent a message)
   const streamOperationId = streamInvocationRef(streamState)?.operationId ?? "";
+  const isStreaming = isStreamActive(streamState);
   const isTerminalOpen = chatId
     ? (terminalOpenByChatId.get(chatId) ?? false)
     : false;
+
+  // The stream actor is the authoritative completion signal. Listening here
+  // avoids timing races between message persistence and individual virtualized
+  // message components, while still ignoring pre-existing chat history.
+  useEffect(() => {
+    if (isStreaming) {
+      autoSpeakSawActiveStreamRef.current = true;
+      return;
+    }
+    if (!autoSpeakSawActiveStreamRef.current || !settings?.autoSpeakResponses) {
+      return;
+    }
+    const message = messages.at(-1);
+    if (
+      !message ||
+      message.role !== "assistant" ||
+      autoSpokenMessageIdsRef.current.has(message.id)
+    ) {
+      return;
+    }
+    const text = speechTextFromAssistantResponse(message.content);
+    if (!text) return;
+    autoSpokenMessageIdsRef.current.add(message.id);
+    autoSpeakSawActiveStreamRef.current = false;
+    void playSpeech({
+      messageId: message.id,
+      text,
+      voice: settings.speechVoice ?? "af_bella",
+      speed: settings.speechRate ?? 1,
+    }).catch(() => {
+      // Speech is optional. The text conversation continues uninterrupted.
+    });
+  }, [isStreaming, messages, settings]);
 
   // Track previous chatId to detect chat switches
   const prevChatIdRef = useRef<number | undefined>(undefined);
@@ -319,6 +361,19 @@ export function ChatPanel({
                   )}
                   <SupabaseLegacyKeyBanner appId={selectedAppId} />
                   <NotificationBanner />
+                  {speechPlayback.status !== "idle" && (
+                    <div className="absolute right-5 bottom-20 z-20">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={stopSpeechPlayback}
+                        aria-label="Stop speaking"
+                        className="gap-1.5 shadow-md"
+                      >
+                        <Square className="h-3.5 w-3.5" /> Stop
+                      </Button>
+                    </div>
+                  )}
                   <ChatInput chatId={chatId} />
                 </motion.div>
               )}

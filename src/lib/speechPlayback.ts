@@ -12,13 +12,24 @@ let resolveActivePlayback: (() => void) | null = null;
 let requestVersion = 0;
 const listeners = new Set<(state: SpeechPlaybackState) => void>();
 
-// A short first chunk means the voice starts after about one sentence instead of
-// after the whole opening paragraph has been generated.
+// The built-in voice makes speech at about the speed it is spoken, so it cannot
+// get ahead of playback. Chunks of similar size keep the pauses between them
+// as short as they can be, and the first chunk stays small so it starts soon.
 const FIRST_CHUNK_MAX_LENGTH = 100;
-const CHUNK_MAX_LENGTH = 140;
+const CHUNK_MAX_LENGTH = 110;
 // OpenRouter reports a 4,096-unit context window. Leave headroom while keeping
 // normal replies in one continuous MP3.
 export const CLOUD_CHUNK_MAX_LENGTH = 3_000;
+// The hosted voice sounds best (one continuous recording) but takes anywhere
+// from 4 to 15+ seconds to start, whatever the length. So the first sentences
+// are spoken by the built-in voice while the hosted one prepares the rest.
+export const LOCAL_OPENING_MAX_LENGTH = 300;
+// If less than this would be left for the hosted voice, it is not worth the
+// wait or the handoff: the whole reply is spoken by the built-in voice.
+export const MIN_CLOUD_LENGTH = 400;
+// How long to keep waiting for the hosted voice once the opening has finished
+// before carrying on with the built-in voice.
+export const CLOUD_WAIT_MS = 6_000;
 
 function publish(next: SpeechPlaybackState) {
   state = next;
@@ -95,6 +106,35 @@ function playAudio(
   });
 }
 
+/** Rejects if the promise has not settled within `ms`; it is left to finish. */
+function waitUpTo<T>(promise: Promise<T>, ms: number) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(new Error("Hosted speech took too long to start.")),
+      ms,
+    );
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+function splitForLocalVoice(text: string) {
+  return splitSpeechText(text, CHUNK_MAX_LENGTH, FIRST_CHUNK_MAX_LENGTH);
+}
+
+/** The first few chunks, up to about LOCAL_OPENING_MAX_LENGTH, and the rest. */
+function splitOpening(chunks: string[]) {
+  let used = 0;
+  let length = 0;
+  while (used < chunks.length) {
+    const next = chunks[used].length + (used > 0 ? 1 : 0);
+    if (used > 0 && length + next > LOCAL_OPENING_MAX_LENGTH) break;
+    length += next;
+    used++;
+  }
+  return { opening: chunks.slice(0, used), rest: chunks.slice(used).join(" ") };
+}
+
 export async function playSpeech({
   messageId,
   text,
@@ -124,12 +164,12 @@ export async function playSpeech({
         provider: selectedProvider,
       });
 
-    const playLocal = async (localText: string) => {
-      const chunks = splitSpeechText(
-        localText,
-        CHUNK_MAX_LENGTH,
-        FIRST_CHUNK_MAX_LENGTH,
-      );
+    // `progress.done` counts the chunks fully spoken, so a failure part-way
+    // through never makes the fallback repeat what was already heard.
+    const playLocalChunks = async (
+      chunks: string[],
+      progress?: { done: number },
+    ) => {
       let pending = chunks.length > 0 ? synthesize(chunks[0], "local") : null;
       for (let i = 0; i < chunks.length; i++) {
         const result = await pending!;
@@ -142,36 +182,71 @@ export async function playSpeech({
         publish({ messageId, status: "playing" });
         await playAudio(result.audioBase64, result.mimeType, version);
         if (version !== requestVersion) return;
+        if (progress) progress.done = i + 1;
       }
     };
+    const playLocal = (localText: string) =>
+      playLocalChunks(splitForLocalVoice(localText));
 
-    if (provider === "openrouter") {
-      const cloudChunks =
-        text.length <= CLOUD_CHUNK_MAX_LENGTH
-          ? [text]
+    const localChunks = splitForLocalVoice(text);
+    const { opening, rest } = splitOpening(localChunks);
+
+    if (provider === "openrouter" && rest.length >= MIN_CLOUD_LENGTH) {
+      const cloudPieces =
+        rest.length <= CLOUD_CHUNK_MAX_LENGTH
+          ? [rest]
           : splitSpeechText(
-              text,
+              rest,
               CLOUD_CHUNK_MAX_LENGTH,
               CLOUD_CHUNK_MAX_LENGTH,
             );
-      let pending = synthesize(cloudChunks[0], "openrouter");
 
-      for (let i = 0; i < cloudChunks.length; i++) {
-        let result: Awaited<ReturnType<typeof synthesize>>;
+      // Ask the hosted voice for everything after the opening right now, so it
+      // is already working while the opening is spoken.
+      let pending = synthesize(cloudPieces[0], "openrouter");
+      pending.catch(() => {});
+
+      const spoken = { done: 0 };
+      try {
+        await playLocalChunks(opening, spoken);
+      } catch (localError) {
+        if (version !== requestVersion) return;
+        // The built-in voice is unavailable: let the hosted voice say the
+        // rest of the opening as well.
         try {
-          result = await pending;
+          const unspoken = opening.slice(spoken.done).join(" ");
+          const openingAudio = await synthesize(unspoken, "openrouter");
+          if (version !== requestVersion) return;
+          publish({ messageId, status: "playing" });
+          await playAudio(
+            openingAudio.audioBase64,
+            openingAudio.mimeType,
+            version,
+            speed,
+          );
         } catch {
           if (version !== requestVersion) return;
-          await playLocal(cloudChunks.slice(i).join(" "));
+          throw localError;
+        }
+      }
+      if (version !== requestVersion) return;
+
+      for (let i = 0; i < cloudPieces.length; i++) {
+        let result: Awaited<ReturnType<typeof synthesize>>;
+        try {
+          result = await waitUpTo(pending, CLOUD_WAIT_MS);
+        } catch {
+          if (version !== requestVersion) return;
+          await playLocal(cloudPieces.slice(i).join(" "));
           if (version === requestVersion) stopSpeechPlayback();
           return;
         }
         if (version !== requestVersion) return;
 
-        // Buffer the following cloud piece while this MP3 plays. This keeps
+        // Buffer the following hosted piece while this MP3 plays. This keeps
         // long replies moving without replaying already heard text on fallback.
-        if (i + 1 < cloudChunks.length) {
-          pending = synthesize(cloudChunks[i + 1], "openrouter");
+        if (i + 1 < cloudPieces.length) {
+          pending = synthesize(cloudPieces[i + 1], "openrouter");
           pending.catch(() => {});
         }
         try {
@@ -179,14 +254,14 @@ export async function playSpeech({
           await playAudio(result.audioBase64, result.mimeType, version, speed);
         } catch {
           if (version !== requestVersion) return;
-          await playLocal(cloudChunks.slice(i).join(" "));
+          await playLocal(cloudPieces.slice(i).join(" "));
           if (version === requestVersion) stopSpeechPlayback();
           return;
         }
         if (version !== requestVersion) return;
       }
     } else {
-      await playLocal(text);
+      await playLocalChunks(localChunks);
     }
     if (version === requestVersion) stopSpeechPlayback();
   } catch (error) {

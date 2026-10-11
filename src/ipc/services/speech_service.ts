@@ -1,4 +1,4 @@
-import { app } from "electron";
+import { app, utilityProcess, type UtilityProcess } from "electron";
 import path from "node:path";
 import log from "electron-log";
 import type { z } from "zod";
@@ -7,13 +7,16 @@ import { readSettings } from "@/main/settings";
 import { getOpenRouterAppAttributionHeaders } from "../utils/openrouter_attribution";
 
 const logger = log.scope("speech");
-const KOKORO_MODEL = "onnx-community/Kokoro-82M-v1.0-ONNX";
 const OPENROUTER_KOKORO_MODEL = "hexgrad/kokoro-82m";
 const OPENROUTER_SPEECH_URL = "https://openrouter.ai/api/v1/audio/speech";
 
 const LOAD_TIMEOUT_MS = 5 * 60 * 1000;
 const GENERATE_TIMEOUT_MS = 60 * 1000;
-const OPENROUTER_TIMEOUT_MS = 15_000;
+// The hosted voice usually answers in 4 to 15 seconds whatever the length, and
+// sometimes takes longer. Give it room; the player covers the wait.
+const OPENROUTER_TIMEOUT_MS = 30_000;
+// The model holds a few hundred MB while loaded, so let it go after a quiet spell.
+const IDLE_SHUTDOWN_MS = 10 * 60 * 1000;
 
 function withTimeout<T>(promise: Promise<T>, ms: number, what: string) {
   let timer: NodeJS.Timeout | undefined;
@@ -37,62 +40,128 @@ export interface SpeechProvider {
   synthesize(input: SpeechSynthesisInput): Promise<SpeechAudio>;
 }
 
+type VoiceProcessMessage =
+  | { type: "ready"; loadMs: number }
+  | { type: "result"; id: number; wav: Uint8Array; ms: number }
+  | { type: "error"; id: number; message: string };
+
+/**
+ * Runs Kokoro in its own process. Generating speech takes about as long as the
+ * speech lasts and keeps the processor busy, so doing it inside the main
+ * process froze the whole app (and swallowed clicks) for several seconds at a
+ * time. In its own process the app stays responsive however long it takes.
+ */
 class KokoroSpeechProvider implements SpeechProvider {
-  private ttsPromise: Promise<import("kokoro-js").KokoroTTS> | null = null;
-  // One generation at a time. A stopped reply can leave a request running, and
-  // the next reply should wait for it rather than run alongside it.
-  private queue: Promise<unknown> = Promise.resolve();
-
-  private load() {
-    if (!this.ttsPromise) {
-      this.ttsPromise = (async () => {
-        const [{ KokoroTTS }, { env }] = await Promise.all([
-          import("kokoro-js"),
-          import("@huggingface/transformers"),
-        ]);
-        // Keep the model beside Crackerbox preferences rather than in a global
-        // cache. This makes it local to this device and survives app restarts.
-        env.cacheDir = path.join(app.getPath("userData"), "speech-models");
-        logger.info("Loading voice model");
-        const started = Date.now();
-        const tts = await withTimeout(
-          KokoroTTS.from_pretrained(KOKORO_MODEL, {
-            dtype: "q8",
-            device: "cpu",
-          }),
-          LOAD_TIMEOUT_MS,
-          "Loading the voice model",
-        );
-        logger.info(`Voice model ready in ${Date.now() - started}ms`);
-        return tts;
-      })().catch((error) => {
-        this.ttsPromise = null;
-        throw error;
-      });
+  private child: UtilityProcess | null = null;
+  private ready = false;
+  private nextId = 1;
+  private pending = new Map<
+    number,
+    {
+      resolve: (wav: Uint8Array<ArrayBuffer>) => void;
+      reject: (error: Error) => void;
     }
-    return this.ttsPromise;
-  }
+  >();
+  private idleTimer: NodeJS.Timeout | undefined;
 
-  synthesize(input: SpeechSynthesisInput) {
-    const run = this.queue.then(() => this.generate(input));
-    this.queue = run.catch(() => undefined);
-    return run;
-  }
-
-  private async generate({ text, voice, speed }: SpeechSynthesisInput) {
-    const tts = await this.load();
-    logger.info(`Generating speech (${text.length} chars)`);
-    const started = Date.now();
-    const audio = await withTimeout(
-      tts.generate(text, { voice: voice as never, speed }),
-      GENERATE_TIMEOUT_MS,
-      "Generating speech",
+  private start(): UtilityProcess {
+    if (this.child) return this.child;
+    logger.info("Starting local voice process");
+    // Emitted next to main.js (`.vite/build`), so this resolves in both dev and
+    // packaged (ASAR) builds.
+    const child = utilityProcess.fork(
+      path.join(__dirname, "speech_worker.js"),
+      [],
+      { serviceName: "crackerbox-voice" },
     );
-    logger.info(`Speech generated in ${Date.now() - started}ms`);
-    return {
-      data: new Uint8Array(audio.toWav().slice(0)),
-      mimeType: "audio/wav" as const,
-    };
+    this.child = child;
+    this.ready = false;
+    child.on("message", (message: VoiceProcessMessage) =>
+      this.handleMessage(child, message),
+    );
+    child.on("error", (type, location) => {
+      logger.warn(`Local voice process error: ${type} ${location}`);
+    });
+    child.on("exit", (code) => {
+      if (this.child !== child) return;
+      logger.warn(`Local voice process exited (code ${code})`);
+      this.reset(new Error("The local voice stopped unexpectedly."));
+    });
+    child.postMessage({
+      type: "init",
+      cacheDir: path.join(app.getPath("userData"), "speech-models"),
+    });
+    return child;
+  }
+
+  private handleMessage(child: UtilityProcess, message: VoiceProcessMessage) {
+    if (child !== this.child) return;
+    if (message.type === "ready") {
+      this.ready = true;
+      logger.info(`Voice model ready in ${message.loadMs}ms`);
+      return;
+    }
+    const entry = this.pending.get(message.id);
+    if (!entry) return;
+    this.pending.delete(message.id);
+    if (message.type === "result") {
+      logger.info(`Speech generated in ${message.ms}ms`);
+      entry.resolve(new Uint8Array(message.wav));
+    } else {
+      entry.reject(new Error(message.message));
+    }
+  }
+
+  /** Drops the voice process; the next request starts a fresh one. */
+  private reset(error: Error) {
+    const child = this.child;
+    this.child = null;
+    this.ready = false;
+    clearTimeout(this.idleTimer);
+    const waiting = [...this.pending.values()];
+    this.pending.clear();
+    for (const entry of waiting) entry.reject(error);
+    child?.kill();
+  }
+
+  private scheduleIdleShutdown() {
+    clearTimeout(this.idleTimer);
+    if (this.pending.size > 0 || !this.child) return;
+    this.idleTimer = setTimeout(() => {
+      if (this.pending.size === 0 && this.child) {
+        logger.info("Stopping idle local voice process");
+        this.reset(new Error("The local voice was stopped while idle."));
+      }
+    }, IDLE_SHUTDOWN_MS);
+    this.idleTimer.unref();
+  }
+
+  async synthesize({ text, voice, speed }: SpeechSynthesisInput) {
+    const child = this.start();
+    clearTimeout(this.idleTimer);
+    const id = this.nextId++;
+    // The first request also waits for the model to load.
+    const timeoutMs = this.ready
+      ? GENERATE_TIMEOUT_MS
+      : LOAD_TIMEOUT_MS + GENERATE_TIMEOUT_MS;
+    const result = new Promise<Uint8Array<ArrayBuffer>>((resolve, reject) => {
+      this.pending.set(id, { resolve, reject });
+    });
+    logger.info(`Generating speech (${text.length} chars)`);
+    child.postMessage({ type: "generate", id, text, voice, speed });
+    try {
+      const data = await withTimeout(result, timeoutMs, "Generating speech");
+      return { data, mimeType: "audio/wav" as const };
+    } catch (error) {
+      // A request that never answers means the process is stuck; start fresh.
+      if (error instanceof Error && error.message.includes("timed out")) {
+        this.reset(error);
+      }
+      throw error;
+    } finally {
+      this.pending.delete(id);
+      this.scheduleIdleShutdown();
+    }
   }
 }
 

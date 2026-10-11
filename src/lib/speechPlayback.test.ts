@@ -11,6 +11,7 @@ vi.mock("@/ipc/types", () => ({
 
 import {
   CLOUD_CHUNK_MAX_LENGTH,
+  CLOUD_WAIT_MS,
   playSpeech,
   stopSpeechPlayback,
 } from "./speechPlayback";
@@ -32,12 +33,36 @@ class FakeAudio {
   pause() {}
 }
 
+type Request = {
+  text: string;
+  voice: string;
+  speed: number;
+  provider: "local" | "openrouter";
+};
+
 const FIRST =
   "This is the first sentence and it is long enough to need its own chunk of speech.";
 const SECOND =
   "This is the second sentence and it is also long enough to be generated on its own.";
 const CLOUD_AUDIO = { audioBase64: "AQID", mimeType: "audio/mpeg" };
 const LOCAL_AUDIO = { audioBase64: "AQID", mimeType: "audio/wav" };
+
+// Each sentence is about 62 characters, so each is its own local chunk. The
+// first four (about 250 characters) are the locally spoken opening; the rest
+// goes to the hosted voice.
+const sentences = (count: number) =>
+  Array.from(
+    { length: count },
+    (_, i) =>
+      `Sentence number ${i + 1} is a plain sentence that is spoken out loud.`,
+  );
+const LONG = sentences(30).join(" ");
+const OPENING_SENTENCES = 4;
+const AFTER_OPENING = sentences(30).slice(OPENING_SENTENCES).join(" ");
+// Only two sentences would be left for the hosted voice: not worth the handoff.
+const SHORT = sentences(6).join(" ");
+// Long enough that what follows the opening needs two hosted requests.
+const VERY_LONG_SENTENCES = sentences(80);
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -49,11 +74,25 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 
+const requests = () => synthesizeSpeech.mock.calls.map((c) => c[0] as Request);
+const callsFor = (provider: Request["provider"]) =>
+  requests().filter((request) => request.provider === provider);
+
+/** Waits for the audio at `index` to start, then lets it finish playing. */
+async function endAudio(index: number) {
+  await vi.waitFor(() =>
+    expect(FakeAudio.instances.length).toBeGreaterThan(index),
+  );
+  FakeAudio.instances[index].onended?.();
+}
+
 describe("playSpeech", () => {
   beforeEach(() => {
     FakeAudio.instances = [];
     synthesizeSpeech.mockReset();
-    synthesizeSpeech.mockImplementation(async () => LOCAL_AUDIO);
+    synthesizeSpeech.mockImplementation(async (request: Request) =>
+      request.provider === "openrouter" ? CLOUD_AUDIO : LOCAL_AUDIO,
+    );
     vi.stubGlobal("Audio", FakeAudio);
     Object.assign(URL, {
       createObjectURL: vi.fn(() => `blob:speech-${FakeAudio.instances.length}`),
@@ -63,6 +102,7 @@ describe("playSpeech", () => {
 
   afterEach(() => {
     stopSpeechPlayback();
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -77,155 +117,205 @@ describe("playSpeech", () => {
 
     await vi.waitFor(() => expect(FakeAudio.instances).toHaveLength(1));
     expect(synthesizeSpeech).toHaveBeenCalledTimes(2);
-    expect(synthesizeSpeech.mock.calls[0][0].text).toBe(FIRST);
-    expect(synthesizeSpeech.mock.calls[1][0].text).toBe(SECOND);
-    FakeAudio.instances[0].onended?.();
-    await vi.waitFor(() => expect(FakeAudio.instances).toHaveLength(2));
-    FakeAudio.instances[1].onended?.();
+    expect(requests()[0].text).toBe(FIRST);
+    expect(requests()[1].text).toBe(SECOND);
+    await endAudio(0);
+    await endAudio(1);
     await done;
   });
 
-  it("keeps a reply of 3,000 characters or fewer in one cloud request", async () => {
-    synthesizeSpeech.mockResolvedValue(CLOUD_AUDIO);
-    const text = "Hello from Crackerbox.".repeat(100);
+  it("speaks a short reply entirely with the built-in voice, even when hosted speech is selected", async () => {
     const done = playSpeech({
       messageId: 2,
-      text,
+      text: SHORT,
+      voice: "af_bella",
+      speed: 1,
+      provider: "openrouter",
+    });
+
+    for (let i = 0; i < 6; i++) await endAudio(i);
+    await done;
+    expect(callsFor("openrouter")).toHaveLength(0);
+    expect(
+      callsFor("local")
+        .map((request) => request.text)
+        .join(" "),
+    ).toBe(SHORT);
+  });
+
+  it("asks the hosted voice for the rest straight away and speaks the opening locally meanwhile", async () => {
+    const cloud = deferred<typeof CLOUD_AUDIO>();
+    synthesizeSpeech.mockImplementation(async (request: Request) =>
+      request.provider === "openrouter" ? cloud.promise : LOCAL_AUDIO,
+    );
+    const done = playSpeech({
+      messageId: 3,
+      text: LONG,
       voice: "af_bella",
       speed: 1.2,
       provider: "openrouter",
     });
 
-    await vi.waitFor(() => expect(FakeAudio.instances).toHaveLength(1));
-    expect(synthesizeSpeech).toHaveBeenCalledTimes(1);
-    expect(synthesizeSpeech).toHaveBeenCalledWith({
-      text,
-      voice: "af_bella",
-      speed: 1.2,
+    // The hosted request is the very first thing sent, before any audio plays.
+    expect(requests()[0]).toMatchObject({
       provider: "openrouter",
+      text: AFTER_OPENING,
     });
-    expect(FakeAudio.instances[0]).toMatchObject({
+    for (let i = 0; i < OPENING_SENTENCES; i++) await endAudio(i);
+    cloud.resolve(CLOUD_AUDIO);
+    await endAudio(OPENING_SENTENCES);
+    await done;
+
+    expect(callsFor("local").map((request) => request.text)).toEqual(
+      sentences(OPENING_SENTENCES),
+    );
+    // Local audio plays at normal rate; the hosted recording uses the speed.
+    expect(FakeAudio.instances).toHaveLength(OPENING_SENTENCES + 1);
+    expect(FakeAudio.instances[0].playbackRate).toBe(1);
+    expect(FakeAudio.instances[OPENING_SENTENCES]).toMatchObject({
       playbackRate: 1.2,
       preservesPitch: true,
     });
-    FakeAudio.instances[0].onended?.();
-    await done;
   });
 
-  it("buffers the next cloud piece while the current piece plays", async () => {
-    synthesizeSpeech.mockResolvedValue(CLOUD_AUDIO);
-    const firstPiece = "First cloud sentence. ".repeat(100);
-    const secondPiece = "Second cloud sentence. ".repeat(100);
-    const done = playSpeech({
-      messageId: 3,
-      text: firstPiece + secondPiece,
-      voice: "af_bella",
-      speed: 1,
-      provider: "openrouter",
-    });
-
-    await vi.waitFor(() => expect(FakeAudio.instances).toHaveLength(1));
-    expect(synthesizeSpeech).toHaveBeenCalledTimes(2);
-    expect(synthesizeSpeech.mock.calls[0][0]).toMatchObject({
-      provider: "openrouter",
-    });
-    expect(synthesizeSpeech.mock.calls[1][0]).toMatchObject({
-      provider: "openrouter",
-    });
-    expect(synthesizeSpeech.mock.calls[0][0].text.length).toBeLessThanOrEqual(
-      CLOUD_CHUNK_MAX_LENGTH,
+  it("carries on with the built-in voice if the hosted voice is still not ready after the opening", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const cloud = deferred<typeof CLOUD_AUDIO>();
+    synthesizeSpeech.mockImplementation(async (request: Request) =>
+      request.provider === "openrouter" ? cloud.promise : LOCAL_AUDIO,
     );
-    expect(synthesizeSpeech.mock.calls[1][0].text.length).toBeLessThanOrEqual(
-      CLOUD_CHUNK_MAX_LENGTH,
-    );
-    FakeAudio.instances[0].onended?.();
-    await vi.waitFor(() => expect(FakeAudio.instances).toHaveLength(2));
-    FakeAudio.instances[1].onended?.();
-    await done;
-  });
-
-  it("uses local speech with small chunks when cloud generation fails", async () => {
-    synthesizeSpeech
-      .mockRejectedValueOnce(new Error("cloud unavailable"))
-      .mockResolvedValue(LOCAL_AUDIO);
     const done = playSpeech({
       messageId: 4,
-      text: FIRST + " " + SECOND,
+      text: LONG,
       voice: "af_bella",
       speed: 1,
       provider: "openrouter",
     });
 
-    await vi.waitFor(() => expect(FakeAudio.instances).toHaveLength(1));
-    expect(synthesizeSpeech.mock.calls.slice(1).map((call) => call[0])).toEqual(
-      [
-        expect.objectContaining({ text: FIRST, provider: "local" }),
-        expect.objectContaining({ text: SECOND, provider: "local" }),
-      ],
+    for (let i = 0; i < OPENING_SENTENCES; i++) await endAudio(i);
+    await vi.advanceTimersByTimeAsync(CLOUD_WAIT_MS);
+    await vi.waitFor(() =>
+      expect(FakeAudio.instances.length).toBeGreaterThan(OPENING_SENTENCES),
     );
-    expect(FakeAudio.instances[0].playbackRate).toBe(1);
-    FakeAudio.instances[0].onended?.();
-    await vi.waitFor(() => expect(FakeAudio.instances).toHaveLength(2));
-    FakeAudio.instances[1].onended?.();
+    expect(callsFor("local")[OPENING_SENTENCES].text).toBe(
+      sentences(30)[OPENING_SENTENCES],
+    );
+    stopSpeechPlayback();
     await done;
   });
 
-  it("uses local speech if cloud MP3 playback fails", async () => {
-    synthesizeSpeech
-      .mockResolvedValueOnce(CLOUD_AUDIO)
-      .mockResolvedValue(LOCAL_AUDIO);
+  it("continues with the built-in voice when the hosted voice fails, without repeating the opening", async () => {
+    synthesizeSpeech.mockImplementation(async (request: Request) => {
+      if (request.provider === "openrouter") throw new Error("cloud down");
+      return LOCAL_AUDIO;
+    });
     const done = playSpeech({
       messageId: 5,
-      text: FIRST,
+      text: LONG,
+      voice: "af_bella",
+      speed: 1,
+      provider: "openrouter",
+    });
+
+    for (let i = 0; i < 30; i++) await endAudio(i);
+    await done;
+    expect(
+      callsFor("local")
+        .map((request) => request.text)
+        .join(" "),
+    ).toBe(LONG);
+  });
+
+  it("uses the built-in voice if the hosted MP3 cannot be played", async () => {
+    const done = playSpeech({
+      messageId: 6,
+      text: LONG,
       voice: "af_bella",
       speed: 1.25,
       provider: "openrouter",
     });
 
-    await vi.waitFor(() => expect(FakeAudio.instances).toHaveLength(1));
-    FakeAudio.instances[0].onerror?.();
-    await vi.waitFor(() => expect(FakeAudio.instances).toHaveLength(2));
-    expect(synthesizeSpeech.mock.calls[1][0]).toMatchObject({
-      text: FIRST,
-      provider: "local",
-    });
-    expect(FakeAudio.instances[1].playbackRate).toBe(1);
-    FakeAudio.instances[1].onended?.();
+    for (let i = 0; i < OPENING_SENTENCES; i++) await endAudio(i);
+    await vi.waitFor(() =>
+      expect(FakeAudio.instances).toHaveLength(OPENING_SENTENCES + 1),
+    );
+    FakeAudio.instances[OPENING_SENTENCES].onerror?.();
+    await vi.waitFor(() =>
+      expect(FakeAudio.instances).toHaveLength(OPENING_SENTENCES + 2),
+    );
+    expect(callsFor("local")[OPENING_SENTENCES].text).toBe(
+      sentences(30)[OPENING_SENTENCES],
+    );
+    expect(FakeAudio.instances[OPENING_SENTENCES + 1].playbackRate).toBe(1);
+    stopSpeechPlayback();
     await done;
   });
 
-  it("falls back from the failed second cloud piece without replaying the first", async () => {
-    const firstPiece = "First cloud sentence. ".repeat(100);
-    const secondPiece = "Second cloud sentence. ".repeat(100);
-    synthesizeSpeech
-      .mockResolvedValueOnce(CLOUD_AUDIO)
-      .mockRejectedValueOnce(new Error("second cloud request failed"))
-      .mockResolvedValue(LOCAL_AUDIO);
+  it("buffers the next hosted piece while the current piece plays", async () => {
     const done = playSpeech({
-      messageId: 6,
-      text: firstPiece + secondPiece,
+      messageId: 7,
+      text: VERY_LONG_SENTENCES.join(" "),
       voice: "af_bella",
       speed: 1,
       provider: "openrouter",
     });
 
-    await vi.waitFor(() => expect(FakeAudio.instances).toHaveLength(1));
-    const firstCloudText = synthesizeSpeech.mock.calls[0][0].text;
-    FakeAudio.instances[0].onended?.();
-    await vi.waitFor(() => expect(FakeAudio.instances).toHaveLength(2));
-    const localText = synthesizeSpeech.mock.calls[2][0].text;
-    expect(localText).not.toContain(firstCloudText);
-    expect(synthesizeSpeech.mock.calls[2][0].provider).toBe("local");
+    for (let i = 0; i < OPENING_SENTENCES; i++) await endAudio(i);
+    await vi.waitFor(() =>
+      expect(FakeAudio.instances).toHaveLength(OPENING_SENTENCES + 1),
+    );
+    const [firstPiece, secondPiece] = callsFor("openrouter");
+    expect(callsFor("openrouter")).toHaveLength(2);
+    expect(firstPiece.text.length).toBeLessThanOrEqual(CLOUD_CHUNK_MAX_LENGTH);
+    expect(secondPiece.text.length).toBeLessThanOrEqual(CLOUD_CHUNK_MAX_LENGTH);
+    expect(firstPiece.text + " " + secondPiece.text).toBe(
+      VERY_LONG_SENTENCES.slice(OPENING_SENTENCES).join(" "),
+    );
+    await endAudio(OPENING_SENTENCES);
+    await endAudio(OPENING_SENTENCES + 1);
+    await done;
+  });
+
+  it("falls back from a failed second hosted piece without repeating the first", async () => {
+    let hostedCalls = 0;
+    synthesizeSpeech.mockImplementation(async (request: Request) => {
+      if (request.provider === "openrouter") {
+        hostedCalls += 1;
+        if (hostedCalls === 2) throw new Error("second piece failed");
+        return CLOUD_AUDIO;
+      }
+      return LOCAL_AUDIO;
+    });
+    const done = playSpeech({
+      messageId: 8,
+      text: VERY_LONG_SENTENCES.join(" "),
+      voice: "af_bella",
+      speed: 1,
+      provider: "openrouter",
+    });
+
+    for (let i = 0; i < OPENING_SENTENCES; i++) await endAudio(i);
+    await endAudio(OPENING_SENTENCES);
+    await vi.waitFor(() =>
+      expect(FakeAudio.instances).toHaveLength(OPENING_SENTENCES + 2),
+    );
+    const firstPieceText = callsFor("openrouter")[0].text;
+    const secondPieceText = callsFor("openrouter")[1].text;
+    const fallbackText = callsFor("local")[OPENING_SENTENCES].text;
+    expect(firstPieceText).not.toContain(fallbackText);
+    expect(secondPieceText).toContain(fallbackText);
     stopSpeechPlayback();
     await done;
   });
 
-  it("does not start local fallback after playback is stopped", async () => {
+  it("does not start any fallback after playback is stopped", async () => {
     const cloud = deferred<typeof CLOUD_AUDIO>();
-    synthesizeSpeech.mockImplementationOnce(() => cloud.promise);
+    synthesizeSpeech.mockImplementation(async (request: Request) =>
+      request.provider === "openrouter" ? cloud.promise : LOCAL_AUDIO,
+    );
     const done = playSpeech({
-      messageId: 7,
-      text: FIRST,
+      messageId: 9,
+      text: LONG,
       voice: "af_bella",
       speed: 1,
       provider: "openrouter",
@@ -234,27 +324,44 @@ describe("playSpeech", () => {
     stopSpeechPlayback();
     cloud.reject(new Error("cloud unavailable"));
     await done;
-    expect(synthesizeSpeech).toHaveBeenCalledTimes(1);
     expect(FakeAudio.instances).toHaveLength(0);
+    expect(callsFor("openrouter")).toHaveLength(1);
   });
 
-  it("does not start local audio when stopped during fallback generation", async () => {
-    const local = deferred<typeof LOCAL_AUDIO>();
-    synthesizeSpeech
-      .mockRejectedValueOnce(new Error("cloud unavailable"))
-      .mockImplementationOnce(() => local.promise);
+  it("lets the hosted voice speak the opening if the built-in voice fails", async () => {
+    synthesizeSpeech.mockImplementation(async (request: Request) => {
+      if (request.provider === "local") throw new Error("voice process died");
+      return CLOUD_AUDIO;
+    });
     const done = playSpeech({
-      messageId: 8,
-      text: FIRST,
+      messageId: 10,
+      text: LONG,
       voice: "af_bella",
-      speed: 1,
+      speed: 1.25,
       provider: "openrouter",
     });
 
-    await vi.waitFor(() => expect(synthesizeSpeech).toHaveBeenCalledTimes(2));
-    stopSpeechPlayback();
-    local.resolve(LOCAL_AUDIO);
+    await endAudio(0);
+    await endAudio(1);
     await done;
+    expect(callsFor("openrouter").map((request) => request.text)).toEqual([
+      AFTER_OPENING,
+      sentences(OPENING_SENTENCES).join(" "),
+    ]);
+    expect(FakeAudio.instances[0].playbackRate).toBe(1.25);
+  });
+
+  it("reports an error when neither voice can speak", async () => {
+    synthesizeSpeech.mockRejectedValue(new Error("nothing works"));
+    await expect(
+      playSpeech({
+        messageId: 11,
+        text: LONG,
+        voice: "af_bella",
+        speed: 1,
+        provider: "openrouter",
+      }),
+    ).rejects.toThrow("nothing works");
     expect(FakeAudio.instances).toHaveLength(0);
   });
 });

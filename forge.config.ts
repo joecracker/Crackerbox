@@ -387,6 +387,11 @@ const config: ForgeConfig = {
           config: "vite.sandbox-worker.config.mts",
           target: "main",
         },
+        {
+          entry: "src/ipc/services/speech_worker.ts",
+          config: "vite.speech-worker.config.mts",
+          target: "main",
+        },
       ],
       renderer: [
         {

@@ -1,5 +1,5 @@
 import { ipc } from "@/ipc/types";
-import { splitSpeechText } from "@/lib/speechText";
+import { splitSpeechIntoChunks, splitSpeechText } from "@/lib/speechText";
 
 export type SpeechPlaybackState = {
   messageId: number | null;
@@ -12,11 +12,13 @@ let resolveActivePlayback: (() => void) | null = null;
 let requestVersion = 0;
 const listeners = new Set<(state: SpeechPlaybackState) => void>();
 
-// The built-in voice makes speech at about the speed it is spoken, so it cannot
-// get ahead of playback. Chunks of similar size keep the pauses between them
-// as short as they can be, and the first chunk stays small so it starts soon.
-const FIRST_CHUNK_MAX_LENGTH = 100;
-const CHUNK_MAX_LENGTH = 110;
+// The built-in voice makes speech at about the speed it is spoken, so it can
+// only stay ahead of playback if no chunk is bigger than the one before it.
+// The first chunk is the biggest, the next ones shrink a little each time, and
+// they stop shrinking at a minimum size.
+const FIRST_CHUNK_MAX_LENGTH = 90;
+const CHUNK_SHRINK_FACTOR = 0.93;
+const MIN_CHUNK_MAX_LENGTH = 70;
 // OpenRouter reports a 4,096-unit context window. Leave headroom while keeping
 // normal replies in one continuous MP3.
 export const CLOUD_CHUNK_MAX_LENGTH = 3_000;
@@ -119,7 +121,12 @@ function waitUpTo<T>(promise: Promise<T>, ms: number) {
 }
 
 function splitForLocalVoice(text: string) {
-  return splitSpeechText(text, CHUNK_MAX_LENGTH, FIRST_CHUNK_MAX_LENGTH);
+  return splitSpeechIntoChunks(
+    text,
+    FIRST_CHUNK_MAX_LENGTH,
+    CHUNK_SHRINK_FACTOR,
+    MIN_CHUNK_MAX_LENGTH,
+  );
 }
 
 /** The first few chunks, up to about LOCAL_OPENING_MAX_LENGTH, and the rest. */

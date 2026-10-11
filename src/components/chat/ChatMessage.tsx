@@ -185,6 +185,7 @@ const ChatMessage = ({
       text: speechText,
       voice: settings?.speechVoice ?? "af_bella",
       speed: settings?.speechRate ?? 1,
+      provider: settings?.speechProvider ?? "openrouter",
     }).catch(() => {
       // The assistant response stays usable as text, but say why nothing played.
       showError(

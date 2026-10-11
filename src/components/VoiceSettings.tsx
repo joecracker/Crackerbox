@@ -20,6 +20,7 @@ const VOICES = [
 
 export function VoiceSettings() {
   const { settings, updateSettings } = useSettings();
+  const provider = settings?.speechProvider ?? "openrouter";
   const voice = settings?.speechVoice ?? "af_bella";
   const rate = settings?.speechRate ?? 1;
 
@@ -41,6 +42,25 @@ export function VoiceSettings() {
         internal details.
       </p>
       <div className="flex flex-wrap items-center gap-3">
+        <Label className="text-sm font-medium">Voice engine</Label>
+        <Select
+          value={provider}
+          onValueChange={(value) => {
+            if (value === "openrouter" || value === "local") {
+              void updateSettings({ speechProvider: value });
+            }
+          }}
+        >
+          <SelectTrigger className="min-w-56">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="openrouter">
+              OpenRouter — smooth cloud voice
+            </SelectItem>
+            <SelectItem value="local">Local — offline backup</SelectItem>
+          </SelectContent>
+        </Select>
         <Label className="text-sm font-medium">Voice</Label>
         <Select
           value={voice}
@@ -78,6 +98,10 @@ export function VoiceSettings() {
           </SelectContent>
         </Select>
       </div>
+      <p className="text-[13px] leading-relaxed text-muted-foreground">
+        OpenRouter uses your existing key and the hosted Kokoro voice model. If
+        the cloud is unavailable, Crackerbox automatically uses the local voice.
+      </p>
     </div>
   );
 }

@@ -299,8 +299,16 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
   {
     id: SETTING_IDS.autoSpeak,
     label: "Auto-speak responses",
-    description: "Read new assistant replies aloud with a local voice",
-    keywords: ["voice", "speech", "text to speech", "tts", "playback"],
+    description: "Read new assistant replies aloud with a cloud or local voice",
+    keywords: [
+      "voice",
+      "speech",
+      "text to speech",
+      "tts",
+      "playback",
+      "openrouter",
+      "cloud",
+    ],
     sectionId: SECTION_IDS.workflow,
     sectionLabel: "Workflow",
   },

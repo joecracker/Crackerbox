@@ -627,6 +627,7 @@ const BaseUserSettingsFields = {
   // Voice playback is device-local: each Crackerbox install decides whether
   // completed assistant replies should start speaking automatically.
   autoSpeakResponses: z.boolean().optional(),
+  speechProvider: z.enum(["openrouter", "local"]).optional(),
   speechVoice: z.string().optional(),
   speechRate: z.number().min(0.7).max(1.35).optional(),
   skipNotificationBanner: z.boolean().optional(),

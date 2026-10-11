@@ -53,13 +53,14 @@ export const SynthesizeSpeechParamsSchema = z.object({
   text: z.string().min(1).max(12_000),
   voice: z.string().min(1).max(64),
   speed: z.number().min(0.7).max(1.35),
+  provider: z.enum(["openrouter", "local"]),
 });
 
 export const SynthesizeSpeechResultSchema = z.object({
   // Base64 text, not raw bytes: the phone link carries IPC as JSON, which
   // turns a Uint8Array into a plain object the phone cannot play.
   audioBase64: z.string().min(1),
-  mimeType: z.literal("audio/wav"),
+  mimeType: z.enum(["audio/wav", "audio/mpeg"]),
 });
 
 // =============================================================================

@@ -88,6 +88,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   disableSandboxedE2eTests: false,
   enableContextCompaction: false,
   autoSpeakResponses: false,
+  speechProvider: "openrouter",
   speechVoice: "af_bella",
   speechRate: 1,
   enablePnpmMinimumReleaseAgeWarning: true,

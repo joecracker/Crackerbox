@@ -545,6 +545,9 @@ const BaseUserSettingsFields = {
   // every app -- not scoped to the current chat's message history like
   // everything else here.
   cbMemory: z.string().optional(),
+  // OpenRouter management key. Only used to read the account balance
+  // (GET /credits) for the header chip; never used for model calls.
+  openRouterManagementKey: SecretSchema.optional(),
   // When non-empty, send_email may only address these emails.
   emailAllowedRecipients: z.array(z.string()).optional(),
   maxToolCallSteps: z.number().optional(),

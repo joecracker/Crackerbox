@@ -28,6 +28,7 @@ import { AutoUpdateSwitch } from "@/components/AutoUpdateSwitch";
 import { ReleaseChannelSelector } from "@/components/ReleaseChannelSelector";
 import { NeonIntegration } from "@/components/NeonIntegration";
 import { HomeAssistantSettings } from "@/components/HomeAssistantSettings";
+import { OpenRouterBalanceSettings } from "@/components/OpenRouterBalanceSettings";
 import { LocalAiSettings } from "@/components/settings/LocalAiSettings";
 import { RuntimeModeSelector } from "@/components/RuntimeModeSelector";
 import { NodePathSelector } from "@/components/NodePathSelector";
@@ -237,6 +238,10 @@ export default function SettingsPage() {
             <div id={SETTING_IDS.homeAssistant} className="space-y-1.5">
               <Label className="text-sm font-medium">Home Assistant</Label>
               <HomeAssistantSettings />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">OpenRouter balance</Label>
+              <OpenRouterBalanceSettings />
             </div>
             <GmailIntegration />
           </SettingsSection>

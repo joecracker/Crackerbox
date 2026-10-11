@@ -43,6 +43,7 @@ import { registerVisualEditingHandlers } from "../pro/main/ipc/handlers/visual_e
 import { registerAgentToolHandlers } from "../pro/main/ipc/handlers/local_agent/agent_tool_handlers";
 import { registerFreeAgentQuotaHandlers } from "./handlers/free_agent_quota_handlers";
 import { registerFreeModelQuotaHandlers } from "./handlers/free_model_quota_handlers";
+import { registerOpenRouterBalanceHandlers } from "./handlers/openrouter_balance_handlers";
 import { registerPlanHandlers } from "./handlers/plan_handlers";
 import { registerMediaHandlers } from "./handlers/media_handlers";
 import { registerMiscHandlers } from "./handlers/misc_handlers";
@@ -109,6 +110,7 @@ export function registerIpcHandlers() {
   registerAgentToolHandlers();
   registerFreeAgentQuotaHandlers();
   registerFreeModelQuotaHandlers();
+  registerOpenRouterBalanceHandlers();
   registerPlanHandlers();
   registerMediaHandlers();
   registerMiscHandlers();

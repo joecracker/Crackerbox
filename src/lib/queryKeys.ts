@@ -320,6 +320,11 @@ export const queryKeys = {
     status: ["freeModelQuotaStatus"] as const,
   },
 
+  // OpenRouter account balance (header chip)
+  openRouterBalance: {
+    status: ["openRouterBalance"] as const,
+  },
+
   // ─────────────────────────────────────────────────────────────────────────────
   // Vercel Deployments
   // ─────────────────────────────────────────────────────────────────────────────
@@ -564,6 +569,9 @@ export type AppQueryKey =
     >
   | QueryKeyOf<
       (typeof queryKeys.freeModelQuota)[keyof typeof queryKeys.freeModelQuota]
+    >
+  | QueryKeyOf<
+      (typeof queryKeys.openRouterBalance)[keyof typeof queryKeys.openRouterBalance]
     >
   | QueryKeyOf<(typeof queryKeys.vercel)[keyof typeof queryKeys.vercel]>
   | QueryKeyOf<

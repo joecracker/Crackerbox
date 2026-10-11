@@ -426,6 +426,11 @@ export function writeSettings(settings: Partial<UserSettings>): void {
         newSettings.cloudflareAccessToken.value,
       );
     }
+    if (newSettings.openRouterManagementKey) {
+      newSettings.openRouterManagementKey = encrypt(
+        newSettings.openRouterManagementKey.value,
+      );
+    }
     if (newSettings.coolify?.accessToken) {
       newSettings.coolify = {
         ...newSettings.coolify,
@@ -721,6 +726,19 @@ function readExistingSettingsFile(
       combinedSettings.cloudflareAccessToken = resolved;
     } else {
       delete combinedSettings.cloudflareAccessToken;
+    }
+  }
+  if (combinedSettings.openRouterManagementKey) {
+    const resolved = resolveStoredSecret(
+      combinedSettings.openRouterManagementKey,
+      "OpenRouter management key",
+      ["openRouterManagementKey"],
+      ctx,
+    );
+    if (resolved) {
+      combinedSettings.openRouterManagementKey = resolved;
+    } else {
+      delete combinedSettings.openRouterManagementKey;
     }
   }
   if (combinedSettings.coolify?.accessToken) {

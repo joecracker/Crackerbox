@@ -40,13 +40,13 @@
     "activeRuntime": "当前：",
     "nodeRuntimeActiveVersion": "Node {{version}} - {{source}}",
     "nodeRuntimeSource": {
-      "managed": "Dyad 托管",
+      "managed": "Crackerbox 托管",
       "custom": "自定义路径",
       "system": "系统"
     },
     "systemNodeTooOld": "系统 Node.js 版本过旧",
     "noUsableNodeFound": "未找到可用的 Node.js",
-    "systemNodeTooOldDescription": "Dyad 需要系统 Node.js v20 或更高版本，或使用托管运行时。",
+    "systemNodeTooOldDescription": "Crackerbox 需要系统 Node.js v20 或更高版本，或使用托管运行时。",
     "managedRuntimeVersion": "托管运行时：Node {{version}}",
     "runtimeSystem": "系统",
     "runtimeManaged": "托管",
@@ -69,10 +69,10 @@
     "resetToSystemNodePath": "已恢复为系统 Node.js 路径",
     "resetNodePathFailed": "恢复 Node.js 路径失败：{{message}}",
     "runtimePreferenceUpdateFailed": "更新 Node.js 运行时偏好失败：{{message}}",
-    "managedNodeInstalled": "Dyad 托管 Node.js 已成功安装",
-    "managedNodeInstallFailed": "安装 Dyad 托管 Node.js 失败",
-    "managedNodeRemoved": "已移除 Dyad 托管 Node.js",
-    "managedNodeRemoveFailed": "移除 Dyad 托管 Node.js 失败"
+    "managedNodeInstalled": "Crackerbox 托管 Node.js 已成功安装",
+    "managedNodeInstallFailed": "安装 Crackerbox 托管 Node.js 失败",
+    "managedNodeRemoved": "已移除 Crackerbox 托管 Node.js",
+    "managedNodeRemoveFailed": "移除 Crackerbox 托管 Node.js 失败"
   },
   "workflow": {
     "title": "工作流设置",
@@ -118,10 +118,10 @@
     "errorLoadingSettings": "加载设置出错",
     "couldNotLoadProvider": "无法加载提供商数据：{{message}}",
     "couldNotLoadSettings": "无法加载配置数据：{{message}}",
-    "enableDyadPro": "启用 Dyad Pro",
-    "toggleDyadPro": "切换以启用 Dyad Pro",
+    "enableDyadPro": "启用 Crackerbox Pro",
+    "toggleDyadPro": "切换以启用 Crackerbox Pro",
     "apiKeyEmpty": "API 密钥不能为空。",
-    "errorTogglingPro": "切换 Dyad Pro 时出错：{{error}}",
+    "errorTogglingPro": "切换 Crackerbox Pro 时出错：{{error}}",
     "failedSaveApiKey": "保存 API 密钥失败。",
     "failedDeleteApiKey": "删除 API 密钥失败。"
   },
@@ -133,7 +133,7 @@
     "privacyNotice": "我们使用匿名遥测数据来改进产品。不会收集个人数据。",
     "acceptAndContinue": "接受并继续",
     "shareAnonymousData": "共享匿名数据？",
-    "helpImprove": "通过匿名使用数据帮助改进 Dyad。",
+    "helpImprove": "通过匿名使用数据帮助改进 Crackerbox。",
     "noCodeOrMessages": "注意：这不会记录你的代码或消息。",
     "learnMore": "了解更多",
     "accept": "接受",
@@ -210,7 +210,7 @@
   },
   "azure": {
     "configured": "Azure OpenAI 已配置",
-    "configuredDescription": "Dyad 将使用设置中保存的凭据来访问 Azure OpenAI 模型。",
+    "configuredDescription": "Crackerbox 将使用设置中保存的凭据来访问 Azure OpenAI 模型。",
     "usingEnvVars": "使用环境变量",
     "usingEnvVarsDescription": "AZURE_API_KEY 和 AZURE_RESOURCE_NAME 已设置。下方保存的值将覆盖它们。",
     "configRequired": "需要配置 Azure OpenAI",
@@ -225,8 +225,8 @@
     "configNeededDescription": "Azure OpenAI 请求需要资源名称和 API 密钥。请在上方输入，或提供环境变量。",
     "saveError": "保存错误",
     "envVarsOptional": "环境变量（可选）",
-    "envVarsHelpText": "您可以继续通过环境变量配置 Azure。如果两个变量都存在且未保存设置，Dyad 将自动使用它们。",
-    "envVarsPrecedence": "设置中保存的值优先于环境变量。更改环境变量后请重启 Dyad。"
+    "envVarsHelpText": "您可以继续通过环境变量配置 Azure。如果两个变量都存在且未保存设置，Crackerbox 将自动使用它们。",
+    "envVarsPrecedence": "设置中保存的值优先于环境变量。更改环境变量后请重启 Crackerbox。"
   },
   "vertex": {
     "projectId": "项目 ID",
@@ -300,6 +300,6 @@
     "updateProvider": "更新提供商",
     "failedCreate": "创建自定义提供商失败"
   },
-  "manageDyadPro": "管理 Dyad Pro 订阅",
-  "setupDyadPro": "设置 Dyad Pro 订阅"
+  "manageDyadPro": "管理 Crackerbox Pro 订阅",
+  "setupDyadPro": "设置 Crackerbox Pro 订阅"
 }

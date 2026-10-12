@@ -40,13 +40,13 @@
     "activeRuntime": "Etkin:",
     "nodeRuntimeActiveVersion": "Node {{version}} - {{source}}",
     "nodeRuntimeSource": {
-      "managed": "Dyad tarafından yönetilen",
+      "managed": "Crackerbox tarafından yönetilen",
       "custom": "Özel yol",
       "system": "Sistem"
     },
     "systemNodeTooOld": "Sistem Node.js sürümü çok eski",
     "noUsableNodeFound": "Kullanılabilir Node.js bulunamadı",
-    "systemNodeTooOldDescription": "Dyad, sistem Node.js v20 veya daha yenisini ya da yönetilen bir çalışma zamanını gerektirir.",
+    "systemNodeTooOldDescription": "Crackerbox, sistem Node.js v20 veya daha yenisini ya da yönetilen bir çalışma zamanını gerektirir.",
     "managedRuntimeVersion": "Yönetilen çalışma zamanı: Node {{version}}",
     "runtimeSystem": "Sistem",
     "runtimeManaged": "Yönetilen",
@@ -69,10 +69,10 @@
     "resetToSystemNodePath": "Sistem Node.js yoluna sıfırla",
     "resetNodePathFailed": "Node.js yolu sıfırlanamadı: {{message}}",
     "runtimePreferenceUpdateFailed": "Node.js çalışma zamanı tercihi güncellenemedi: {{message}}",
-    "managedNodeInstalled": "Dyad tarafından yönetilen Node.js başarıyla kuruldu",
-    "managedNodeInstallFailed": "Dyad tarafından yönetilen Node.js kurulamadı",
-    "managedNodeRemoved": "Dyad tarafından yönetilen Node.js kaldırıldı",
-    "managedNodeRemoveFailed": "Dyad tarafından yönetilen Node.js kaldırılamadı"
+    "managedNodeInstalled": "Crackerbox tarafından yönetilen Node.js başarıyla kuruldu",
+    "managedNodeInstallFailed": "Crackerbox tarafından yönetilen Node.js kurulamadı",
+    "managedNodeRemoved": "Crackerbox tarafından yönetilen Node.js kaldırıldı",
+    "managedNodeRemoveFailed": "Crackerbox tarafından yönetilen Node.js kaldırılamadı"
   },
   "workflow": {
     "title": "İş Akışı Ayarları",
@@ -123,10 +123,10 @@
     "errorLoadingSettings": "Ayarlar Yüklenirken Hata",
     "couldNotLoadProvider": "Sağlayıcı verileri yüklenemedi: {{message}}",
     "couldNotLoadSettings": "Yapılandırma verileri yüklenemedi: {{message}}",
-    "enableDyadPro": "Dyad Pro'yu Etkinleştir",
-    "toggleDyadPro": "Dyad Pro'yu etkinleştirmek için aç/kapat",
+    "enableDyadPro": "Crackerbox Pro'yu Etkinleştir",
+    "toggleDyadPro": "Crackerbox Pro'yu etkinleştirmek için aç/kapat",
     "apiKeyEmpty": "API Anahtarı boş olamaz.",
-    "errorTogglingPro": "Dyad Pro değiştirilirken hata: {{error}}",
+    "errorTogglingPro": "Crackerbox Pro değiştirilirken hata: {{error}}",
     "failedSaveApiKey": "API anahtarı kaydedilemedi.",
     "failedDeleteApiKey": "API anahtarı silinemedi."
   },
@@ -138,7 +138,7 @@
     "privacyNotice": "Ürünü geliştirmek için anonim telemetri verilerini kullanıyoruz. Kişisel veri toplanmaz.",
     "acceptAndContinue": "Kabul Et ve Devam Et",
     "shareAnonymousData": "Anonim veriler paylaşılsın mı?",
-    "helpImprove": "Anonim kullanım verileriyle Dyad'ın gelişmesine yardımcı olun.",
+    "helpImprove": "Anonim kullanım verileriyle Crackerbox'ın gelişmesine yardımcı olun.",
     "noCodeOrMessages": "Not: bu, kodunuzu veya mesajlarınızı kaydetmez.",
     "learnMore": "Daha fazla bilgi edinin",
     "accept": "Kabul Et",
@@ -215,7 +215,7 @@
   },
   "azure": {
     "configured": "Azure OpenAI Yapılandırıldı",
-    "configuredDescription": "Dyad, Azure OpenAI modelleri için Ayarlar'da kayıtlı kimlik bilgilerini kullanır.",
+    "configuredDescription": "Crackerbox, Azure OpenAI modelleri için Ayarlar'da kayıtlı kimlik bilgilerini kullanır.",
     "usingEnvVars": "Ortam Değişkenleri Kullanılıyor",
     "usingEnvVarsDescription": "AZURE_API_KEY ve AZURE_RESOURCE_NAME ayarlandı. Aşağıda kaydedilen değerler bunları geçersiz kılar.",
     "configRequired": "Azure OpenAI Yapılandırması Gerekli",
@@ -230,8 +230,8 @@
     "configNeededDescription": "Azure OpenAI istekleri hem kaynak adı hem de API anahtarı gerektirir. Bunları yukarıya girin veya bunun yerine ortam değişkenlerini sağlayın.",
     "saveError": "Kaydetme Hatası",
     "envVarsOptional": "Ortam Değişkenleri (isteğe bağlı)",
-    "envVarsHelpText": "Azure'u ortam değişkenleri aracılığıyla yapılandırmaya devam edebilirsiniz. Her iki değişken de mevcutsa ve hiçbir ayar kaydedilmediyse Dyad bunları otomatik olarak kullanır.",
-    "envVarsPrecedence": "Ayarlar'da kaydedilen değerler ortam değişkenlerinden önceliklidir. Ortam değişkenlerini değiştirdikten sonra Dyad'ı yeniden başlatın."
+    "envVarsHelpText": "Azure'u ortam değişkenleri aracılığıyla yapılandırmaya devam edebilirsiniz. Her iki değişken de mevcutsa ve hiçbir ayar kaydedilmediyse Crackerbox bunları otomatik olarak kullanır.",
+    "envVarsPrecedence": "Ayarlar'da kaydedilen değerler ortam değişkenlerinden önceliklidir. Ortam değişkenlerini değiştirdikten sonra Crackerbox'ı yeniden başlatın."
   },
   "vertex": {
     "projectId": "Proje Kimliği",
@@ -305,6 +305,6 @@
     "updateProvider": "Sağlayıcıyı Güncelle",
     "failedCreate": "Özel sağlayıcı oluşturulamadı"
   },
-  "manageDyadPro": "Dyad Pro Aboneliğini Yönet",
-  "setupDyadPro": "Dyad Pro Aboneliğini Kur"
+  "manageDyadPro": "Crackerbox Pro Aboneliğini Yönet",
+  "setupDyadPro": "Crackerbox Pro Aboneliğini Kur"
 }

@@ -40,13 +40,13 @@
     "activeRuntime": "Activo:",
     "nodeRuntimeActiveVersion": "Node {{version}} - {{source}}",
     "nodeRuntimeSource": {
-      "managed": "Gestionado por Dyad",
+      "managed": "Gestionado por Crackerbox",
       "custom": "Ruta personalizada",
       "system": "Sistema"
     },
     "systemNodeTooOld": "El Node.js del sistema es demasiado antiguo",
     "noUsableNodeFound": "No se encontró un Node.js utilizable",
-    "systemNodeTooOldDescription": "Dyad requiere Node.js del sistema v20 o posterior, o un entorno gestionado.",
+    "systemNodeTooOldDescription": "Crackerbox requiere Node.js del sistema v20 o posterior, o un entorno gestionado.",
     "managedRuntimeVersion": "Entorno gestionado: Node {{version}}",
     "runtimeSystem": "Sistema",
     "runtimeManaged": "Gestionado",
@@ -69,10 +69,10 @@
     "resetToSystemNodePath": "Restablecido a la ruta de Node.js del sistema",
     "resetNodePathFailed": "No se pudo restablecer la ruta de Node.js: {{message}}",
     "runtimePreferenceUpdateFailed": "No se pudo actualizar la preferencia del entorno de Node.js: {{message}}",
-    "managedNodeInstalled": "Node.js gestionado por Dyad se instaló correctamente",
-    "managedNodeInstallFailed": "No se pudo instalar Node.js gestionado por Dyad",
-    "managedNodeRemoved": "Node.js gestionado por Dyad eliminado",
-    "managedNodeRemoveFailed": "No se pudo eliminar Node.js gestionado por Dyad"
+    "managedNodeInstalled": "Node.js gestionado por Crackerbox se instaló correctamente",
+    "managedNodeInstallFailed": "No se pudo instalar Node.js gestionado por Crackerbox",
+    "managedNodeRemoved": "Node.js gestionado por Crackerbox eliminado",
+    "managedNodeRemoveFailed": "No se pudo eliminar Node.js gestionado por Crackerbox"
   },
   "workflow": {
     "title": "Configuración de Flujo de Trabajo",
@@ -121,10 +121,10 @@
     "errorLoadingSettings": "Error al Cargar la Configuración",
     "couldNotLoadProvider": "No se pudieron cargar los datos del proveedor: {{message}}",
     "couldNotLoadSettings": "No se pudieron cargar los datos de configuración: {{message}}",
-    "enableDyadPro": "Habilitar Dyad Pro",
-    "toggleDyadPro": "Alternar para habilitar Dyad Pro",
+    "enableDyadPro": "Habilitar Crackerbox Pro",
+    "toggleDyadPro": "Alternar para habilitar Crackerbox Pro",
     "apiKeyEmpty": "La clave API no puede estar vacía.",
-    "errorTogglingPro": "Error al alternar Dyad Pro: {{error}}",
+    "errorTogglingPro": "Error al alternar Crackerbox Pro: {{error}}",
     "failedSaveApiKey": "Error al guardar la clave API.",
     "failedDeleteApiKey": "Error al eliminar la clave API."
   },
@@ -136,7 +136,7 @@
     "privacyNotice": "Usamos datos de telemetría anónimos para mejorar el producto. No se recopilan datos personales.",
     "acceptAndContinue": "Aceptar y Continuar",
     "shareAnonymousData": "¿Compartir datos anónimos?",
-    "helpImprove": "Ayuda a mejorar Dyad con datos de uso anónimos.",
+    "helpImprove": "Ayuda a mejorar Crackerbox con datos de uso anónimos.",
     "noCodeOrMessages": "Nota: esto no registra tu código ni tus mensajes.",
     "learnMore": "Saber más",
     "accept": "Aceptar",
@@ -213,7 +213,7 @@
   },
   "azure": {
     "configured": "Azure OpenAI Configurado",
-    "configuredDescription": "Dyad usará las credenciales guardadas en Configuración para los modelos de Azure OpenAI.",
+    "configuredDescription": "Crackerbox usará las credenciales guardadas en Configuración para los modelos de Azure OpenAI.",
     "usingEnvVars": "Usando Variables de Entorno",
     "usingEnvVarsDescription": "AZURE_API_KEY y AZURE_RESOURCE_NAME están configurados. Los valores guardados a continuación los anularán.",
     "configRequired": "Se Requiere Configuración de Azure OpenAI",
@@ -228,8 +228,8 @@
     "configNeededDescription": "Las peticiones de Azure OpenAI requieren tanto un nombre de recurso como una clave API. Introdúcelos arriba o proporciona las variables de entorno en su lugar.",
     "saveError": "Error al Guardar",
     "envVarsOptional": "Variables de Entorno (opcional)",
-    "envVarsHelpText": "Puedes continuar configurando Azure mediante variables de entorno. Si ambas variables están presentes y no hay configuraciones guardadas, Dyad las usará automáticamente.",
-    "envVarsPrecedence": "Los valores guardados en la Configuración tienen prioridad sobre las variables de entorno. Reinicia Dyad después de cambiar las variables de entorno."
+    "envVarsHelpText": "Puedes continuar configurando Azure mediante variables de entorno. Si ambas variables están presentes y no hay configuraciones guardadas, Crackerbox las usará automáticamente.",
+    "envVarsPrecedence": "Los valores guardados en la Configuración tienen prioridad sobre las variables de entorno. Reinicia Crackerbox después de cambiar las variables de entorno."
   },
   "vertex": {
     "projectId": "ID del Proyecto",
@@ -303,6 +303,6 @@
     "updateProvider": "Actualizar Proveedor",
     "failedCreate": "Error al crear el proveedor personalizado"
   },
-  "manageDyadPro": "Gestionar Suscripción de Dyad Pro",
-  "setupDyadPro": "Configurar Suscripción de Dyad Pro"
+  "manageDyadPro": "Gestionar Suscripción de Crackerbox Pro",
+  "setupDyadPro": "Configurar Suscripción de Crackerbox Pro"
 }

@@ -40,7 +40,7 @@
     "activeRuntime": "활성:",
     "nodeRuntimeActiveVersion": "Node {{version}} - {{source}}",
     "nodeRuntimeSource": {
-      "managed": "Dyad 관리형",
+      "managed": "Crackerbox 관리형",
       "custom": "사용자 지정 경로",
       "system": "시스템"
     },
@@ -69,10 +69,10 @@
     "resetToSystemNodePath": "시스템 Node.js 경로로 재설정",
     "resetNodePathFailed": "Node.js 경로 재설정 실패: {{message}}",
     "runtimePreferenceUpdateFailed": "Node.js 런타임 설정 업데이트 실패: {{message}}",
-    "managedNodeInstalled": "Dyad 관리형 Node.js가 성공적으로 설치되었습니다",
-    "managedNodeInstallFailed": "Dyad 관리형 Node.js 설치 실패",
-    "managedNodeRemoved": "Dyad 관리형 Node.js가 제거되었습니다",
-    "managedNodeRemoveFailed": "Dyad 관리형 Node.js 제거 실패"
+    "managedNodeInstalled": "Crackerbox 관리형 Node.js가 성공적으로 설치되었습니다",
+    "managedNodeInstallFailed": "Crackerbox 관리형 Node.js 설치 실패",
+    "managedNodeRemoved": "Crackerbox 관리형 Node.js가 제거되었습니다",
+    "managedNodeRemoveFailed": "Crackerbox 관리형 Node.js 제거 실패"
   },
   "workflow": {
     "title": "워크플로 설정",
@@ -123,10 +123,10 @@
     "errorLoadingSettings": "설정 불러오기 오류",
     "couldNotLoadProvider": "공급자 데이터를 불러올 수 없습니다: {{message}}",
     "couldNotLoadSettings": "설정 데이터를 불러올 수 없습니다: {{message}}",
-    "enableDyadPro": "Dyad Pro 사용",
-    "toggleDyadPro": "Dyad Pro 사용 여부 전환",
+    "enableDyadPro": "Crackerbox Pro 사용",
+    "toggleDyadPro": "Crackerbox Pro 사용 여부 전환",
     "apiKeyEmpty": "API 키는 비워둘 수 없습니다.",
-    "errorTogglingPro": "Dyad Pro 전환 오류: {{error}}",
+    "errorTogglingPro": "Crackerbox Pro 전환 오류: {{error}}",
     "failedSaveApiKey": "API 키 저장에 실패했습니다.",
     "failedDeleteApiKey": "API 키 삭제에 실패했습니다."
   },
@@ -138,7 +138,7 @@
     "privacyNotice": "제품 개선을 위해 익명 텔레메트리 데이터를 사용합니다. 개인 정보는 수집되지 않습니다.",
     "acceptAndContinue": "수락하고 계속하기",
     "shareAnonymousData": "익명 데이터를 공유하시겠습니까?",
-    "helpImprove": "익명 사용 데이터로 Dyad 개선에 도움을 주세요.",
+    "helpImprove": "익명 사용 데이터로 Crackerbox 개선에 도움을 주세요.",
     "noCodeOrMessages": "참고: 코드나 메시지는 기록되지 않습니다.",
     "learnMore": "자세히 알아보기",
     "accept": "수락",
@@ -305,6 +305,6 @@
     "updateProvider": "공급자 업데이트",
     "failedCreate": "사용자 지정 공급자 생성에 실패했습니다"
   },
-  "manageDyadPro": "Dyad Pro 구독 관리",
-  "setupDyadPro": "Dyad Pro 구독 설정"
+  "manageDyadPro": "Crackerbox Pro 구독 관리",
+  "setupDyadPro": "Crackerbox Pro 구독 설정"
 }

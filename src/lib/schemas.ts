@@ -568,6 +568,9 @@ const BaseUserSettingsFields = {
   zoomLevel: ZoomLevelSchema.optional(),
   language: LanguageSchema.optional(),
   previewDeviceMode: DeviceModeSchema.optional(),
+  // Landscape size of the real tablet, in CSS pixels, for the preview's tablet mode.
+  previewTabletWidth: z.number().int().min(200).max(4000).optional(),
+  previewTabletHeight: z.number().int().min(200).max(4000).optional(),
 
   enableAppBlueprint: z.boolean().optional(),
   // When enabled, newly created apps opt into the AI E2E testing feature by

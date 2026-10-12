@@ -80,6 +80,9 @@ import {
 } from "@/lib/preview_console_buffer";
 import { queryKeys } from "@/lib/queryKeys";
 import { AnnotatorOnlyForPro } from "./AnnotatorOnlyForPro";
+import { TabletFrame } from "./TabletFrame";
+import { useElementSize } from "@/hooks/useElementSize";
+import { fitScale, tabletSizeFromSettings } from "@/lib/previewDevice";
 import { useAttachments } from "@/hooks/useAttachments";
 import { useUserBudgetInfo } from "@/hooks/useUserBudgetInfo";
 import { Annotator } from "@/pro/ui/components/Annotator/Annotator";
@@ -338,6 +341,22 @@ export const PreviewIframe = ({
     tablet: 768,
     mobile: 375,
   };
+  // Tablet mode shows the page at the real tablet's size (from Settings),
+  // scaled down only as far as needed to fit the preview pane.
+  const tabletSize = tabletSizeFromSettings(settings);
+  const previewStage = useElementSize<HTMLDivElement>();
+  const tabletScale = fitScale(previewStage.size, tabletSize);
+  const previewFrameStyle: React.CSSProperties =
+    deviceMode === "desktop"
+      ? {}
+      : deviceMode === "tablet"
+        ? {
+            width: `${tabletSize.width}px`,
+            height: `${tabletSize.height}px`,
+            transform: `scale(${tabletScale})`,
+            transformOrigin: "top left",
+          }
+        : { width: `${deviceWidthConfig.mobile}px` };
 
   //detect if the user is using Mac
   const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
@@ -1617,6 +1636,7 @@ export const PreviewIframe = ({
             // by then. `inert` also blurs whatever is focused inside, which is
             // what stops the keystrokes already in flight.
             inert={isRecorderSettingUp}
+            ref={previewStage.ref}
             className={cn(
               "w-full h-full",
               deviceMode !== "desktop" && "flex justify-center",
@@ -1646,24 +1666,27 @@ export const PreviewIframe = ({
               </div>
             ) : (
               <>
-                <iframe
-                  sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals allow-orientation-lock allow-pointer-lock allow-presentation allow-downloads"
-                  data-testid="preview-iframe-element"
-                  onLoad={() => {
-                    onIframeLoaded();
-                  }}
-                  ref={handleIframeRef}
-                  key={iframeState.iframeEpoch}
-                  title={`Preview for App ${selectedAppId}`}
-                  className="w-full h-full border-none bg-white dark:bg-gray-950"
-                  style={
-                    deviceMode == "desktop"
-                      ? {}
-                      : { width: `${deviceWidthConfig[deviceMode]}px` }
-                  }
-                  src={iframeSrc}
-                  allow="clipboard-read; clipboard-write; fullscreen; microphone; camera; display-capture; geolocation; autoplay; picture-in-picture"
-                />
+                <TabletFrame
+                  enabled={deviceMode === "tablet"}
+                  width={tabletSize.width}
+                  height={tabletSize.height}
+                  scale={tabletScale}
+                >
+                  <iframe
+                    sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals allow-orientation-lock allow-pointer-lock allow-presentation allow-downloads"
+                    data-testid="preview-iframe-element"
+                    onLoad={() => {
+                      onIframeLoaded();
+                    }}
+                    ref={handleIframeRef}
+                    key={iframeState.iframeEpoch}
+                    title={`Preview for App ${selectedAppId}`}
+                    className="w-full h-full border-none bg-white dark:bg-gray-950"
+                    style={previewFrameStyle}
+                    src={iframeSrc}
+                    allow="clipboard-read; clipboard-write; fullscreen; microphone; camera; display-capture; geolocation; autoplay; picture-in-picture"
+                  />
+                </TabletFrame>
                 {/* Visual Editing Toolbar */}
                 {isProMode &&
                   visualEditingSelectedComponent &&

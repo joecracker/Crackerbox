@@ -29,6 +29,7 @@ import { ReleaseChannelSelector } from "@/components/ReleaseChannelSelector";
 import { NeonIntegration } from "@/components/NeonIntegration";
 import { HomeAssistantSettings } from "@/components/HomeAssistantSettings";
 import { OpenRouterBalanceSettings } from "@/components/OpenRouterBalanceSettings";
+import { PreviewTabletSizeSettings } from "@/components/PreviewTabletSizeSettings";
 import { LocalAiSettings } from "@/components/settings/LocalAiSettings";
 import { RuntimeModeSelector } from "@/components/RuntimeModeSelector";
 import { NodePathSelector } from "@/components/NodePathSelector";
@@ -242,6 +243,10 @@ export default function SettingsPage() {
             <div className="space-y-1.5">
               <Label className="text-sm font-medium">OpenRouter balance</Label>
               <OpenRouterBalanceSettings />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Preview tablet size</Label>
+              <PreviewTabletSizeSettings />
             </div>
             <GmailIntegration />
           </SettingsSection>

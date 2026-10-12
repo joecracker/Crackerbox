@@ -138,7 +138,7 @@ export function registerRecordingHandlers() {
         return infraResult(
           appId,
           blockedBy
-            ? `Wait for Dyad to ${blockedBy} before starting a recording.`
+            ? `Wait for Crackerbox to ${blockedBy} before starting a recording.`
             : "A recording session is already in progress for this app.",
         );
       }
@@ -197,7 +197,7 @@ export function registerRecordingHandlers() {
           if (!restored) {
             return infraResult(
               appId,
-              "Dyad couldn't restore this app's real database settings from the previous session. Retry after checking the Neon connection.",
+              "Crackerbox couldn't restore this app's real database settings from the previous session. Retry after checking the Neon connection.",
             );
           }
           // Recovery may clear the marker or leave a cleanup-only marker. Give
@@ -346,7 +346,7 @@ export function registerRecordingHandlers() {
                   ready.resolve(
                     infraResult(
                       appId,
-                      "Dyad couldn't restore this app's real database settings from the previous operation. Retry after checking the Neon connection.",
+                      "Crackerbox couldn't restore this app's real database settings from the previous operation. Retry after checking the Neon connection.",
                     ),
                   );
                   return;
@@ -492,7 +492,7 @@ export function registerRecordingHandlers() {
                   // this reaches the user as an error toast.
                   endReason = "error";
                   endMessage =
-                    "Dyad couldn't restore your app's real database settings after recording. Restore .env.local before running the app again.";
+                    "Crackerbox couldn't restore your app's real database settings after recording. Restore .env.local before running the app again.";
                 } else if (!remoteCleanupCompleted) {
                   // The env came back, so the app is usable — but something the
                   // recording created is still in the user's account: a
@@ -505,7 +505,7 @@ export function registerRecordingHandlers() {
                     prepared?.cleanupProvider === "supabase-test-user"
                       ? "temporary Supabase test user"
                       : "temporary database";
-                  endMessage = `Dyad couldn't finish cleaning up the ${resource} it created for this recording. Your app settings were restored; Dyad will retry the cleanup on next startup.`;
+                  endMessage = `Crackerbox couldn't finish cleaning up the ${resource} it created for this recording. Your app settings were restored; Crackerbox will retry the cleanup on next startup.`;
                 }
                 clearRegistration();
                 // A setup failure normally has no live recorder to notify. The

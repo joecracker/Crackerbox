@@ -3,7 +3,7 @@ const UNDELIVERABLE =
   "domain resolves when it creates the admin account.";
 
 const UNSENDABLE =
-  "Dyad can't send an address containing quotes, backslashes or ` $ # ! to " +
+  "Crackerbox can't send an address containing quotes, backslashes or ` $ # ! to " +
   "the server. Try one without them.";
 
 /**

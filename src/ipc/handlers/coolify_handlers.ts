@@ -239,7 +239,7 @@ export function registerCoolifyHandlers() {
         current.kind === "provisioned" || current.kind === "deployed";
       if (!movedHost && hasApplication && current.domain && !domain) {
         throw new DyadError(
-          "A domain cannot be removed from Dyad once it is set. Change it to " +
+          "A domain cannot be removed from Crackerbox once it is set. Change it to " +
             "another domain here, or clear it in Coolify.",
           DyadErrorKind.Validation,
         );

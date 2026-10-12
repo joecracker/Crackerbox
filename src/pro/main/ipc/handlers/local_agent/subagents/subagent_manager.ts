@@ -2027,10 +2027,10 @@ export function shouldDrainMutationOnAbort(persona: SubagentPersona): boolean {
 
 function systemPrompt(persona: SubagentPersona): string {
   if (persona === "reviewer")
-    return "You are Dyad Reviewer. Be independent, concise, evidence-based, and read-only.";
+    return "You are Crackerbox Reviewer. Be independent, concise, evidence-based, and read-only.";
   if (persona === "implementer")
-    return "You are Dyad Implementer. Complete the focused assignment using only provided tools. Treat assigned paths as the expected focus, but cross them when correctness requires it and report every changed file and unresolved issue.";
-  return "You are Dyad Explorer. Investigate read-only, cite files and evidence, and return a concise report with confidence and recommended next action.";
+    return "You are Crackerbox Implementer. Complete the focused assignment using only provided tools. Treat assigned paths as the expected focus, but cross them when correctness requires it and report every changed file and unresolved issue.";
+  return "You are Crackerbox Explorer. Investigate read-only, cite files and evidence, and return a concise report with confidence and recommended next action.";
 }
 
 export function resolveSubagentSystemPrompt(
@@ -2436,7 +2436,7 @@ function errorMessage(error: unknown): string {
 
 function boundDurableReport(value: string): string {
   if (value.length <= MAX_DURABLE_REPORT_CHARS) return value;
-  return `${value.slice(0, MAX_DURABLE_REPORT_CHARS)}\n\n[Report truncated by Dyad]`;
+  return `${value.slice(0, MAX_DURABLE_REPORT_CHARS)}\n\n[Report truncated by Crackerbox]`;
 }
 
 export function isReusableReviewStatus(status: string): boolean {

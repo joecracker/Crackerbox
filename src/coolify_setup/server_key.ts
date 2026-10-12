@@ -83,7 +83,7 @@ export function ensureServerKey(): ServerKey {
     // A file that cannot be read as a key is worse than none: it would fail at
     // connect time with something about the wire format. Say so here instead.
     throw new DyadError(
-      `The server key at ${keyPath} could not be read. Delete it and Dyad will ` +
+      `The server key at ${keyPath} could not be read. Delete it and Crackerbox will ` +
         `generate a new one — you will need to add the new public key to your ` +
         `server.`,
       DyadErrorKind.Precondition,

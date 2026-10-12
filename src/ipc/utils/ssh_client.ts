@@ -108,7 +108,7 @@ function classify(
   if (level === "client-authentication") {
     return new SshError(
       "auth-rejected",
-      "The server refused this key. Add Dyad's public key to the server's " +
+      "The server refused this key. Add Crackerbox's public key to the server's " +
         "authorized_keys and try again.",
       DyadErrorKind.Auth,
     );
@@ -122,12 +122,12 @@ function classify(
       "handshake-failed",
       // The library's own words, with its "Handshake failed:" preamble taken
       // off — this sentence has already said that much.
-      `Dyad and this server could not agree on how to connect${
+      `Crackerbox and this server could not agree on how to connect${
         err.message
           ? `: ${err.message.replace(/^handshake failed:\s*/i, "")}`
           : ""
       }. That usually means the server's SSH is older or more restricted ` +
-        `than Dyad's defaults.`,
+        `than Crackerbox's defaults.`,
       DyadErrorKind.External,
     );
   }

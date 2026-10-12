@@ -234,7 +234,7 @@ export async function createTempTestBranch(
     // catches the case where it did not, or could not.
     if (cleanupOnly && !isTestBranchCleanupOnly(appData.neonTestBranchId)) {
       throw new DyadError(
-        `App ${appData.id} still has real database settings pointing at a previous session's temporary Neon branch. Dyad will restore them on the next launch; skipping this run so that recovery isn't lost.`,
+        `App ${appData.id} still has real database settings pointing at a previous session's temporary Neon branch. Crackerbox will restore them on the next launch; skipping this run so that recovery isn't lost.`,
         DyadErrorKind.Precondition,
       );
     }
@@ -398,7 +398,7 @@ export async function deleteTempTestBranch(appData: AppRow): Promise<boolean> {
     // path reads this to decide whether anything was left behind, and would drop
     // the row — the last record of this branch — believing it was cleaned up.
     logger.error(
-      `App ${appData.id} still tracks temporary Neon test branch ${branchId}, but the app is no longer linked to a Neon project; Dyad cannot delete it and it must be removed manually.`,
+      `App ${appData.id} still tracks temporary Neon test branch ${branchId}, but the app is no longer linked to a Neon project; Crackerbox cannot delete it and it must be removed manually.`,
     );
     return false;
   }

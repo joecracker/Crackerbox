@@ -215,7 +215,7 @@ describe("pro audio transcription handler", () => {
     );
 
     expect(() => unwrapIpcEnvelope(envelope as never)).toThrow(
-      "trusted Dyad renderer",
+      "trusted Crackerbox renderer",
     );
     expect(mocks.readSettings).not.toHaveBeenCalled();
     expect(mocks.transcribeWithDyadEngine).not.toHaveBeenCalled();

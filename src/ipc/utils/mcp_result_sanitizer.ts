@@ -273,7 +273,7 @@ function attachTruncationMetadata(
 ): unknown {
   const metadata = buildTruncationMetadata(state);
   if (typeof value === "string") {
-    return `${value}\n[Dyad truncated MCP result: ${metadata.reasons.join(", ")}]`;
+    return `${value}\n[Crackerbox truncated MCP result: ${metadata.reasons.join(", ")}]`;
   }
   if (Array.isArray(value)) {
     value.push({ [TRUNCATION_KEY]: metadata });

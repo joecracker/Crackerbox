@@ -92,7 +92,7 @@ export async function createDyadToolBridge(options: {
                   params: {
                     progressToken,
                     progress: ++progress,
-                    message: "Waiting for Dyad tool completion",
+                    message: "Waiting for Crackerbox tool completion",
                   },
                 })
                 .catch(() => {});

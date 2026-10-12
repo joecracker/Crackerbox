@@ -93,6 +93,6 @@ export function buildRecordedTestProposalPrompt(
     "",
     'Note: I see these numbered from 1, not 0 — if I ask for a check after "step N", that\'s the statement you see as N-1.',
     "",
-    "Call generate_test_assertions with that recording id, a test name, one plain-English step description per statement, plus the assertions you'd propose and any completed selector repairs. There's nothing to read as a test and nothing to run yet — I'll review the proposal, and Dyad generates the test file when I approve it.",
+    "Call generate_test_assertions with that recording id, a test name, one plain-English step description per statement, plus the assertions you'd propose and any completed selector repairs. There's nothing to read as a test and nothing to run yet — I'll review the proposal, and Crackerbox generates the test file when I approve it.",
   ].join("\n");
 }

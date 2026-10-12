@@ -295,7 +295,7 @@ export class CoolifyClient {
     if (!Array.isArray(body)) {
       throw new DyadError(
         `Coolify did not return a list of ${what}. This instance may be a ` +
-          `version Dyad does not understand.`,
+          `version Crackerbox does not understand.`,
         DyadErrorKind.External,
       );
     }
@@ -314,7 +314,7 @@ export class CoolifyClient {
     if (parsed.length === 0 && body.length > 0) {
       throw new DyadError(
         `Coolify returned ${what} in an unexpected shape. This instance may ` +
-          `be a version Dyad does not understand.`,
+          `be a version Crackerbox does not understand.`,
         DyadErrorKind.External,
       );
     }

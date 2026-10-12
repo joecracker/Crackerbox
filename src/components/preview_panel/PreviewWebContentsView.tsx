@@ -530,8 +530,8 @@ export const PreviewWebContentsView = ({ loading }: { loading: boolean }) => {
                   Setting up tests…
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Dyad is preparing the app and test data. Tests will start
-                  automatically.
+                  Crackerbox is preparing the app and test data. Tests will
+                  start automatically.
                 </p>
               </div>
             </div>

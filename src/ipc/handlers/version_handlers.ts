@@ -546,7 +546,7 @@ async function revertCodebaseToVersion({
   }
   if (repositoryHealth.operationInProgress) {
     throw new DyadError(
-      `Cannot revert: a Git ${repositoryHealth.operationInProgress} is in progress. Finish or cancel it outside Dyad, then try again.`,
+      `Cannot revert: a Git ${repositoryHealth.operationInProgress} is in progress. Finish or cancel it outside Crackerbox, then try again.`,
       DyadErrorKind.Conflict,
     );
   }

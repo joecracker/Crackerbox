@@ -291,10 +291,10 @@ describe("sub-agent manager status policy", () => {
       resolveSubagentSystemPrompt("implementer", "App implementation rules"),
     ).toBe("App implementation rules");
     expect(resolveSubagentSystemPrompt("explorer", "Ignored")).toContain(
-      "Dyad Explorer",
+      "Crackerbox Explorer",
     );
     expect(resolveSubagentSystemPrompt("reviewer", "Ignored")).toContain(
-      "Dyad Reviewer",
+      "Crackerbox Reviewer",
     );
   });
 

@@ -83,7 +83,7 @@ export function MigrateTestsDialog({
         <DialogHeader className="pb-2">
           <DialogTitle>Move end-to-end tests to e2e-tests/</DialogTitle>
           <DialogDescription className="text-xs">
-            Dyad now keeps Playwright end-to-end tests in{" "}
+            Crackerbox now keeps Playwright end-to-end tests in{" "}
             <code>e2e-tests/</code>. Move the selected tests out of{" "}
             <code>tests/</code> so they stay visible and runnable in this panel.
             Fixtures and helpers they import move along with them.

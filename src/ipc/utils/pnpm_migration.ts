@@ -151,7 +151,7 @@ export async function applyPnpmVersionMigration({
   const pnpmSupport = await getPnpmMinimumReleaseAgeSupport();
   if (!pnpmSupport.available || !pnpmSupport.version) {
     throw new DyadError(
-      "pnpm is not available, so the project cannot be migrated. Restart Dyad and try again.",
+      "pnpm is not available, so the project cannot be migrated. Restart Crackerbox and try again.",
       DyadErrorKind.External,
     );
   }
@@ -165,7 +165,7 @@ export async function applyPnpmVersionMigration({
     )
   ) {
     throw new DyadError(
-      `The available pnpm (${pnpmSupport.version}) is older than pnpm ${COMPATIBLE_PNPM_LOCKFILE_MAJOR}, so the project cannot be migrated. Restart Dyad and try again.`,
+      `The available pnpm (${pnpmSupport.version}) is older than pnpm ${COMPATIBLE_PNPM_LOCKFILE_MAJOR}, so the project cannot be migrated. Restart Crackerbox and try again.`,
       DyadErrorKind.External,
     );
   }

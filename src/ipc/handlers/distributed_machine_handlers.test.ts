@@ -123,7 +123,9 @@ describe("distributed machine IPC handlers", () => {
       }),
     ).resolves.toMatchObject({
       ok: false,
-      error: { message: expect.stringContaining("trusted Dyad renderer") },
+      error: {
+        message: expect.stringContaining("trusted Crackerbox renderer"),
+      },
     });
   });
 });

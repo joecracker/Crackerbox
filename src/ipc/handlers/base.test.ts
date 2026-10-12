@@ -283,7 +283,9 @@ describe("IPC handler envelopes", () => {
       { sender: { mainFrame }, senderFrame },
     );
 
-    expect(() => unwrapIpcEnvelope(envelope)).toThrow("trusted Dyad renderer");
+    expect(() => unwrapIpcEnvelope(envelope)).toThrow(
+      "trusted Crackerbox renderer",
+    );
     expect(implementation).not.toHaveBeenCalled();
   });
 
@@ -334,7 +336,7 @@ describe("IPC handler envelopes", () => {
         },
       );
       expect(() => unwrapIpcEnvelope(envelope)).toThrow(
-        "trusted Dyad renderer",
+        "trusted Crackerbox renderer",
       );
       expect(mocks.sendTelemetryException).not.toHaveBeenCalled();
     } finally {
@@ -376,7 +378,7 @@ describe("IPC handler envelopes", () => {
           { sender: { mainFrame: frame }, senderFrame: frame },
         );
         expect(() => unwrapIpcEnvelope(envelope)).toThrow(
-          "trusted Dyad renderer",
+          "trusted Crackerbox renderer",
         );
       }
 
@@ -395,7 +397,7 @@ describe("IPC handler envelopes", () => {
           event,
         );
         expect(() => unwrapIpcEnvelope(envelope)).toThrow(
-          "trusted Dyad renderer",
+          "trusted Crackerbox renderer",
         );
       }
     } finally {
@@ -444,7 +446,9 @@ describe("IPC handler envelopes", () => {
       { sender: { mainFrame: frame }, senderFrame: frame },
     );
 
-    expect(() => unwrapIpcEnvelope(envelope)).toThrow("trusted Dyad renderer");
+    expect(() => unwrapIpcEnvelope(envelope)).toThrow(
+      "trusted Crackerbox renderer",
+    );
     expect(inputValidation).not.toHaveBeenCalled();
     expect(mocks.sendTelemetryException).not.toHaveBeenCalled();
   });
@@ -506,7 +510,9 @@ describe("IPC handler envelopes", () => {
       sender: { mainFrame: frame },
       senderFrame: frame,
     });
-    expect(() => unwrapIpcEnvelope(envelope)).toThrow("trusted Dyad renderer");
+    expect(() => unwrapIpcEnvelope(envelope)).toThrow(
+      "trusted Crackerbox renderer",
+    );
   });
 
   it("rejects remote origins in logged typed handlers too", async () => {
@@ -531,7 +537,9 @@ describe("IPC handler envelopes", () => {
       { sender: { mainFrame: frame }, senderFrame: frame },
     );
 
-    expect(() => unwrapIpcEnvelope(envelope)).toThrow("trusted Dyad renderer");
+    expect(() => unwrapIpcEnvelope(envelope)).toThrow(
+      "trusted Crackerbox renderer",
+    );
     expect(implementation).not.toHaveBeenCalled();
     expect(mocks.sendTelemetryException).not.toHaveBeenCalled();
   });

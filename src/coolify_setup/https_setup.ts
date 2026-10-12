@@ -404,7 +404,7 @@ export async function tryEnableHttps(
         instanceUrl: plainUrlFor(host),
         secure: false,
         reason:
-          `Dyad could not look up where ${domain} points, so it cannot tell ` +
+          `Crackerbox could not look up where ${domain} points, so it cannot tell ` +
           `whether a certificate for it would describe this machine. Check ` +
           `the domain resolves to ${host} and try again.`,
       };
@@ -418,7 +418,7 @@ export async function tryEnableHttps(
         instanceUrl: plainUrlFor(host),
         secure: false,
         reason:
-          `Dyad could not look up an address for ${host}, so it cannot tell ` +
+          `Crackerbox could not look up an address for ${host}, so it cannot tell ` +
           `whether ${domain} points at this server. Reach the server by an ` +
           `address or a name DNS can answer for, or set the domain in ` +
           `Coolify yourself.`,
@@ -434,7 +434,7 @@ export async function tryEnableHttps(
         instanceUrl: plainUrlFor(host),
         secure: false,
         reason:
-          `Dyad could not compare where ${domain} points with ${host}: the ` +
+          `Crackerbox could not compare where ${domain} points with ${host}: the ` +
           `addresses it has for them are in different families, so neither ` +
           `says anything about the other. Give the server's address in the ` +
           `same family as the domain's records, or set the domain in ` +

@@ -178,7 +178,7 @@ async function probeClaudeStatus() {
       compatible,
       version,
       detail: !compatible
-        ? "Claude Code 2.1.259 or later is required. Update the official CLI. Dyad validates the restricted tool inventory on every turn."
+        ? "Claude Code 2.1.259 or later is required. Update the official CLI. Crackerbox validates the restricted tool inventory on every turn."
         : connected
           ? "Signed in through the official Claude Code CLI."
           : "Run claude auth login in your terminal to use your subscription.",
@@ -192,7 +192,7 @@ async function probeClaudeStatus() {
       version,
       detail: installed
         ? "Claude Code is installed, but its status could not be checked. Run claude auth status in your terminal and reconnect with claude auth login if needed."
-        : "Install Claude Code from code.claude.com, then run claude auth login in your terminal. Dyad never collects subscription credentials.",
+        : "Install Claude Code from code.claude.com, then run claude auth login in your terminal. Crackerbox never collects subscription credentials.",
     };
   }
 }

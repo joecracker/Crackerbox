@@ -829,7 +829,7 @@ export function transition(
             session: state.session,
             error: {
               message:
-                "Dyad found changes that are not part of a saved version.",
+                "Crackerbox found changes that are not part of a saved version.",
             },
             restoreRecovery: state.restoreRecovery,
             currentRepositoryAssessment: { type: "dirty" },

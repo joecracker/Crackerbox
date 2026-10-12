@@ -124,7 +124,7 @@ describe("main process bootstrap", () => {
       expect.any(Error),
     );
     expect(mocks.showErrorBox).toHaveBeenCalledWith(
-      "Dyad failed to start",
+      "Crackerbox failed to start",
       expect.stringMatching(
         new RegExp(
           `^The application runtime could not be loaded\\.\\n\\nError: .+runtime failed\\n\\nDetails were written to:\\n${mocks.logFilePath}\\n\\nPlease share this error and log file when contacting support\\.$`,

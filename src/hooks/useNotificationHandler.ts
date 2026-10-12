@@ -214,7 +214,7 @@ export function useNotificationHandler() {
             ? ` from "${params.sourceLabel}"`
             : "";
           showWarning(
-            `"${params.toolName}"${target} needs your approval. Enable notifications for Dyad in your operating system's notification settings.`,
+            `"${params.toolName}"${target} needs your approval. Enable notifications for Crackerbox in your operating system's notification settings.`,
           );
         }
         return;
@@ -360,7 +360,7 @@ export function useNotificationHandler() {
         if (!completionDeniedWarningShownRef.current) {
           completionDeniedWarningShownRef.current = true;
           showWarning(
-            "Enable notifications for Dyad in your operating system's notification settings to receive chat completion alerts.",
+            "Enable notifications for Crackerbox in your operating system's notification settings to receive chat completion alerts.",
           );
         }
         return;
@@ -377,7 +377,7 @@ export function useNotificationHandler() {
           if (permission === "denied") {
             completionDeniedWarningShownRef.current = true;
             showWarning(
-              "Enable notifications for Dyad in your operating system's notification settings to receive chat completion alerts.",
+              "Enable notifications for Crackerbox in your operating system's notification settings to receive chat completion alerts.",
             );
           }
           return;
@@ -455,7 +455,7 @@ export function useNotificationHandler() {
           toolName: `Connect ${descriptor.serverName}`,
           requestId: descriptor.requestId,
           tagPrefix: "dyad-plugin-suggestion",
-          body: `Dyad wants to connect the ${descriptor.serverName} plugin. Click to review.`,
+          body: `Crackerbox wants to connect the ${descriptor.serverName} plugin. Click to review.`,
         });
       } else if (descriptor.classifier !== "racing") {
         startConsentNotification({

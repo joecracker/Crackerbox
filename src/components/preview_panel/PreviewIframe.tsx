@@ -1740,7 +1740,7 @@ function RecordingSetupOverlay({
         </p>
         <p className="text-sm text-muted-foreground">
           {recorder.phase === "starting" || recorder.phase === "authenticating"
-            ? "Dyad is preparing an isolated environment for your recording — hold off on interacting with the preview until it's ready."
+            ? "Crackerbox is preparing an isolated environment for your recording — hold off on interacting with the preview until it's ready."
             : "Hold off on interacting with the preview until this finishes."}
         </p>
       </div>

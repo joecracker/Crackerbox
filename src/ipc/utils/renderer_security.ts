@@ -173,7 +173,10 @@ function isSenderMainFrame(event: IpcMainInvokeEvent): boolean {
 export const PHONE_BRIDGE_TRUST_MARKER = Symbol("phoneBridgeTrusted");
 
 export function assertTrustedRenderer(event: IpcMainInvokeEvent): void {
-  if ((event as unknown as Record<symbol, unknown>)[PHONE_BRIDGE_TRUST_MARKER] === true) {
+  if (
+    (event as unknown as Record<symbol, unknown>)[PHONE_BRIDGE_TRUST_MARKER] ===
+    true
+  ) {
     return;
   }
   if (trustPolicy.packagedRendererProtocol === null) {
@@ -185,7 +188,7 @@ export function assertTrustedRenderer(event: IpcMainInvokeEvent): void {
   const frame = event.senderFrame;
   if (!frame || !isSenderMainFrame(event) || !isTrustedRendererUrl(frame.url)) {
     throw new DyadError(
-      "IPC requests must originate from the trusted Dyad renderer.",
+      "IPC requests must originate from the trusted Crackerbox renderer.",
       DyadErrorKind.Validation,
     );
   }

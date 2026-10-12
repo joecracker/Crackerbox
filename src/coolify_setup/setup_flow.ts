@@ -335,8 +335,8 @@ export async function runServerSetup({
             // the token step — and naming the API would sit over guidance
             // that rightly no longer mentions it.
             result.apiEnabled
-            ? "Coolify stopped answering while Dyad was making a token."
-            : "Coolify did not answer while Dyad was opening its API."
+            ? "Coolify stopped answering while Crackerbox was making a token."
+            : "Coolify did not answer while Crackerbox was opening its API."
           : error instanceof Error
             ? error.message
             : "Coolify's API could not be opened automatically.";

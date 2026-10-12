@@ -341,7 +341,7 @@ function formatDeniedBuildsNote(packageNames: string[]): string {
   }
 
   const packageList = packageNames.join(", ");
-  return `\n\nNote: build scripts for ${packageList} were not run (Dyad security policy).`;
+  return `\n\nNote: build scripts for ${packageList} were not run (Crackerbox security policy).`;
 }
 
 async function rebuildPromotedPnpmBuilds(

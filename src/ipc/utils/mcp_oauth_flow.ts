@@ -74,7 +74,7 @@ function renderCallbackPage(options: {
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>${safeTitle} — Dyad</title>
+<title>${safeTitle} — Crackerbox</title>
 <style>
   :root { color-scheme: light dark; }
   * { box-sizing: border-box; }
@@ -145,11 +145,11 @@ function renderCallbackPage(options: {
     <p>${safeMessage}</p>
     ${
       isSuccess
-        ? `<a class="btn" href="${returnUrl}">Open Dyad</a>
+        ? `<a class="btn" href="${returnUrl}">Open Crackerbox</a>
     <script>
       setTimeout(function () { window.location.href = ${JSON.stringify(returnUrl)}; }, 500);
     </script>`
-        : `<p class="muted">You can close this window and return to Dyad.</p>`
+        : `<p class="muted">You can close this window and return to Crackerbox.</p>`
     }
   </div>
 </body>
@@ -211,7 +211,7 @@ function bindCallbackListener(
             kind: "error",
             title: "Authorization could not be verified",
             message:
-              "The browser's response didn't match the request Dyad started. You can close this window.",
+              "The browser's response didn't match the request Crackerbox started. You can close this window.",
           }),
         );
         return;
@@ -222,7 +222,7 @@ function bindCallbackListener(
           renderCallbackPage({
             kind: "success",
             title: "Authorization successful",
-            message: "You can close this tab and return to Dyad.",
+            message: "You can close this tab and return to Crackerbox.",
           }),
         );
         return;

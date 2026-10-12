@@ -90,7 +90,7 @@ export async function readCoolifyVersion(
     // thing to be true. The key this reads is Coolify's own and free to move,
     // which is the ordinary way to arrive here.
     throw new DyadError(
-      "Dyad could not read which version of Coolify this is, so it could not " +
+      "Crackerbox could not read which version of Coolify this is, so it could not " +
         "set up an API token by itself. The server is installed — open it " +
         "and make a token there.",
       DyadErrorKind.External,
@@ -109,7 +109,7 @@ export async function readCoolifyVersion(
       // install is ordinary. Worth saying as itself: the version is not the
       // problem, and there is nothing to fix by finding a newer Coolify.
       throw new DyadError(
-        "Coolify did not answer in time when Dyad asked which version it " +
+        "Coolify did not answer in time when Crackerbox asked which version it " +
           "is. It may still be starting up — open it and connect with a " +
           "token once it does.",
         DyadErrorKind.External,

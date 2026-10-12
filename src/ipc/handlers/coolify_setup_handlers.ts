@@ -178,7 +178,7 @@ function setupController(): CoolifySetupController {
             // goes to the log and the user gets words of ours.
             logger.error("Could not store the admin account early", error);
             throw new DyadError(
-              "Dyad could not save the admin password on this computer, so " +
+              "Crackerbox could not save the admin password on this computer, so " +
                 "it has not started the install — a server it cannot record " +
                 "the password for is one nobody can sign in to. Nothing was " +
                 "sent to the server. Try again once there is room on disk " +
@@ -279,7 +279,7 @@ function setupController(): CoolifySetupController {
             error.failure === "host-key-rejected"
           ) {
             throw new DyadError(
-              "This server is not the one Dyad looked at: its SSH identity " +
+              "This server is not the one Crackerbox looked at: its SSH identity " +
                 "has changed since. Nothing was sent to it. Check the address " +
                 "and look at the server again before installing.",
               DyadErrorKind.External,
@@ -349,7 +349,7 @@ function setupController(): CoolifySetupController {
                 // panel, and the sentence the screen appends after this one
                 // already says "the details above". On this path the screen
                 // is the only copy of that password.
-                "Dyad could not save these details on this computer. Copy the " +
+                "Crackerbox could not save these details on this computer. Copy the " +
                 "password above before leaving this screen.",
             version: result.version,
           };
@@ -577,7 +577,7 @@ export function registerCoolifySetupHandlers() {
       // has Coolify on it; what is left is installing a different one, which
       // is this.
       throw new DyadError(
-        "Dyad is holding the admin password for a server it set up. Sign out " +
+        "Crackerbox is holding the admin password for a server it set up. Sign out " +
           "of Coolify first — that shows the password one last time and then " +
           "forgets it — before setting up another.",
         DyadErrorKind.Precondition,
@@ -585,7 +585,7 @@ export function registerCoolifySetupHandlers() {
     }
     if (!readyHosts.has(serverKeyFor(input))) {
       throw new DyadError(
-        "Check the server before installing. Dyad shows you its fingerprint " +
+        "Check the server before installing. Crackerbox shows you its fingerprint " +
           "first, so the install goes to the machine that answered rather " +
           "than to whatever holds the address by then.",
         DyadErrorKind.Precondition,

@@ -1156,7 +1156,7 @@ export function ensurePreviewShim(
     !existingShim.includes(DYAD_CONFIG_SENTINEL)
   ) {
     return {
-      warning: `The run was stopped because per-test database isolation requires Dyad's generated fixture. Move your customized ${PREVIEW_SHIM_RELATIVE_PATH} aside so Dyad can regenerate it.\n`,
+      warning: `The run was stopped because per-test database isolation requires Crackerbox's generated fixture. Move your customized ${PREVIEW_SHIM_RELATIVE_PATH} aside so Crackerbox can regenerate it.\n`,
     };
   }
   if (existingShim === null || existingShim.includes(DYAD_CONFIG_SENTINEL)) {
@@ -1242,7 +1242,7 @@ export function ensurePreviewShim(
       return {
         warning: isolateTestCases
           ? `The run was stopped because ${closerTsconfig} bypasses the fixture required for per-test database isolation. ${instructions}\n`
-          : `${closerTsconfig} takes precedence for at least one test and doesn't route "@playwright/test" through Dyad's preview shim. The run will use a separate browser instead. ${instructions}\n`,
+          : `${closerTsconfig} takes precedence for at least one test and doesn't route "@playwright/test" through Crackerbox's preview shim. The run will use a separate browser instead. ${instructions}\n`,
       };
     }
     // The app kept its own root tsconfig, or every closer config, routing to a
@@ -1253,7 +1253,7 @@ export function ensurePreviewShim(
   return {
     warning: isolateTestCases
       ? `The run was stopped because ${E2E_TSCONFIG_RELATIVE_PATH} bypasses the fixture required for per-test database isolation. ${shimRoutingInstructions(appPath, tsconfigPath)}\n`
-      : `Your app has its own ${E2E_TSCONFIG_RELATIVE_PATH}, so Dyad can't route tests through the preview. The run will use a separate browser instead. ${shimRoutingInstructions(appPath, tsconfigPath)}\n`,
+      : `Your app has its own ${E2E_TSCONFIG_RELATIVE_PATH}, so Crackerbox can't route tests through the preview. The run will use a separate browser instead. ${shimRoutingInstructions(appPath, tsconfigPath)}\n`,
   };
 }
 

@@ -199,11 +199,11 @@ const suggestPluginSchema = z.object({
 
 type SuggestPluginArgs = z.infer<typeof suggestPluginSchema>;
 
-const BASE_DESCRIPTION = `Ask the user to connect a Dyad plugin (an MCP server from the curated catalog) so you can use its tools.
+const BASE_DESCRIPTION = `Ask the user to connect a Crackerbox plugin (an MCP server from the curated catalog) so you can use its tools.
 
 Call this only at the moment your next step needs a capability that one of the plugins below provides and no available tool can do it, for example reading a platform's deployment or runtime logs, inspecting live data on that platform, or creating a resource there. Never call it speculatively because the project happens to use that vendor, and never suggest the same plugin twice in a conversation.
 
-The tool blocks until the user connects the plugin or declines. When the user connects it, the plugin's tools are NOT available in this turn: Dyad queues a follow-up turn where they will be. In that case end your response with one short line saying you will continue once the plugin is ready, and do not attempt the step another way. If the user declines, continue without the plugin.`;
+The tool blocks until the user connects the plugin or declines. When the user connects it, the plugin's tools are NOT available in this turn: Crackerbox queues a follow-up turn where they will be. In that case end your response with one short line saying you will continue once the plugin is ready, and do not attempt the step another way. If the user declines, continue without the plugin.`;
 
 function formatAvailablePlugins(servers: SuggestablePlugin[]): string {
   const lines = servers.map((server) => {
@@ -343,7 +343,7 @@ export const suggestPluginTool: ToolDefinition<SuggestPluginArgs> = {
         return `The user asked never to be offered the ${server.name} plugin again. Continue the task without it and never suggest it again.`;
       }
       ctx.onXmlComplete(terminalXml(server, args.reason, "connected"));
-      return `The user connected the ${server.name} plugin. Its tools are not available in this turn; Dyad has queued a follow-up turn where they will be. End your response now with one short line saying you will continue once the plugin is ready, and do not attempt the step another way.`;
+      return `The user connected the ${server.name} plugin. Its tools are not available in this turn; Crackerbox has queued a follow-up turn where they will be. End your response now with one short line saying you will continue once the plugin is ready, and do not attempt the step another way.`;
     } finally {
       chatsWithLiveSuggestion.delete(ctx.chatId);
     }

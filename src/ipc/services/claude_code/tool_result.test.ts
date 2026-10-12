@@ -65,6 +65,6 @@ it("bounds restored history without dropping the latest request", () => {
     ],
     false,
   );
-  expect(result.text).toContain("Older Dyad history omitted");
+  expect(result.text).toContain("Older Crackerbox history omitted");
   expect(result.text).toContain("Continue here");
 });

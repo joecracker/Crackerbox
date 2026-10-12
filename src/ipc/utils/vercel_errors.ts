@@ -64,7 +64,7 @@ export function getVercelProjectCreationError(error: unknown): Error {
     }
     const fallback =
       error instanceof ResponseValidationError
-        ? "Dyad couldn't read Vercel's response while setting up your project."
+        ? "Crackerbox couldn't read Vercel's response while setting up your project."
         : "Vercel rejected the project setup request without an error message.";
     const recovery =
       error.statusCode >= 200 && error.statusCode < 300

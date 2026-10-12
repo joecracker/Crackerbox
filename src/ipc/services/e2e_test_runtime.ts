@@ -300,7 +300,7 @@ export async function allocateE2eTestPort(
   // no free port to give, which is an environment problem the user acts on, not
   // a Dyad bug to record as a product exception.
   throw new DyadError(
-    "Dyad couldn't find a free port for the isolated test server. Close some running servers and try again.",
+    "Crackerbox couldn't find a free port for the isolated test server. Close some running servers and try again.",
     DyadErrorKind.Precondition,
   );
 }
@@ -671,7 +671,7 @@ async function startServerOnPort({
   // here, so name the fix instead of leaving a bare timeout.
   const portHint =
     isCustom && !startCommand!.includes("{port}")
-      ? ` Your custom start command may be ignoring the PORT environment variable — add {port} to it so Dyad can tell it which port to use.`
+      ? ` Your custom start command may be ignoring the PORT environment variable — add {port} to it so Crackerbox can tell it which port to use.`
       : "";
   const { nonce: ownershipNonce, servedPath: ownershipNonceFile } =
     await writeOwnershipNonce(workspacePath);
@@ -857,7 +857,7 @@ export async function startE2eTestRuntime(
   // already a classified DyadError (an abort, a Precondition from readiness).
   if (lastError instanceof PortInUseError) {
     throw new DyadError(
-      `Dyad couldn't get a free port for the isolated test server: ${lastError.message}`,
+      `Crackerbox couldn't get a free port for the isolated test server: ${lastError.message}`,
       DyadErrorKind.Precondition,
     );
   }

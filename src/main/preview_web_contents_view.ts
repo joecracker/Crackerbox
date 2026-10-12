@@ -838,7 +838,7 @@ export function beginPreviewAutomation(
       destroyEntry(key, window);
 
       if (resolveKey(window) !== key) {
-        return { ok: false, reason: "the Dyad window was closed" };
+        return { ok: false, reason: "the Crackerbox window was closed" };
       }
 
       const replacement = createEntry(window, key);

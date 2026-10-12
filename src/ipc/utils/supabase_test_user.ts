@@ -261,7 +261,7 @@ export async function createTempTestUser(
     // than surfacing raw Supabase JSON as an unexplained External failure.
     if (response.status === 401 && /legacy api keys/i.test(detail)) {
       throw new DyadError(
-        "This Supabase project has its legacy API keys (anon, service_role) disabled, and Dyad couldn't find a secret key to use instead. Create a secret key in Supabase under Settings → API Keys, then run the tests again.",
+        "This Supabase project has its legacy API keys (anon, service_role) disabled, and Crackerbox couldn't find a secret key to use instead. Create a secret key in Supabase under Settings → API Keys, then run the tests again.",
         DyadErrorKind.Precondition,
       );
     }
@@ -274,7 +274,7 @@ export async function createTempTestUser(
       /bad_jwt|invalid jwt/i.test(detail)
     ) {
       throw new DyadError(
-        `Supabase rejected the ${adminKey.isLegacyJwt ? "legacy service_role" : "secret"} key Dyad used to create the test user (${response.status}). ${detail}`,
+        `Supabase rejected the ${adminKey.isLegacyJwt ? "legacy service_role" : "secret"} key Crackerbox used to create the test user (${response.status}). ${detail}`,
         DyadErrorKind.External,
       );
     }

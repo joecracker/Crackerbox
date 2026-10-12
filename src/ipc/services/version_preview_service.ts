@@ -412,7 +412,7 @@ export class VersionPreviewService {
         kind: "blocked",
         assessment: { type: "blocked", blocker: "conflicted" },
         message:
-          "This project has unresolved file conflicts. Resolve them outside Dyad, then check again.",
+          "This project has unresolved file conflicts. Resolve them outside Crackerbox, then check again.",
       };
     }
     if (health.operationInProgress) {
@@ -423,7 +423,7 @@ export class VersionPreviewService {
           blocker: "git-operation",
           operation: health.operationInProgress,
         },
-        message: `A Git ${health.operationInProgress} is still in progress. Finish or cancel it outside Dyad, then check again.`,
+        message: `A Git ${health.operationInProgress} is still in progress. Finish or cancel it outside Crackerbox, then check again.`,
       };
     }
     if (!health.branch) {
@@ -431,7 +431,7 @@ export class VersionPreviewService {
         kind: "blocked",
         assessment: { type: "blocked", blocker: "detached-head" },
         message:
-          "This project is not on a named branch. Return it to a branch outside Dyad, then check again.",
+          "This project is not on a named branch. Return it to a branch outside Crackerbox, then check again.",
       };
     }
     if (!health.isClean) return { kind: "dirty" };

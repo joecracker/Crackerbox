@@ -106,7 +106,7 @@ export async function preflight(
       installedKnown: false,
       memoryMb: null,
       reason:
-        "Dyad could not read anything back from this server. It answered the " +
+        "Crackerbox could not read anything back from this server. It answered the " +
         "connection but not the question — check it and try again.",
     };
   }
@@ -121,7 +121,7 @@ export async function preflight(
       installedKnown: false,
       memoryMb: null,
       reason:
-        "Docker is installed on this server but not responding, so Dyad " +
+        "Docker is installed on this server but not responding, so Crackerbox " +
         "cannot tell whether Coolify is already on it. Start Docker and try " +
         "again.",
     };
@@ -167,7 +167,7 @@ export async function preflight(
       installedKnown: true,
       memoryMb: null,
       reason:
-        "Dyad could not read how much memory this server has, so it cannot " +
+        "Crackerbox could not read how much memory this server has, so it cannot " +
         "tell whether Coolify would run on it. Check the server and try " +
         "again.",
     };

@@ -351,7 +351,7 @@ function notifyPnpmVersionMigrationAvailable({
     if (!pnpmVersionMigrationNotifiedAppIds.has(appId)) {
       output.send({
         type: "stdout",
-        message: `This pnpm app needs a pnpm ${managedMajor} migration (pre-9 lockfile or pnpm <= 8 pin). Dyad already runs pnpm ${managedMajor}, so deploys, CI, and teammates' installs can drift without the matching project pin. Open App Details -> App Upgrades and apply "Migrate to pnpm ${managedMajor}".`,
+        message: `This pnpm app needs a pnpm ${managedMajor} migration (pre-9 lockfile or pnpm <= 8 pin). Crackerbox already runs pnpm ${managedMajor}, so deploys, CI, and teammates' installs can drift without the matching project pin. Open App Details -> App Upgrades and apply "Migrate to pnpm ${managedMajor}".`,
         appId,
       });
       pnpmVersionMigrationNotifiedAppIds.add(appId);
@@ -359,7 +359,7 @@ function notifyPnpmVersionMigrationAvailable({
     output.send({
       type: "package-manager-warning",
       warningKind: "pnpm-migration",
-      message: `This app pins an older pnpm that can't read the lockfile Dyad writes. Migrate to pnpm ${managedMajor} so CI, deploys, and teammates can install it reliably.`,
+      message: `This app pins an older pnpm that can't read the lockfile Crackerbox writes. Migrate to pnpm ${managedMajor} so CI, deploys, and teammates can install it reliably.`,
       appId,
     });
   } catch (error) {
@@ -666,7 +666,7 @@ Details: ${details || "n/a"}
             output.send({
               type: "stdout",
               message:
-                "pnpm blocked dependency build scripts. Dyad recorded the decision in pnpm-workspace.yaml and is reinstalling...",
+                "pnpm blocked dependency build scripts. Crackerbox recorded the decision in pnpm-workspace.yaml and is reinstalling...",
               appId,
             });
 
@@ -1206,7 +1206,7 @@ ${errorOutput || "(empty)"}`,
             output.send({
               type: "stdout",
               message:
-                "pnpm blocked dependency build scripts. Dyad recorded the decision in pnpm-workspace.yaml and is reinstalling...",
+                "pnpm blocked dependency build scripts. Crackerbox recorded the decision in pnpm-workspace.yaml and is reinstalling...",
               appId,
             });
 

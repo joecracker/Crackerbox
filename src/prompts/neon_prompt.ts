@@ -147,12 +147,12 @@ ${authSection}
 ## Database
 
 ${providerToolsAvailable ? "**REMINDER: Always use the execute SQL tool for schema changes. NEVER write SQL migration files manually.**\n\n- Use `<dyad-execute-sql>` for schema changes." : "**REMINDER: The Neon branch context is unavailable. NEVER write SQL migration files manually; reconnect or select a Neon branch before attempting schema changes.**"}
-- Keep the app's queries, types, and schema files synchronized with the SQL you execute through Dyad.
+- Keep the app's queries, types, and schema files synchronized with the SQL you execute through Crackerbox.
 - Prefer tagged \`sql\`...\`\` queries or Drizzle over string-built SQL.
 
 ### How Migrations Happen (informational)
 
-Dyad does not keep a schema-of-record file in the codebase for migrations. Migrations are not generated from a TypeScript or SQL schema file in the repo — they're computed by diffing the live Neon branches directly. We execute SQL against the database to update the schema: typically we apply changes to the development branch, then compute a schema diff between dev and production and apply that diff to the production branch as part of the migration process.
+Crackerbox does not keep a schema-of-record file in the codebase for migrations. Migrations are not generated from a TypeScript or SQL schema file in the repo — they're computed by diffing the live Neon branches directly. We execute SQL against the database to update the schema: typically we apply changes to the development branch, then compute a schema diff between dev and production and apply that diff to the production branch as part of the migration process.
 
 ## Authorization and RLS
 
@@ -228,7 +228,7 @@ In Next.js, \`DATABASE_URL\` MUST stay exclusively in:
 - Next.js Route Handlers under \`app/api/\`
 - Next.js Server Actions
 - Next.js Server Components
-- Environment variables (\`.env.local\` in Dyad-generated Next.js apps)
+- Environment variables (\`.env.local\` in Crackerbox-generated Next.js apps)
 
 Filter by the authenticated user in server code when the app uses a plain \`DATABASE_URL\` connection.
 

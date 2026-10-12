@@ -109,7 +109,7 @@ export function applyRecordedSelectorRepairs({
     }
     if (!isFragileCssLocator(locator)) {
       problems.push(
-        `${label} targets a CSS locator that Dyad does not classify as fragile, so it was left unchanged.`,
+        `${label} targets a CSS locator that Crackerbox does not classify as fragile, so it was left unchanged.`,
       );
       return;
     }

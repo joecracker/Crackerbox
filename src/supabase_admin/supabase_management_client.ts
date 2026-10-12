@@ -1493,7 +1493,7 @@ export function classifyManagementApiError(
     (error.response.status === 401 || error.response.status === 403)
   ) {
     return new DyadError(
-      `Supabase would not authorize Dyad to ${action}. Reconnect your Supabase account in Settings, or check that this organization still has access to the project. Original error: ${message}`,
+      `Supabase would not authorize Crackerbox to ${action}. Reconnect your Supabase account in Settings, or check that this organization still has access to the project. Original error: ${message}`,
       DyadErrorKind.Auth,
     );
   }

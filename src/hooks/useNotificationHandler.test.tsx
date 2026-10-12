@@ -176,7 +176,7 @@ describe("useNotificationHandler", () => {
     expect(notification).toMatchObject({
       title: "Notes",
       options: {
-        body: "Dyad wants to connect the Vercel plugin. Click to review.",
+        body: "Crackerbox wants to connect the Vercel plugin. Click to review.",
         tag: "dyad-plugin-suggestion-plugin-suggestion:1",
         // Blocks the turn until answered, so it must not auto-dismiss.
         requireInteraction: true,

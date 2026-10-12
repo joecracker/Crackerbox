@@ -27,7 +27,7 @@ describe("sanitizeMcpToolResult", () => {
     const result = sanitizeMcpToolResult("x".repeat(MCP_RESULT_MAX_BYTES * 4));
 
     expect(result.truncated).toBe(true);
-    expect(result.serialized).toContain("Dyad truncated MCP result");
+    expect(result.serialized).toContain("Crackerbox truncated MCP result");
     expect(Buffer.byteLength(result.serialized, "utf8")).toBeLessThanOrEqual(
       MCP_RESULT_MAX_BYTES,
     );

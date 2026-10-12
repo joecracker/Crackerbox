@@ -216,7 +216,7 @@ function classifyValidationError(
   }
 
   return new DyadError(
-    `Dyad could not verify this ${providerDisplayName} API key: ${errorMessage || "Unknown error"}`,
+    `Crackerbox could not verify this ${providerDisplayName} API key: ${errorMessage || "Unknown error"}`,
     DyadErrorKind.External,
   );
 }

@@ -163,7 +163,7 @@ function reconcileRestore(
     session: current.session,
     error: {
       message:
-        "Dyad restarted during an interrupted version restore. Inspect and repair the repository before continuing.",
+        "Crackerbox restarted during an interrupted version restore. Inspect and repair the repository before continuing.",
     },
     restoreRecovery: recovery,
   };
@@ -212,7 +212,7 @@ function transitionActor(
               session: fallback.session,
               error: {
                 message:
-                  "Dyad restarted while switching branches. Return to the original branch before continuing.",
+                  "Crackerbox restarted while switching branches. Return to the original branch before continuing.",
               },
             };
     } else if (
@@ -229,7 +229,7 @@ function transitionActor(
               session: current.session,
               error: {
                 message:
-                  "Dyad restarted during a version checkout. Return to the original branch before continuing.",
+                  "Crackerbox restarted during a version checkout. Return to the original branch before continuing.",
               },
             };
     }

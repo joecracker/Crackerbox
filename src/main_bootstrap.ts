@@ -21,7 +21,7 @@ function reportRuntimeLoadFailure(error: unknown): void {
   logger.error("Failed to load the Dyad application runtime:", error);
   const logPath = log.transports.file.getFile().path;
   dialog.showErrorBox(
-    "Dyad failed to start",
+    "Crackerbox failed to start",
     `The application runtime could not be loaded.\n\nError: ${getErrorSummary(error)}\n\nDetails were written to:\n${logPath}\n\nPlease share this error and log file when contacting support.`,
   );
   app.exit(1);

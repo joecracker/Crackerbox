@@ -322,7 +322,7 @@ describe("runServerSetup", () => {
 
     expect(result.apiEnabled).toBe(true);
     expect(result.tokenUnavailableReason).toBe(
-      "Coolify stopped answering while Dyad was making a token.",
+      "Coolify stopped answering while Crackerbox was making a token.",
     );
   });
 
@@ -736,7 +736,7 @@ describe("runServerSetup", () => {
 
     expect(result.token).toBeNull();
     expect(result.tokenUnavailableReason).toBe(
-      "Coolify did not answer while Dyad was opening its API.",
+      "Coolify did not answer while Crackerbox was opening its API.",
     );
     expect(result.credentials.password).toBeTruthy();
     // The step that would have opened it is the one that failed, so it is

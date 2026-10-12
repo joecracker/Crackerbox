@@ -246,7 +246,7 @@ export async function prepareIsolatedTestDatabase({
           `Failed to restore .env.local for app ${app.id}: ${error}`,
         );
         emit(
-          "Warning: Dyad couldn't restore your real database settings, so the temporary Neon branch was kept tracked for retry. Restore .env.local before running more tests.\n",
+          "Warning: Crackerbox couldn't restore your real database settings, so the temporary Neon branch was kept tracked for retry. Restore .env.local before running more tests.\n",
           "setup",
         );
       }
@@ -258,7 +258,7 @@ export async function prepareIsolatedTestDatabase({
             `Failed to restart app ${app.id} back onto its real branch: ${error}`,
           );
           emit(
-            "Warning: Dyad restored your real database settings, but couldn't restart the preview. Restart the app manually before continuing.\n",
+            "Warning: Crackerbox restored your real database settings, but couldn't restart the preview. Restart the app manually before continuing.\n",
             "setup",
           );
         }
@@ -798,7 +798,7 @@ function buildRlsWarning(rls: {
   unverified?: boolean;
 }): string | undefined {
   if (rls.unverified) {
-    return "Tests ran as an isolated test user, but Dyad couldn't verify Row-Level Security — some real data may be reachable.";
+    return "Tests ran as an isolated test user, but Crackerbox couldn't verify Row-Level Security — some real data may be reachable.";
   }
   if (rls.tablesWithoutRls.length === 0) {
     return undefined;

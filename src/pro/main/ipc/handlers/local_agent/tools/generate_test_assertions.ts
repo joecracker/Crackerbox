@@ -114,7 +114,7 @@ type GenerateTestAssertionsArgs = z.infer<typeof generateTestAssertionsSchema>;
 
 const NO_DRAFT_MESSAGE = `There is no finished recording waiting to become a test, so nothing was shown to the user and no file was touched.
 
-This tool only works right after the user stops a recording and clicks "Generate test proposal" in the recorder bar — it reads the recording Dyad parked at that moment. Tell the user to record the flow in the preview and click "Generate test proposal"; to add assertions to a spec that already exists on disk, edit it with search_replace instead.`;
+This tool only works right after the user stops a recording and clicks "Generate test proposal" in the recorder bar — it reads the recording Crackerbox parked at that moment. Tell the user to record the flow in the preview and click "Generate test proposal"; to add assertions to a spec that already exists on disk, edit it with search_replace instead.`;
 
 const STALE_DRAFT_MESSAGE = (
   currentId: string,
@@ -122,12 +122,12 @@ const STALE_DRAFT_MESSAGE = (
 
 Do NOT resend the same steps against the new id — they describe a flow that is no longer the one waiting. Ask the user whether they want assertions for the recording they just finished (id \`${currentId}\`); if they do, they should ask again so you get its statements.`;
 
-const DESCRIPTION = `Turn a just-finished recording into a reviewable test proposal: name the test, describe each recorded step in plain English, and propose the assertions that should check it. The user reviews the proposal in a chat card — editing, deleting, reordering — and Dyad generates the test file from it when they approve. You never write the spec.
+const DESCRIPTION = `Turn a just-finished recording into a reviewable test proposal: name the test, describe each recorded step in plain English, and propose the assertions that should check it. The user reviews the proposal in a chat card — editing, deleting, reordering — and Crackerbox generates the test file from it when they approve. You never write the spec.
 
 This tool BLOCKS until the user answers the card, then tells you what happened. The turn is not over when you call it.
 
 <when_to_use>
-Use this when the user asks for assertions for a flow they just recorded with Dyad's recorder. The recorded statements are given to you in the request — the test does NOT exist as a file yet, and there is nothing to read_file. Do NOT use it to write a new test from scratch (write the spec with write_file instead), and do NOT use it on a spec that already exists on disk (edit that with search_replace).
+Use this when the user asks for assertions for a flow they just recorded with Crackerbox's recorder. The recorded statements are given to you in the request — the test does NOT exist as a file yet, and there is nothing to read_file. Do NOT use it to write a new test from scratch (write the spec with write_file instead), and do NOT use it on a spec that already exists on disk (edit that with search_replace).
 </when_to_use>
 
 <how_to_use>
@@ -414,7 +414,7 @@ Do NOT call generate_test_assertions again for this recording and do NOT call ru
       logger.info(
         `Assertion review ${requestId} approved: generated ${review.specPath}`,
       );
-      return `The user approved the plan. Dyad generated ${review.specPath} from the recording, with ${review.appliedCount} assertion(s). It is on disk now.
+      return `The user approved the plan. Crackerbox generated ${review.specPath} from the recording, with ${review.appliedCount} assertion(s). It is on disk now.
 
 A recorded test nobody has run is a guess — replay can behave differently from the hand-performed flow. Run ${review.specPath} with run_tests. If it fails, read the failure, decide whether the test or the app is wrong, fix it, and run it again until it passes — or tell the user what's blocking it.`;
     },

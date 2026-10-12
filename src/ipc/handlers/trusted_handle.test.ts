@@ -80,7 +80,7 @@ describe("registerTrustedIpcHandler", () => {
 
     await expect(
       mocks.handlers.get("untrusted")?.(eventFor("https://attacker.example/")),
-    ).rejects.toThrow("trusted Dyad renderer");
+    ).rejects.toThrow("trusted Crackerbox renderer");
     expect(implementation).not.toHaveBeenCalled();
   });
 

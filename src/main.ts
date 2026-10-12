@@ -463,7 +463,7 @@ export async function onReady() {
     const message = error instanceof Error ? error.message : String(error);
     dialog.showErrorBox(
       "Database Migration Failed",
-      `Dyad could not initialize its local database. ${message}`,
+      `Crackerbox could not initialize its local database. ${message}`,
     );
     app.quit();
     return;
@@ -922,7 +922,10 @@ const createWindow = ({
   rendererLoad: Promise<void>;
 } => {
   if (isAppQuitting) {
-    throw new DyadError("Dyad is shutting down", DyadErrorKind.Precondition);
+    throw new DyadError(
+      "Crackerbox is shutting down",
+      DyadErrorKind.Precondition,
+    );
   }
 
   // Create the browser window.
@@ -1305,7 +1308,7 @@ configureWindowProductController({
   openEntityInNewWindow: async (entity) => {
     if (productWindows.size >= MAX_PRODUCT_WINDOWS) {
       throw new DyadError(
-        `Dyad supports up to ${MAX_PRODUCT_WINDOWS} open windows`,
+        `Crackerbox supports up to ${MAX_PRODUCT_WINDOWS} open windows`,
         DyadErrorKind.Precondition,
       );
     }
@@ -1401,11 +1404,11 @@ const createApplicationMenu = () => {
       label: "View",
       submenu: [
         {
-          label: "Reload Dyad",
+          label: "Reload Crackerbox",
           click: () => BrowserWindow.getFocusedWindow()?.reload(),
         },
         {
-          label: "Force Reload Dyad",
+          label: "Force Reload Crackerbox",
           click: () =>
             BrowserWindow.getFocusedWindow()?.webContents.reloadIgnoringCache(),
         },
@@ -1567,7 +1570,7 @@ function reportUnclaimedOAuthReturn(
   logger.warn(`Rejected unmatched ${provider} OAuth callback:`, error);
   dialog.showErrorBox(
     "Sign-in Could Not Be Verified",
-    `This ${label} sign-in expired or no longer matches the connection started by Dyad. Please connect again.`,
+    `This ${label} sign-in expired or no longer matches the connection started by Crackerbox. Please connect again.`,
   );
 }
 
@@ -1613,7 +1616,7 @@ async function handleDeepLinkReturn(url: string) {
     if (!expectedInvocationRef) {
       dialog.showErrorBox(
         "Invalid URL",
-        "This Neon sign-in could not be verified. Please connect again from Dyad.",
+        "This Neon sign-in could not be verified. Please connect again from Crackerbox.",
       );
       return;
     }
@@ -1659,7 +1662,7 @@ async function handleDeepLinkReturn(url: string) {
     if (!expectedInvocationRef) {
       dialog.showErrorBox(
         "Invalid URL",
-        "This Supabase sign-in could not be verified. Please connect again from Dyad.",
+        "This Supabase sign-in could not be verified. Please connect again from Crackerbox.",
       );
       return;
     }

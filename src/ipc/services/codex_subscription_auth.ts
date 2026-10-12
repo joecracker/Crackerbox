@@ -339,7 +339,7 @@ export async function connectCodexSubscription(
       .catch(() => {
         if (generation === current)
           lastError = "ChatGPT sign-in failed. Please try again.";
-        res.end("ChatGPT sign-in failed. Return to Dyad and try again.");
+        res.end("ChatGPT sign-in failed. Return to Crackerbox and try again.");
       })
       .finally(() => {
         if (generation === current) pending = false;

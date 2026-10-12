@@ -268,7 +268,7 @@ async function ensureGithubDeployKey({
         // whole explanation the user gets for a failed deploy.
         throw new DyadError(
           `GitHub returned something other than a key list for ${owner}/${repo}, ` +
-            `so Dyad could not tell whether the deploy key it holds is already ` +
+            `so Crackerbox could not tell whether the deploy key it holds is already ` +
             `registered there. Try again in a moment.`,
           DyadErrorKind.External,
         );
@@ -291,7 +291,7 @@ async function ensureGithubDeployKey({
         `repository, so GitHub will not accept it here. Remove it from the other ` +
         `repository's deploy keys, or delete ${deployKeyFilePath(keyName)} to ` +
         `generate a new ` +
-        `one — Dyad registers a regenerated key with Coolify under a new name.`,
+        `one — Crackerbox registers a regenerated key with Coolify under a new name.`,
       DyadErrorKind.Validation,
     );
   }

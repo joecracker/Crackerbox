@@ -133,7 +133,7 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
     id: SETTING_IDS.customAppsFolder,
     label: "Customize Apps Folder",
     description:
-      "Set the top-level folder that Dyad will store new applications in",
+      "Set the top-level folder that Crackerbox will store new applications in",
     keywords: [
       "customize",
       "apps",

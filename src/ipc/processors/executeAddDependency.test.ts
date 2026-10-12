@@ -841,7 +841,7 @@ describe("executeAddDependency", () => {
 
     expect(result.installResults).toContain("installed via pnpm");
     expect(result.installResults).toContain(
-      "Note: build scripts for core-js were not run (Dyad security policy).",
+      "Note: build scripts for core-js were not run (Crackerbox security policy).",
     );
     expect(recordAndReportDeniedPnpmBuildsMock).toHaveBeenCalledWith({
       appPath: "/tmp/app",

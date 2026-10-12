@@ -16,6 +16,7 @@ import {
 } from "@/components/LibraryFilterTabs";
 import { DyadAppMediaFolder } from "@/components/DyadAppMediaFolder";
 import { ImageGeneratorDialog } from "@/components/ImageGeneratorDialog";
+import { DYAD_CLOUD_FEATURES_ENABLED } from "@/lib/proBillingFlags";
 import { ImageGenerationProgressButton } from "@/components/ImageGenerationProgressButton";
 import { filterMediaAppsByQuery } from "@/lib/mediaUtils";
 // ---------------------------------------------------------------------------
@@ -134,7 +135,11 @@ export default function LibraryHomePage() {
               <NewLibraryItemMenu
                 onNewPrompt={() => setPromptDialogOpen(true)}
                 onNewTheme={() => setCreateThemeDialogOpen(true)}
-                onNewImage={() => setImageGeneratorOpen(true)}
+                onNewImage={
+                  DYAD_CLOUD_FEATURES_ENABLED
+                    ? () => setImageGeneratorOpen(true)
+                    : undefined
+                }
               />
             </div>
           </div>
@@ -209,10 +214,12 @@ export default function LibraryHomePage() {
           onOpenChange={setCreateThemeDialogOpen}
         />
 
-        <ImageGeneratorDialog
-          open={imageGeneratorOpen}
-          onOpenChange={setImageGeneratorOpen}
-        />
+        {DYAD_CLOUD_FEATURES_ENABLED && (
+          <ImageGeneratorDialog
+            open={imageGeneratorOpen}
+            onOpenChange={setImageGeneratorOpen}
+          />
+        )}
       </div>
     </div>
   );

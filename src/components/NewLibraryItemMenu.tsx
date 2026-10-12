@@ -13,7 +13,7 @@ export function NewLibraryItemMenu({
 }: {
   onNewPrompt: () => void;
   onNewTheme: () => void;
-  onNewImage: () => void;
+  onNewImage?: () => void;
 }) {
   return (
     <DropdownMenu>
@@ -31,10 +31,12 @@ export function NewLibraryItemMenu({
           <Palette className="mr-2 h-4 w-4" />
           New Theme
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={onNewImage}>
-          <ImagePlus className="mr-2 h-4 w-4" />
-          Generate Image
-        </DropdownMenuItem>
+        {onNewImage && (
+          <DropdownMenuItem onClick={onNewImage}>
+            <ImagePlus className="mr-2 h-4 w-4" />
+            Generate Image
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

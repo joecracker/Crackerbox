@@ -112,7 +112,10 @@ import { useChats } from "@/hooks/useChats";
 import { useRouter } from "@tanstack/react-router";
 import { showError as showErrorToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
-import { PRO_BILLING_FEATURES_ENABLED } from "@/lib/proBillingFlags";
+import {
+  DYAD_CLOUD_FEATURES_ENABLED,
+  PRO_BILLING_FEATURES_ENABLED,
+} from "@/lib/proBillingFlags";
 import { useVoiceToText } from "@/hooks/useVoiceToText";
 import { isDyadProEnabled, isLocalAgentBackedMode } from "@/lib/schemas";
 import { isFreeProModel } from "@/lib/freeProModel";
@@ -1256,7 +1259,11 @@ export function ChatInput({ chatId }: { chatId?: number }) {
               showTokenBar={showTokenBar}
               toggleShowTokenBar={toggleShowTokenBar}
               appId={appId ?? undefined}
-              onGenerateImage={handleOpenImageGenerator}
+              onGenerateImage={
+                DYAD_CLOUD_FEATURES_ENABLED
+                  ? handleOpenImageGenerator
+                  : undefined
+              }
             />
           </div>
           {/* TokenBar is only displayed when showTokenBar is true */}
@@ -1265,12 +1272,14 @@ export function ChatInput({ chatId }: { chatId?: number }) {
       </div>
 
       {/* Image Generator Dialog */}
-      <ImageGeneratorDialog
-        open={imageGeneratorOpen}
-        onOpenChange={setImageGeneratorOpen}
-        defaultAppId={appId ?? undefined}
-        source="chat"
-      />
+      {DYAD_CLOUD_FEATURES_ENABLED && (
+        <ImageGeneratorDialog
+          open={imageGeneratorOpen}
+          onOpenChange={setImageGeneratorOpen}
+          defaultAppId={appId ?? undefined}
+          source="chat"
+        />
+      )}
     </>
   );
 }

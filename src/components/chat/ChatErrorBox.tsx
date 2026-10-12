@@ -6,6 +6,7 @@ import { ipc } from "@/ipc/types";
 import { useFreeAgentQuota } from "@/hooks/useFreeAgentQuota";
 import { useFreeModelQuota } from "@/hooks/useFreeModelQuota";
 import { useUserBudgetInfo } from "@/hooks/useUserBudgetInfo";
+import { PRO_BILLING_FEATURES_ENABLED } from "@/lib/proBillingFlags";
 import { AI_STREAMING_ERROR_MESSAGE_PREFIX } from "@/shared/texts";
 import {
   X,
@@ -77,15 +78,21 @@ export function ChatErrorBox({
     return (
       <ChatErrorContainer onDismiss={onDismiss}>
         {error}
-        <span className="ml-1">
-          <ExternalLink
-            href="https://dyad.sh/pro?utm_source=dyad-app&utm_medium=app&utm_campaign=free-quota-error"
-            variant="primary"
-          >
-            Access with Dyad Pro
-          </ExternalLink>
-        </span>{" "}
-        or switch to another model.
+        {PRO_BILLING_FEATURES_ENABLED ? (
+          <>
+            <span className="ml-1">
+              <ExternalLink
+                href="https://dyad.sh/pro?utm_source=dyad-app&utm_medium=app&utm_campaign=free-quota-error"
+                variant="primary"
+              >
+                Access with Dyad Pro
+              </ExternalLink>
+            </span>{" "}
+            or switch to another model.
+          </>
+        ) : (
+          <span className="ml-1">Try switching to another model.</span>
+        )}
       </ChatErrorContainer>
     );
   }
@@ -106,12 +113,14 @@ export function ChatErrorBox({
       <ChatErrorContainer onDismiss={onDismiss}>
         {error}
         <div className="mt-2 space-y-2 space-x-2">
-          <ExternalLink
-            href="https://dyad.sh/pro?utm_source=dyad-app&utm_medium=app&utm_campaign=rate-limit-error"
-            variant="primary"
-          >
-            Upgrade to Dyad Pro
-          </ExternalLink>
+          {PRO_BILLING_FEATURES_ENABLED && (
+            <ExternalLink
+              href="https://dyad.sh/pro?utm_source=dyad-app&utm_medium=app&utm_campaign=rate-limit-error"
+              variant="primary"
+            >
+              Upgrade to Dyad Pro
+            </ExternalLink>
+          )}
 
           <ExternalLink href="https://dyad.sh/docs/help/ai-rate-limit">
             Troubleshooting guide

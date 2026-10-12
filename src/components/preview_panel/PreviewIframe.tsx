@@ -79,7 +79,6 @@ import {
   formatPreviewNetworkStatus,
 } from "@/lib/preview_console_buffer";
 import { queryKeys } from "@/lib/queryKeys";
-import { AnnotatorOnlyForPro } from "./AnnotatorOnlyForPro";
 import { TabletFrame } from "./TabletFrame";
 import { useElementSize } from "@/hooks/useElementSize";
 import { fitScale, tabletSizeFromSettings } from "@/lib/previewDevice";
@@ -1180,7 +1179,6 @@ export const PreviewIframe = ({
                     )}
                     disabled={
                       loading ||
-                      !isProMode ||
                       !selectedAppId ||
                       isPicking ||
                       !isComponentSelectorInitialized ||
@@ -1655,15 +1653,11 @@ export const PreviewIframe = ({
                     : { width: `${deviceWidthConfig[deviceMode]}px` }
                 }
               >
-                {userBudget ? (
-                  <Annotator
-                    screenshotUrl={screenshotDataUrl}
-                    onSubmit={addAttachments}
-                    handleAnnotatorClick={handleAnnotatorClick}
-                  />
-                ) : (
-                  <AnnotatorOnlyForPro onGoBack={handleAnnotatorClick} />
-                )}
+                <Annotator
+                  screenshotUrl={screenshotDataUrl}
+                  onSubmit={addAttachments}
+                  handleAnnotatorClick={handleAnnotatorClick}
+                />
               </div>
             ) : (
               <>

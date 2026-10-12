@@ -1180,6 +1180,7 @@ export const PreviewIframe = ({
                     )}
                     disabled={
                       loading ||
+                      !isProMode ||
                       !selectedAppId ||
                       isPicking ||
                       !isComponentSelectorInitialized ||

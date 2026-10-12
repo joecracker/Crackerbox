@@ -22,6 +22,7 @@ import { MessagesList } from "./chat/MessagesList";
 import { ChatInput } from "./chat/ChatInput";
 import { VersionPane } from "./chat/VersionPane";
 import { FreeAgentQuotaBanner } from "./chat/FreeAgentQuotaBanner";
+import { PRO_BILLING_FEATURES_ENABLED } from "@/lib/proBillingFlags";
 import { NotificationBanner } from "./chat/NotificationBanner";
 import { SupabaseLegacyKeyBanner } from "./chat/SupabaseLegacyKeyBanner";
 import { Button } from "@/components/ui/button";
@@ -111,6 +112,7 @@ export function ChatPanel({
   const { selectedMode, selectedModel, setChatMode } = useChatMode(chatId);
   const { isQuotaExceeded } = useFreeAgentQuota();
   const showFreeAgentQuotaBanner =
+    PRO_BILLING_FEATURES_ENABLED &&
     settings &&
     !isDyadProEnabled(settings) &&
     selectedMode === "local-agent" &&

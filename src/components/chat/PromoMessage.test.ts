@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { UserBudgetInfo } from "@/ipc/types";
 import type { UserSettings } from "@/lib/schemas";
+import { PRO_BILLING_FEATURES_ENABLED } from "@/lib/proBillingFlags";
 import {
   pickPromoMessage,
   PROMO_MESSAGES,
@@ -58,20 +59,35 @@ describe("pickPromoMessage", () => {
 });
 
 describe("shouldShowPromoMessage", () => {
-  it("shows for a non-Pro user even when the Dyad Pro toggle is enabled", () => {
-    const settings = {
-      ...settingsWithAutoKey(),
-      enableDyadPro: true,
-    };
+  it.skipIf(!PRO_BILLING_FEATURES_ENABLED)(
+    "shows for a non-Pro user even when the Dyad Pro toggle is enabled",
+    () => {
+      const settings = {
+        ...settingsWithAutoKey(),
+        enableDyadPro: true,
+      };
 
+      expect(
+        shouldShowPromoMessage({
+          promoSeed: 123,
+          settings,
+          userBudget: null,
+          messagesLength: 2,
+        }),
+      ).toBe(true);
+    },
+  );
+
+  it("stays hidden while Pro billing features are switched off", () => {
+    if (PRO_BILLING_FEATURES_ENABLED) return;
     expect(
       shouldShowPromoMessage({
         promoSeed: 123,
-        settings,
+        settings: settingsWithAutoKey(),
         userBudget: null,
         messagesLength: 2,
       }),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("hides when the user has a Pro key or budget", () => {

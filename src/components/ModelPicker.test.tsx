@@ -1690,25 +1690,28 @@ describe("ModelPicker", () => {
     ).toBeUndefined();
   });
 
-  it("opens the unlock dialog instead of selecting a locked model", () => {
-    mocks.subscriptionConnected = false;
-    mocks.settings.enableDyadPro = false;
-    mocks.settings.providerSettings.auto.apiKey.value = "";
-    mocks.renderSubContent = true;
+  proBillingIt(
+    "opens the unlock dialog instead of selecting a locked model",
+    () => {
+      mocks.subscriptionConnected = false;
+      mocks.settings.enableDyadPro = false;
+      mocks.settings.providerSettings.auto.apiKey.value = "";
+      mocks.renderSubContent = true;
 
-    render(<ModelPicker />);
+      render(<ModelPicker />);
 
-    fireEvent.click(screen.getByText("GPT 5").closest("button")!);
+      fireEvent.click(screen.getByText("GPT 5").closest("button")!);
 
-    expect(mocks.updateSettings).not.toHaveBeenCalled();
-    expect(mocks.posthogCapture).toHaveBeenCalledWith(
-      "model-picker:locked-model-click",
-      { provider: "openai", model: "gpt-5" },
-    );
-    expect(screen.getByText("Unlock GPT 5 with Dyad Pro")).toBeTruthy();
-  });
+      expect(mocks.updateSettings).not.toHaveBeenCalled();
+      expect(mocks.posthogCapture).toHaveBeenCalledWith(
+        "model-picker:locked-model-click",
+        { provider: "openai", model: "gpt-5" },
+      );
+      expect(screen.getByText("Unlock GPT 5 with Dyad Pro")).toBeTruthy();
+    },
+  );
 
-  it("opens the Pro upgrade page from the unlock dialog", () => {
+  proBillingIt("opens the Pro upgrade page from the unlock dialog", () => {
     mocks.subscriptionConnected = false;
     mocks.settings.enableDyadPro = false;
     mocks.settings.providerSettings.auto.apiKey.value = "";
@@ -1733,7 +1736,29 @@ describe("ModelPicker", () => {
     expect(screen.queryByText("Get Dyad Pro")).toBeNull();
   });
 
-  it("navigates to provider settings from the unlock dialog own-key link", () => {
+  proBillingIt(
+    "navigates to provider settings from the unlock dialog own-key link",
+    () => {
+      mocks.subscriptionConnected = false;
+      mocks.settings.enableDyadPro = false;
+      mocks.settings.providerSettings.auto.apiKey.value = "";
+      mocks.renderSubContent = true;
+
+      render(<ModelPicker />);
+
+      fireEvent.click(screen.getByText("GPT 5").closest("button")!);
+      fireEvent.click(screen.getByText(/use your own/));
+
+      expect(mocks.navigate).toHaveBeenCalledWith({
+        to: "/settings/providers/$provider",
+        params: { provider: "openai" },
+      });
+      expect(mocks.openExternalUrl).not.toHaveBeenCalled();
+    },
+  );
+
+  it("sends a locked model straight to its provider key page while Pro billing is off", () => {
+    if (PRO_BILLING_FEATURES_ENABLED) return;
     mocks.subscriptionConnected = false;
     mocks.settings.enableDyadPro = false;
     mocks.settings.providerSettings.auto.apiKey.value = "";
@@ -1742,13 +1767,12 @@ describe("ModelPicker", () => {
     render(<ModelPicker />);
 
     fireEvent.click(screen.getByText("GPT 5").closest("button")!);
-    fireEvent.click(screen.getByText(/use your own/));
 
     expect(mocks.navigate).toHaveBeenCalledWith({
       to: "/settings/providers/$provider",
       params: { provider: "openai" },
     });
-    expect(mocks.openExternalUrl).not.toHaveBeenCalled();
+    expect(screen.queryByText(/with Dyad Pro/)).toBeNull();
   });
 
   it("lets non-Pro users select models from providers with their own key", () => {
@@ -1800,36 +1824,43 @@ describe("ModelPicker", () => {
 
     expect(
       screen.getByText("GPT 5").closest("button")?.getAttribute("aria-label"),
-    ).toBe("GPT 5 — requires Dyad Pro or an API key from OpenAI");
+    ).toBe(
+      PRO_BILLING_FEATURES_ENABLED
+        ? "GPT 5 — requires Dyad Pro or an API key from OpenAI"
+        : "GPT 5 — requires an API key from OpenAI",
+    );
   });
 
-  it("points locked free models at an OpenRouter key instead of Pro", () => {
-    mocks.settings.enableDyadPro = false;
-    mocks.settings.providerSettings.auto.apiKey.value = "";
-    mocks.renderSubContent = true;
+  proBillingIt(
+    "points locked free models at an OpenRouter key instead of Pro",
+    () => {
+      mocks.settings.enableDyadPro = false;
+      mocks.settings.providerSettings.auto.apiKey.value = "";
+      mocks.renderSubContent = true;
 
-    render(<ModelPicker />);
+      render(<ModelPicker />);
 
-    fireEvent.click(
-      document.querySelector(
-        '[data-model-provider="openrouter"][data-model-name="openrouter/free"]',
-      )!,
-    );
+      fireEvent.click(
+        document.querySelector(
+          '[data-model-provider="openrouter"][data-model-name="openrouter/free"]',
+        )!,
+      );
 
-    expect(mocks.posthogCapture).toHaveBeenCalledWith(
-      "model-picker:locked-model-click",
-      { provider: "openrouter", model: "openrouter/free" },
-    );
-    expect(screen.queryByText("Get Dyad Pro")).toBeNull();
+      expect(mocks.posthogCapture).toHaveBeenCalledWith(
+        "model-picker:locked-model-click",
+        { provider: "openrouter", model: "openrouter/free" },
+      );
+      expect(screen.queryByText("Get Dyad Pro")).toBeNull();
 
-    fireEvent.click(screen.getByText("Add OpenRouter API key"));
+      fireEvent.click(screen.getByText("Add OpenRouter API key"));
 
-    expect(mocks.navigate).toHaveBeenCalledWith({
-      to: "/settings/providers/$provider",
-      params: { provider: "openrouter" },
-    });
-    expect(mocks.openExternalUrl).not.toHaveBeenCalled();
-  });
+      expect(mocks.navigate).toHaveBeenCalledWith({
+        to: "/settings/providers/$provider",
+        params: { provider: "openrouter" },
+      });
+      expect(mocks.openExternalUrl).not.toHaveBeenCalled();
+    },
+  );
 
   proBillingIt("shows the unlock-all footer only for non-Pro users", () => {
     mocks.settings.enableDyadPro = false;

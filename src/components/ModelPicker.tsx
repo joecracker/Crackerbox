@@ -946,6 +946,13 @@ export function ModelPicker({
       model: model.apiName,
     });
     setOpen(false);
+    if (!PRO_BILLING_FEATURES_ENABLED) {
+      navigate({
+        to: providerSettingsRoute.id,
+        params: { provider: providerId },
+      });
+      return;
+    }
     setUnlockTarget({ providerId, model });
   };
 
@@ -1311,7 +1318,7 @@ export function ModelPicker({
         aria-label={
           isFreeProviderRow
             ? `${model.displayName} — requires an API key from ${getProviderDisplayName(providerId)}`
-            : `${model.displayName} — requires Dyad Pro or an API key from ${getProviderDisplayName(providerId)}`
+            : `${model.displayName} — requires an API key from ${getProviderDisplayName(providerId)}`
         }
         onClick={() => handleLockedModelClick(providerId, model)}
       >

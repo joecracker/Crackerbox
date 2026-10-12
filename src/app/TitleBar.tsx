@@ -146,7 +146,9 @@ export const TitleBar = () => {
             </TooltipTrigger>
             <TooltipContent>{displayText}</TooltipContent>
           </Tooltip>
-          {isDyadPro && <DyadProButton isDyadProEnabled={isDyadProEnabled} />}
+          {PRO_BILLING_FEATURES_ENABLED && isDyadPro && (
+            <DyadProButton isDyadProEnabled={isDyadProEnabled} />
+          )}
         </div>
 
         <div className="flex-1 min-w-0 overflow-hidden self-end">
@@ -158,7 +160,7 @@ export const TitleBar = () => {
 
       {PRO_BILLING_FEATURES_ENABLED && <SubscriptionConnectionStatus />}
       <DyadProSuccessDialog
-        isOpen={isSuccessDialogOpen}
+        isOpen={PRO_BILLING_FEATURES_ENABLED && isSuccessDialogOpen}
         onClose={() => setIsSuccessDialogOpen(false)}
       />
     </>

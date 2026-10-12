@@ -42,6 +42,7 @@ import {
 } from "@/lib/providerApiKey";
 
 import { ProviderSettingsHeader } from "./ProviderSettingsHeader";
+import { PRO_BILLING_FEATURES_ENABLED } from "@/lib/proBillingFlags";
 import { ApiKeyConfiguration } from "./ApiKeyConfiguration";
 import { ModelsSection } from "./ModelsSection";
 
@@ -564,7 +565,7 @@ export function ProviderSettingsPage({ provider }: ProviderSettingsPageProps) {
             />
           )}
 
-          {isDyad && !settingsLoading && (
+          {PRO_BILLING_FEATURES_ENABLED && isDyad && !settingsLoading && (
             <div className="mt-6 flex items-center justify-between p-4 bg-(--background-lightest) rounded-lg border">
               <div>
                 <h3 className="font-medium">Enable Dyad Pro</h3>

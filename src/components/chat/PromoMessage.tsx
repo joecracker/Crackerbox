@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { selectedAppIdAtom } from "@/atoms/appAtoms";
 import { DyadProTrialDialog } from "@/components/DyadProTrialDialog";
+import { PRO_BILLING_FEATURES_ENABLED } from "@/lib/proBillingFlags";
 import { useSettings } from "@/hooks/useSettings";
 import { useUserBudgetInfo } from "@/hooks/useUserBudgetInfo";
 import { ipc, type UserBudgetInfo } from "@/ipc/types";
@@ -115,6 +116,7 @@ export function shouldShowPromoMessage({
 }) {
   const hasProKey = settings ? hasDyadProKey(settings) : false;
   return (
+    PRO_BILLING_FEATURES_ENABLED &&
     promoSeed !== null &&
     !settings?.isTestMode &&
     !hasProKey &&

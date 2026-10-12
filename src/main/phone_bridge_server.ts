@@ -27,13 +27,17 @@ import {
 import { isIpcInvokeEnvelope, unwrapIpcEnvelope } from "../ipc/contracts/core";
 import { PHONE_BRIDGE_TRUST_MARKER } from "../ipc/utils/renderer_security";
 import { PHONE_MEDIA_PATH_PREFIX, servePhoneMedia } from "./phone_bridge_media";
+import {
+  startPhoneHeartbeat,
+  watchPhoneClient,
+} from "./phone_bridge_heartbeat";
 
 const logger = log.scope("phone_bridge_server");
 
 const PHONE_BRIDGE_PORT = 4319;
 const WS_PATH = "/__phone_bridge/ws";
 const SHIM_PATH = "/__phone_bridge/shim.js";
-const SHIM_SRC = `${SHIM_PATH}?v=3`;
+const SHIM_SRC = `${SHIM_PATH}?v=4`;
 const PREVIEW_PATH_PREFIX = "/__phone_preview/";
 const MIN_PREVIEW_PROXY_PORT = 42_100;
 const MAX_PREVIEW_PROXY_PORT = 52_149;
@@ -184,6 +188,11 @@ function onSocketMessage(conn: PhoneConnection, ws: WebSocket, raw: RawData) {
     });
   } else if (msg?.type === "send") {
     handleSend(conn, msg.channel, Array.isArray(msg.args) ? msg.args : []);
+  } else if (msg?.type === "ping") {
+    // The phone checks the line when you come back to it; answer right away.
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "pong" }));
+    }
   }
 }
 // ---------------------------------------------------------------------------
@@ -236,6 +245,83 @@ export const PHONE_SHIM_SCRIPT = `(function () {
   var queue = [];
   var filePickerActive = false;
 
+  // ---- link health ----------------------------------------------------
+  // Phones freeze a page's connection whenever the browser is in the
+  // background, and a frozen connection can still claim to be open. Say so on
+  // screen, check the line when the page comes back, and reconnect in place,
+  // instead of letting a message vanish into a dead line.
+  var SILENCE_LIMIT_MS = 65000;
+  var PROBE_REPLY_MS = 4000;
+  var lastHeard = Date.now();
+  var lastProbe = 0;
+  var linkLost = false;
+  var reconnectTimer = null;
+  var reconnectDelay = 1500;
+  var banner = null;
+
+  function showBanner(text, onTap) {
+    if (!document.body) return;
+    if (!banner) {
+      banner = document.createElement("div");
+      banner.setAttribute("role", "status");
+      banner.style.cssText = "position:fixed;left:0;right:0;top:0;z-index:2147483647;padding:8px 12px;text-align:center;font:600 14px system-ui,sans-serif;color:#fff;";
+      document.body.appendChild(banner);
+    }
+    banner.textContent = text;
+    banner.style.background = onTap ? "#15803d" : "#b45309";
+    banner.style.cursor = onTap ? "pointer" : "default";
+    banner.onclick = onTap || null;
+    banner.style.display = "block";
+  }
+
+  function linkLostNow() {
+    if (!linkLost) {
+      linkLost = true;
+      showBanner("Lost connection to Crackerbox on your computer. Reconnecting...", null);
+    }
+    scheduleReconnect();
+  }
+
+  function linkRestored() {
+    reconnectDelay = 1500;
+    if (!linkLost) return;
+    linkLost = false;
+    showBanner("Back online. Tap here to refresh this screen.", function () {
+      location.reload();
+    });
+  }
+
+  function scheduleReconnect() {
+    if (reconnectTimer) return;
+    reconnectTimer = setTimeout(function () {
+      reconnectTimer = null;
+      reconnectDelay = Math.min(reconnectDelay * 2, 10000);
+      if (socket.readyState === WebSocket.OPEN) return;
+      connectSocket();
+    }, reconnectDelay);
+  }
+
+  function forceClose() {
+    try { socket.close(); } catch (e) {}
+    linkLostNow();
+  }
+
+  function probeLink() {
+    if (socket.readyState !== WebSocket.OPEN) return;
+    var now = Date.now();
+    if (now - lastProbe < 2000) return;
+    lastProbe = now;
+    try {
+      socket.send(JSON.stringify({ type: "ping" }));
+    } catch (e) {
+      forceClose();
+      return;
+    }
+    setTimeout(function () {
+      if (lastHeard < now && socket.readyState === WebSocket.OPEN) forceClose();
+    }, PROBE_REPLY_MS);
+  }
+
   function rewritePreviewUrl(value) {
     if (typeof value !== "string") return value;
     var mediaPrefix = "dyad-media://media/";
@@ -279,11 +365,14 @@ export const PHONE_SHIM_SCRIPT = `(function () {
   function connectSocket() {
     socket = new WebSocket(wsProtocol + "//" + location.host + "${WS_PATH}");
     socket.addEventListener("open", function () {
+      lastHeard = Date.now();
+      linkRestored();
       queue.forEach(function (json) { socket.send(json); });
       queue.length = 0;
     });
 
     socket.addEventListener("message", function (evt) {
+      lastHeard = Date.now();
       var msg = rewritePreviewUrls(JSON.parse(evt.data));
       if (msg.type === "invoke-result") {
         var entry = pending.get(msg.id);
@@ -301,12 +390,23 @@ export const PHONE_SHIM_SCRIPT = `(function () {
       }
     });
 
+    var thisSocket = socket;
     socket.addEventListener("close", function () {
       console.warn("[phone bridge] connection to Crackerbox lost");
+      if (thisSocket === socket) linkLostNow();
     });
   }
 
   connectSocket();
+
+  // A line that goes quiet for over a minute is dead (the laptop sends a
+  // heartbeat every 25 seconds). A hidden page is frozen by the phone anyway.
+  setInterval(function () {
+    if (document.visibilityState === "hidden") return;
+    if (socket.readyState === WebSocket.OPEN && Date.now() - lastHeard > SILENCE_LIMIT_MS) {
+      forceClose();
+    }
+  }, 10000);
 
   // Mobile browsers freeze/kill the WebSocket whenever the tab is backgrounded.
   // Returning from a native file picker must reconnect in place so the chosen
@@ -339,7 +439,12 @@ export const PHONE_SHIM_SCRIPT = `(function () {
         if (socket.readyState !== WebSocket.CONNECTING) connectSocket();
         return;
       }
+      // Already reconnecting in place, with the banner showing: leave the page
+      // (and anything typed in it) alone.
+      if (linkLost) return;
       location.reload();
+    } else {
+      probeLink();
     }
   }
   document.addEventListener("visibilitychange", function () {
@@ -720,6 +825,7 @@ export function startPhoneBridgeServer(devServerUrl: string | undefined) {
   });
 
   const wss = new WebSocketServer({ noServer: true });
+  const stopHeartbeat = startPhoneHeartbeat(() => wss.clients);
   server.on("upgrade", (req, socket, head) => {
     const requestUrl = new URL(req.url ?? "/", "http://internal");
     const pathname = requestUrl.pathname;
@@ -751,6 +857,7 @@ export function startPhoneBridgeServer(devServerUrl: string | undefined) {
   });
 
   wss.on("connection", (ws) => {
+    watchPhoneClient(ws);
     const conn = new PhoneConnection(ws);
     logger.info("Phone client connected");
     ws.on("message", (raw) => onSocketMessage(conn, ws, raw));
@@ -773,6 +880,7 @@ export function startPhoneBridgeServer(devServerUrl: string | undefined) {
   });
 
   app.on("before-quit", () => {
+    stopHeartbeat();
     wss.close();
     server.close();
   });

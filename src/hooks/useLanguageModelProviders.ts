@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ipc, type LanguageModelProvider } from "@/ipc/types";
 import { useSettings } from "./useSettings";
 import { cloudProviders, isDyadProEnabled } from "@/lib/schemas";
+import { DYAD_CLOUD_FEATURES_ENABLED } from "@/lib/proBillingFlags";
 import { queryKeys } from "@/lib/queryKeys";
 import { isProviderSetup as isProviderSetupUtil } from "@/lib/providerUtils";
 import { useSubscriptionAccount } from "./useSubscriptionAccount";
@@ -21,6 +22,12 @@ export function useLanguageModelProviders() {
     queryFn: async () => {
       return ipc.languageModel.getProviders();
     },
+    // Dyad's own gateway ("auto") is a paid cloud service, so it stays out of
+    // every list the UI sees while the cloud switch is off.
+    select: (providers) =>
+      DYAD_CLOUD_FEATURES_ENABLED
+        ? providers
+        : providers.filter((provider) => provider.id !== "auto"),
   });
 
   const isProviderSetup = (provider: string) => {

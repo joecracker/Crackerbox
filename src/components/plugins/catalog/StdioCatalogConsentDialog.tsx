@@ -57,8 +57,8 @@ export function StdioCatalogConsentDialog({
               computer, with the same access as any program you run.
             </span>
             <span className="block">
-              Dyad curates this catalog, but the package is maintained by a
-              third party and runs without a sandbox.
+              Crackerbox curates this catalog, but the package is maintained by
+              a third party and runs without a sandbox.
             </span>
           </AlertDialogDescription>
         </AlertDialogHeader>

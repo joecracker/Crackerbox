@@ -1269,7 +1269,7 @@ export function TestsPanel() {
       ? "Wait for the current test run to finish."
       : isRecordingSession
         ? "A recording session is already in progress."
-        : "Click through your app in the preview and Dyad writes the test for you.";
+        : "Click through your app in the preview and Crackerbox writes the test for you.";
 
   const enableTesting = useCallback(() => {
     if (selectedAppId == null) return;
@@ -2114,8 +2114,8 @@ function EnableTestingScreen({
         Enable testing for this app
       </h3>
       <p className="text-sm text-muted-foreground max-w-sm mb-5">
-        Let Dyad write and run end-to-end tests that drive your app like a real
-        user. Tests are a starting point you can review, edit, and re-run.
+        Let Crackerbox write and run end-to-end tests that drive your app like a
+        real user. Tests are a starting point you can review, edit, and re-run.
       </p>
 
       {/* Data-safety warning, scaled to how well runs are isolated for this
@@ -2136,8 +2136,8 @@ function EnableTestingScreen({
             {hasSupabaseIsolation
               ? "Each test uses a temporary account, deleted afterward. Enable database backups before testing."
               : hasManagedDatabase
-                ? "Dyad can't isolate this database in the current setup. These tests can create, update, or delete current data, so we strongly recommend enabling data backups before running them."
-                : "These tests can create, update, or delete real data, and Dyad can't isolate a custom or non-database backend. We strongly recommend enabling data backups before running tests, in case they do something unintended."}
+                ? "Crackerbox can't isolate this database in the current setup. These tests can create, update, or delete current data, so we strongly recommend enabling data backups before running them."
+                : "These tests can create, update, or delete real data, and Crackerbox can't isolate a custom or non-database backend. We strongly recommend enabling data backups before running tests, in case they do something unintended."}
           </span>
         </div>
       )}

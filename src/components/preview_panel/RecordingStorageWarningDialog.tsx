@@ -43,7 +43,7 @@ export function RecordingStorageWarningDialog({
             Start recording from a clean slate?
           </AlertDialogTitle>
           <AlertDialogDescription>
-            Recording starts from a signed-out browser, so Dyad clears the
+            Recording starts from a signed-out browser, so Crackerbox clears the
             preview's cookies and local storage first. You'll be signed out of
             your preview and anything the app stored there will be gone. Cookies
             aren't specific to one preview, so any other app you have running is

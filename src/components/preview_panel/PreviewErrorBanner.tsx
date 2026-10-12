@@ -56,7 +56,7 @@ export function PreviewErrorBanner({
             </p>
             {(isInternalDyadError || isSyncError) && (
               <span className="shrink-0 rounded bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900 dark:text-red-300">
-                {isSyncError ? "Cloud sync issue" : "Internal Dyad error"}
+                {isSyncError ? "Cloud sync issue" : "Internal Crackerbox error"}
               </span>
             )}
           </div>
@@ -124,7 +124,7 @@ export function PreviewErrorBanner({
                 : isSyncError
                   ? "Dyad could not upload your latest local changes to the cloud sandbox. Check your network connection or wait for sync to recover."
                   : isInternalDyadError
-                    ? "Try restarting the Dyad app or your computer."
+                    ? "Try restarting the Crackerbox app or your computer."
                     : "Try restarting the app."}
             </span>
           </div>

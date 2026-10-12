@@ -460,7 +460,9 @@ function PreviewNodeRequirement({
       if (isManagedNodeInstallCancelError(error)) {
         return;
       }
-      showError(error.message ?? "Failed to install Dyad-managed Node.js");
+      showError(
+        error.message ?? "Failed to install Crackerbox-managed Node.js",
+      );
     } finally {
       setIsInstallingManagedNode(false);
     }
@@ -535,7 +537,8 @@ function PreviewNodeRequirement({
                     Installing Node.js
                   </h3>
                   <p className="mt-2 text-sm leading-6 text-foreground/80">
-                    Dyad is setting up a private Node.js runtime for previews.
+                    Crackerbox is setting up a private Node.js runtime for
+                    previews.
                   </p>
                   <div className="mt-4">
                     <div className="h-2 overflow-hidden rounded-full bg-(--background-darker)">
@@ -617,7 +620,7 @@ function PreviewNodeRequirement({
               {isCheckFailed && (
                 <p className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-left text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
                   <AlertCircle className="mr-1.5 inline size-3.5 align-[-2px]" />
-                  Dyad couldn't check for Node.js. It will keep trying.
+                  Crackerbox couldn't check for Node.js. It will keep trying.
                 </p>
               )}
 

@@ -348,7 +348,7 @@ export function VersionPreviewProvider({ children }: PropsWithChildren) {
             toast.error("Your current changes need to be saved", {
               id: toastId,
               description:
-                "Dyad found changes that are not part of a saved version. Save them as the current version to continue using Version History.",
+                "Crackerbox found changes that are not part of a saved version. Save them as the current version to continue using Version History.",
               duration: Infinity,
               action: {
                 label: "Save changes & use current version",
@@ -381,14 +381,14 @@ export function VersionPreviewProvider({ children }: PropsWithChildren) {
           toast.loading("Checking the current version…", {
             id: toastId,
             description:
-              "Dyad is verifying that Version History can continue safely.",
+              "Crackerbox is verifying that Version History can continue safely.",
             duration: Infinity,
           });
         } else if (state.type === "checkpointing-current-repository") {
           toast.loading("Saving the current version…", {
             id: toastId,
             description:
-              "Dyad is saving your current changes before continuing.",
+              "Crackerbox is saving your current changes before continuing.",
             duration: Infinity,
           });
         } else {

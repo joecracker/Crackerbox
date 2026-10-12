@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/select";
 import { useSettings } from "@/hooks/useSettings";
 import { useUserBudgetInfo } from "@/hooks/useUserBudgetInfo";
+import { DYAD_CLOUD_FEATURES_ENABLED } from "@/lib/proBillingFlags";
 import { showError } from "@/lib/toast";
 import { ipc } from "@/ipc/types";
 import { useAtomValue } from "jotai";
@@ -53,11 +54,14 @@ export function RuntimeModeSelector() {
 
   const isDockerMode = settings?.runtimeMode2 === "docker";
   const isCloudMode = settings?.runtimeMode2 === "cloud";
-  const hasCloudSandboxAccess = Boolean(userBudget);
-  const showCloudSandboxOption = shouldShowCloudSandboxOption({
-    runtimeMode: settings.runtimeMode2 ?? "host",
-    cloudSandboxExperimentEnabled: !!settings.experiments?.enableCloudSandbox,
-  });
+  const hasCloudSandboxAccess =
+    DYAD_CLOUD_FEATURES_ENABLED && Boolean(userBudget);
+  const showCloudSandboxOption =
+    DYAD_CLOUD_FEATURES_ENABLED &&
+    shouldShowCloudSandboxOption({
+      runtimeMode: settings.runtimeMode2 ?? "host",
+      cloudSandboxExperimentEnabled: !!settings.experiments?.enableCloudSandbox,
+    });
 
   const applyRuntimeModeChange = async (value: RuntimeMode2) => {
     try {

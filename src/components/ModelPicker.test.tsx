@@ -1184,7 +1184,8 @@ describe("ModelPicker", () => {
     );
 
     const modelName = screen.getAllByText("GPT 5")[0];
-    expect(modelName.className).toContain("block max-w-full truncate");
+    expect(modelName.className).toContain("block max-w-full break-words");
+    expect(modelName.className).not.toContain("truncate");
     expect(modelName.getAttribute("title")).toBeNull();
     expect(modelName.closest("button")?.firstElementChild?.className).toContain(
       "grid-cols-[minmax(0,1fr)_auto]",
@@ -1541,6 +1542,30 @@ describe("ModelPicker", () => {
       "Gemini 2.5 Flash",
       "Claude Sonnet 4.5",
     ]);
+  });
+
+  it("shows OpenRouter rows without the repeated maker prefix", () => {
+    mocks.renderSubContent = true;
+    mocks.openrouterModels = [
+      ...mocks.openrouterModels,
+      {
+        apiName: "bytedance-seed/seedream-5.0-flash",
+        displayName: "ByteDance Seed: Seedream 5.0 Flash",
+        dollarSigns: 1,
+        inputModalities: ["text"],
+        type: "cloud",
+      },
+    ];
+
+    render(<ModelPicker />);
+    const catalog = screen.getByTestId("other-provider-models-openrouter");
+
+    const row = within(catalog).getByText("Seedream 5.0 Flash");
+    expect(row.className).toContain("break-words");
+    expect(row.className).not.toContain("truncate");
+    expect(
+      within(catalog).queryByText("ByteDance Seed: Seedream 5.0 Flash"),
+    ).toBeNull();
   });
 
   it("searches and filters a large OpenRouter catalog", () => {

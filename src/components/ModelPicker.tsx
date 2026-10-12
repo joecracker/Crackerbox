@@ -57,6 +57,7 @@ import { SubscriptionModelMenu } from "@/components/SubscriptionModelMenu";
 import { PRO_BILLING_FEATURES_ENABLED } from "@/lib/proBillingFlags";
 import { useSubscriptionAccount } from "@/hooks/useSubscriptionAccount";
 import { usesChatGPTSubscription } from "@/lib/subscriptionModels";
+import { stripMakerPrefix } from "@/lib/modelDisplayName";
 import {
   Dialog,
   DialogContent,
@@ -1146,11 +1147,13 @@ export function ModelPicker({
             <span
               title={model.description ? undefined : model.displayName}
               className={cn(
-                "block max-w-full truncate text-[13px] leading-tight",
+                "block max-w-full break-words text-[13px] leading-tight",
                 isLocked && "text-muted-foreground",
               )}
             >
-              {model.displayName}
+              {providerId === "openrouter"
+                ? stripMakerPrefix(model.displayName)
+                : model.displayName}
             </span>
           </span>
         </span>

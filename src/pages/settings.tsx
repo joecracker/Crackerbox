@@ -566,6 +566,20 @@ export function GeneralSettings({ appVersion }: { appVersion: string | null }) {
           {appVersion ? appVersion : "-"}
         </span>
       </div>
+
+      <p className={hint}>
+        Built on{" "}
+        <button
+          type="button"
+          className="underline underline-offset-2 hover:text-foreground"
+          onClick={() =>
+            ipc.system.openExternalUrl("https://github.com/dyad-sh/dyad")
+          }
+        >
+          Dyad
+        </button>
+        , an open-source project licensed under Apache 2.0.
+      </p>
     </SettingsSection>
   );
 }

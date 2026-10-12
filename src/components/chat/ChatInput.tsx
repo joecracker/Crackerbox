@@ -96,7 +96,6 @@ import { dismissedImageGenerationJobIdsAtom } from "@/atoms/imageGenerationAtoms
 import { useChatImageGenerationJobs } from "@/image_generation/hooks";
 import { ImageGeneratorDialog } from "@/components/ImageGeneratorDialog";
 import { VisualEditingChangesDialog } from "@/components/preview_panel/VisualEditingChangesDialog";
-import { useUserBudgetInfo } from "@/hooks/useUserBudgetInfo";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/queryKeys";
 import {
@@ -334,7 +333,6 @@ export function ChatInput({ chatId }: { chatId?: number }) {
       .reverse(); // Most recent first
   }, [messages]);
 
-  const { userBudget } = useUserBudgetInfo();
   const isProEnabled = settings ? isDyadProEnabled(settings) : false;
 
   const handleTranscription = useCallback(
@@ -1051,47 +1049,22 @@ export function ChatInput({ chatId }: { chatId?: number }) {
               </div>
             )}
 
-          {userBudget ? (
-            <VisualEditingChangesDialog
-              iframeRef={
-                previewIframeRef
-                  ? { current: previewIframeRef }
-                  : { current: null }
-              }
-              onReset={() => {
-                // Exit component selection mode and visual editing
-                setSelectedComponents([]);
-                sendPreviewIframeEvent({ type: "PICKER_DEACTIVATED" });
-                setVisualEditingSelectedComponent(null);
-                setCurrentComponentCoordinates(null);
-                setPendingVisualChanges(new Map());
-                refreshAppIframe();
-              }}
-            />
-          ) : (
-            selectedComponents.length > 0 && (
-              <div className="border-b border-border p-3 bg-muted/30">
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <button
-                        onClick={() => {
-                          ipc.system.openExternalUrl("https://dyad.sh/pro");
-                        }}
-                        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors cursor-pointer"
-                      />
-                    }
-                  >
-                    <Lock size={16} />
-                    <span className="font-medium">{t("visualEditor")}</span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {t("visualEditorDescription")}
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-            )
-          )}
+          <VisualEditingChangesDialog
+            iframeRef={
+              previewIframeRef
+                ? { current: previewIframeRef }
+                : { current: null }
+            }
+            onReset={() => {
+              // Exit component selection mode and visual editing
+              setSelectedComponents([]);
+              sendPreviewIframeEvent({ type: "PICKER_DEACTIVATED" });
+              setVisualEditingSelectedComponent(null);
+              setCurrentComponentCoordinates(null);
+              setPendingVisualChanges(new Map());
+              refreshAppIframe();
+            }}
+          />
 
           <SelectedComponentsDisplay />
 

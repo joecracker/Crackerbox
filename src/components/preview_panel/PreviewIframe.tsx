@@ -83,7 +83,6 @@ import { TabletFrame } from "./TabletFrame";
 import { useElementSize } from "@/hooks/useElementSize";
 import { fitScale, tabletSizeFromSettings } from "@/lib/previewDevice";
 import { useAttachments } from "@/hooks/useAttachments";
-import { useUserBudgetInfo } from "@/hooks/useUserBudgetInfo";
 import { Annotator } from "@/pro/ui/components/Annotator/Annotator";
 import { VisualEditingToolbar } from "./VisualEditingToolbar";
 import { recordingStatusMessage } from "./RecordingBanner";
@@ -134,8 +133,8 @@ export const PreviewIframe = ({
   } = useParseRouter(selectedAppId);
   const { restartApp, refreshAppIframe } = useRunApp();
   const { settings, updateSettings } = useSettings();
-  const { userBudget } = useUserBudgetInfo();
-  const isProMode = !!userBudget;
+  // Visual editing and the component picker run on this machine, so they are always on.
+  const isProMode = true;
   const queryClient = useQueryClient();
   const setSelectedComponentsPreview = useSetAtom(
     selectedComponentsPreviewAtom,

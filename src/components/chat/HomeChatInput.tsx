@@ -189,11 +189,12 @@ export function HomeChatInput({
                           (!inputValue.trim() && attachments.length === 0)
                         }
                         aria-label="Build this"
-                        className="px-2 py-2 text-muted-foreground hover:text-[var(--brand-pinstripe)] rounded-lg transition-colors duration-150 disabled:opacity-30 disabled:hover:text-muted-foreground cursor-pointer disabled:cursor-default"
+                        className="flex items-center gap-1.5 px-2 py-2 text-muted-foreground hover:text-[var(--brand-pinstripe)] rounded-lg transition-colors duration-150 disabled:opacity-30 disabled:hover:text-muted-foreground cursor-pointer disabled:cursor-default"
                       />
                     }
                   >
-                    <Hammer size={18} />
+                    <Hammer size={16} />
+                    <span className="text-xs font-medium">Build</span>
                   </TooltipTrigger>
                   <TooltipContent>Build this</TooltipContent>
                 </Tooltip>
@@ -207,11 +208,12 @@ export function HomeChatInput({
                           (!inputValue.trim() && attachments.length === 0)
                         }
                         aria-label="Send message"
-                        className="px-2 py-2 text-muted-foreground hover:text-primary rounded-lg transition-colors duration-150 disabled:opacity-30 disabled:hover:text-muted-foreground cursor-pointer disabled:cursor-default"
+                        className="flex items-center gap-1.5 px-2 py-2 text-muted-foreground hover:text-primary rounded-lg transition-colors duration-150 disabled:opacity-30 disabled:hover:text-muted-foreground cursor-pointer disabled:cursor-default"
                       />
                     }
                   >
-                    <SendHorizontalIcon size={20} />
+                    <SendHorizontalIcon size={18} />
+                    <span className="text-xs font-medium">Chat</span>
                   </TooltipTrigger>
                   <TooltipContent>Send message</TooltipContent>
                 </Tooltip>

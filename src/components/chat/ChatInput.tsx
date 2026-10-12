@@ -70,6 +70,8 @@ import { useSummarizeInNewChat } from "./SummarizeInNewChatButton";
 import { ChatInputControls } from "../ChatInputControls";
 import { ChatErrorBox } from "./ChatErrorBox";
 import { AgentConsentBanner } from "./AgentConsentBanner";
+import { BuildItChip } from "./BuildItChip";
+import { BUILD_IT_PROMPT, shouldOfferBuild } from "@/lib/buildOffer";
 import { CancellationBanner } from "./CancellationBanner";
 import { useCancellationRequestLatch } from "./useCancellationRequestLatch";
 import { TodoList } from "./TodoList";
@@ -868,6 +870,47 @@ export function ChatInput({ chatId }: { chatId?: number }) {
     return null; // Or loading state
   }
 
+  const showBuildItChip =
+    !!chatId &&
+    shouldOfferBuild({
+      lastMessage,
+      isStreaming,
+      hasComposerPayload,
+      hasPendingConsent: !!pendingToolConsent,
+      hasProposal: !!proposal,
+      hasQueuedMessages: queuedMessages.length > 0,
+      isEditingQueuedMessage: !!editingQueuedMessageId,
+    });
+
+  // One explicit tap sends a plain message in Build mode, so the transcript
+  // shows what happened and the plan above it stays on screen.
+  const handleBuildIt = async () => {
+    if (!chatId || isStreaming || isAwaitingTurnAcceptanceRef.current) return;
+    isAwaitingTurnAcceptanceRef.current = true;
+    void openPreviewIfSetupRequired(appId);
+    await streamMessage({
+      prompt: BUILD_IT_PROMPT,
+      chatId,
+      redo: false,
+      showOptimisticMessage: true,
+      optimisticDisplayContent: BUILD_IT_PROMPT,
+      requestedChatMode: "local-agent",
+      onAccepted: () => {
+        isAwaitingTurnAcceptanceRef.current = false;
+      },
+      onAcceptanceRejected: () => {
+        isAwaitingTurnAcceptanceRef.current = false;
+      },
+      onSettled: () => {
+        isAwaitingTurnAcceptanceRef.current = false;
+      },
+    });
+    posthog.capture("chat:submit", {
+      chatMode: "local-agent",
+      source: "build-it",
+    });
+  };
+
   return (
     <>
       {error && showError && (
@@ -899,6 +942,9 @@ export function ChatInput({ chatId }: { chatId?: number }) {
         </div>
       )}
       <div className="p-2 pt-0" data-testid="chat-input-container">
+        {showBuildItChip && (
+          <BuildItChip onBuild={() => void handleBuildIt()} />
+        )}
         {/* Show context limit banner above chat input for visibility */}
         {showBanner && tokenCountResult && (
           <ContextLimitBanner

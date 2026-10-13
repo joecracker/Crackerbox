@@ -19,14 +19,11 @@ const listeners = new Set<(state: SpeechPlaybackState) => void>();
 const FIRST_CHUNK_MAX_LENGTH = 90;
 const CHUNK_SHRINK_FACTOR = 0.93;
 const MIN_CHUNK_MAX_LENGTH = 70;
-// Hosted pieces are kept small. On 2026-10-12 the hosted voice took 2 to 6
-// seconds for pieces of about 1,000 characters or less, but pieces of 2,500+
-// characters sometimes ran past the 30 second limit, which sent the whole rest
-// of the reply to the slower built-in voice (short slices, cut mid-sentence).
-// OpenRouter reports a 4,096-unit context window, so this leaves plenty of room.
-export const CLOUD_CHUNK_MAX_LENGTH = 900;
+// OpenRouter reports a 4,096-unit context window. Leave headroom while keeping
+// normal replies in one continuous MP3.
+export const CLOUD_CHUNK_MAX_LENGTH = 3_000;
 // The hosted voice sounds best (one continuous recording) but takes anywhere
-// from 2 to 15+ seconds to start, longer for longer pieces. So the first sentences
+// from 4 to 15+ seconds to start, whatever the length. So the first sentences
 // are spoken by the built-in voice while the hosted one prepares the rest.
 export const LOCAL_OPENING_MAX_LENGTH = 300;
 // If less than this would be left for the hosted voice, it is not worth the

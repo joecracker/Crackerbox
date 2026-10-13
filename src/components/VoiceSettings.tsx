@@ -16,8 +16,6 @@ const VOICES = [
   ["af_sarah", "Sarah — clear American"],
   ["bf_emma", "Emma — British"],
   ["bf_isabella", "Isabella — British"],
-  ["sarah", "Sarah — ElevenLabs, fast cloud voice (costs more)"],
-  ["jessica", "Jessica — ElevenLabs, fast cloud voice (costs more)"],
 ] as const;
 
 export function VoiceSettings() {

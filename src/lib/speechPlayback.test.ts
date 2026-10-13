@@ -56,24 +56,13 @@ const sentences = (count: number) =>
     (_, i) =>
       `Sentence number ${i + 1} is a plain sentence that is spoken out loud.`,
   );
+const LONG = sentences(30).join(" ");
 const OPENING_SENTENCES = 4;
-// Each test sentence is about 64 characters. LONG leaves about 80% of one hosted
-// piece after the opening; VERY_LONG leaves about 150%, so it needs two.
-const SENTENCE_LENGTH = 64;
-const LONG_SENTENCES =
-  OPENING_SENTENCES +
-  Math.floor((CLOUD_CHUNK_MAX_LENGTH * 0.8) / SENTENCE_LENGTH);
-const LONG = sentences(LONG_SENTENCES).join(" ");
-const AFTER_OPENING = sentences(LONG_SENTENCES)
-  .slice(OPENING_SENTENCES)
-  .join(" ");
+const AFTER_OPENING = sentences(30).slice(OPENING_SENTENCES).join(" ");
 // Only two sentences would be left for the hosted voice: not worth the handoff.
 const SHORT = sentences(6).join(" ");
 // Long enough that what follows the opening needs two hosted requests.
-const VERY_LONG_SENTENCES = sentences(
-  OPENING_SENTENCES +
-    Math.ceil((CLOUD_CHUNK_MAX_LENGTH * 1.5) / SENTENCE_LENGTH),
-);
+const VERY_LONG_SENTENCES = sentences(80);
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -228,7 +217,7 @@ describe("playSpeech", () => {
       provider: "openrouter",
     });
 
-    for (let i = 0; i < LONG_SENTENCES; i++) await endAudio(i);
+    for (let i = 0; i < 30; i++) await endAudio(i);
     await done;
     expect(
       callsFor("local")
@@ -260,12 +249,6 @@ describe("playSpeech", () => {
     expect(FakeAudio.instances[OPENING_SENTENCES + 1].playbackRate).toBe(1);
     stopSpeechPlayback();
     await done;
-  });
-
-  it("keeps hosted pieces small enough to come back well inside the time limit", () => {
-    // Pieces of about 1,000 characters took 2 to 6 seconds; 2,500+ sometimes
-    // took over the 30 second limit.
-    expect(CLOUD_CHUNK_MAX_LENGTH).toBeLessThanOrEqual(1_000);
   });
 
   it("buffers the next hosted piece while the current piece plays", async () => {

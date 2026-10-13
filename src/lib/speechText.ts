@@ -115,3 +115,22 @@ export function splitSpeechIntoChunks(
   flush();
   return chunks;
 }
+
+/**
+ * Takes out the parts that are hard to listen to: web addresses, file paths and
+ * commit codes. They stay visible in the chat; the voice just skips past them.
+ */
+export function stripSpokenNoise(text: string): string {
+  return text
+    .replace(/\bhttps?:\/\/\S*[^\s.,;:!?)\]'"]/gi, "a link")
+    .replace(/\b[A-Za-z]:\\\S*[^\s.,;:!?)\]'"]/g, "a file")
+    .replace(
+      /(?=\S*[A-Za-z])(?:\.{0,2}\/)?(?:[\w.-]+\/){2,}[\w-]+(?:\.[\w-]+)*/g,
+      "a file",
+    )
+    .replace(/\b[\w.-]+\/[\w.-]*[A-Za-z][\w-]*\.[A-Za-z]{1,6}\b/g, "a file")
+    .replace(/\b(?=[a-f0-9]*\d)(?=[a-f0-9]*[a-f])[a-f0-9]{7,40}\b/gi, "")
+    .replace(/\s+/g, " ")
+    .replace(/\s+([,.;!?])/g, "$1")
+    .trim();
+}

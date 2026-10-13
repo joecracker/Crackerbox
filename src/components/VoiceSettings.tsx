@@ -41,6 +41,21 @@ export function VoiceSettings() {
         Crackerbox speaks only the reply prose—not code, tool activity, or
         internal details.
       </p>
+      <div className="flex items-center space-x-2">
+        <Switch
+          id="summary-view"
+          aria-label="Summary view"
+          checked={settings?.summaryView !== false}
+          onCheckedChange={(checked) =>
+            void updateSettings({ summaryView: checked })
+          }
+        />
+        <Label htmlFor="summary-view">Summary view</Label>
+      </div>
+      <p className="text-[13px] leading-relaxed text-muted-foreground">
+        Show only the final message of each reply. Her steps, file reads and
+        thinking fold under "Show work". The voice reads what the chat shows.
+      </p>
       <div className="flex flex-wrap items-center gap-3">
         <Label className="text-sm font-medium">Voice engine</Label>
         <Select

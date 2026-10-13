@@ -1,9 +1,7 @@
 import { assistantAttribution } from "@/shared/execution_backend";
 import { type Message } from "@/ipc/types";
-import {
-  DyadMarkdownParser,
-  VanillaMarkdownParser,
-} from "./DyadMarkdownParser";
+import { VanillaMarkdownParser } from "./DyadMarkdownParser";
+import { ReplyBody } from "./ReplyBody";
 import { DyadAttachment, type AttachmentSize } from "./DyadAttachment";
 import { useStreamChat } from "@/hooks/useStreamChat";
 import { StreamingLoadingAnimation } from "./StreamingLoadingAnimation";
@@ -60,7 +58,7 @@ import { ChatMessageAnnotationLayer } from "./ChatMessageAnnotationLayer";
 import { isChatMessageAnnotatable } from "./chatAnnotationEligibility";
 import { useSettings } from "@/hooks/useSettings";
 import { useSpeechPlayback } from "@/hooks/useSpeechPlayback";
-import { speechTextFromAssistantResponse } from "@/lib/speechText";
+import { spokenTextForReply } from "@/lib/replySummary";
 import { playSpeech, stopSpeechPlayback } from "@/lib/speechPlayback";
 import { showError } from "@/lib/toast";
 
@@ -123,6 +121,7 @@ const ChatMessage = ({
 }: ChatMessageProps) => {
   const { isStreaming } = useStreamChat();
   const { settings } = useSettings();
+  const summaryViewOn = settings?.summaryView !== false;
   const speechPlayback = useSpeechPlayback();
   const appId = useAtomValue(selectedAppIdAtom);
   const { versions: liveVersions } = useVersions(appId);
@@ -170,8 +169,8 @@ const ChatMessage = ({
     );
   };
   const speechText = useMemo(
-    () => speechTextFromAssistantResponse(assistantTextContent),
-    [assistantTextContent],
+    () => spokenTextForReply(assistantTextContent, summaryViewOn),
+    [assistantTextContent, summaryViewOn],
   );
   const isSpeakingThisMessage = speechPlayback.messageId === message.id;
   const handleSpeak = () => {
@@ -391,16 +390,13 @@ const ChatMessage = ({
                 suppressHydrationWarning
               >
                 {message.role === "assistant" ? (
-                  <>
-                    <DyadMarkdownParser
-                      content={assistantTextContent}
-                      messageId={message.id}
-                      showStreamingPreview={isLastMessage && isStreaming}
-                    />
-                    {isLastMessage && isStreaming && (
-                      <StreamingLoadingAnimation variant="streaming" />
-                    )}
-                  </>
+                  <ReplyBody
+                    content={assistantTextContent}
+                    messageId={message.id}
+                    summaryView={summaryViewOn}
+                    isLastMessage={isLastMessage}
+                    isStreaming={isStreaming}
+                  />
                 ) : (
                   <VanillaMarkdownParser content={userTextContent} />
                 )}

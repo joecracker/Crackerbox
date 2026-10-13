@@ -55,7 +55,7 @@ import {
 import { stopSpeechPlayback } from "@/lib/speechPlayback";
 import { playSpeech } from "@/lib/speechPlayback";
 import { showError } from "@/lib/toast";
-import { speechTextFromAssistantResponse } from "@/lib/speechText";
+import { spokenTextForReply } from "@/lib/replySummary";
 import { useSpeechPlayback } from "@/hooks/useSpeechPlayback";
 
 const TerminalPanel = lazy(() => import("./chat/TerminalPanel"));
@@ -152,7 +152,10 @@ export function ChatPanel({
     ) {
       return;
     }
-    const text = speechTextFromAssistantResponse(message.content);
+    const text = spokenTextForReply(
+      message.content,
+      settings?.summaryView !== false,
+    );
     if (!text) return;
     autoSpokenMessageIdsRef.current.add(message.id);
     autoSpeakSawActiveStreamRef.current = false;

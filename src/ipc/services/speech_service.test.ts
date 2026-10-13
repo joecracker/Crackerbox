@@ -20,7 +20,11 @@ vi.mock("electron-log", () => ({
 vi.mock("@/main/settings", () => ({ readSettings: () => readSettings() }));
 
 import { EventEmitter } from "node:events";
-import { synthesizeSpeech } from "./speech_service";
+import {
+  localVoiceFor,
+  openRouterModelForVoice,
+  synthesizeSpeech,
+} from "./speech_service";
 
 describe("synthesizeSpeech", () => {
   beforeEach(() => {
@@ -68,6 +72,50 @@ describe("synthesizeSpeech", () => {
       voice: "af_bella",
       response_format: "mp3",
     });
+  });
+
+  it("sends ElevenLabs voices to the ElevenLabs model", async () => {
+    readSettings.mockReturnValue({
+      providerSettings: {
+        openrouter: { apiKey: { value: "openrouter-test-key" } },
+      },
+    });
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(new Uint8Array([1, 2, 3]), {
+        status: 200,
+        headers: { "Content-Type": "audio/mpeg" },
+      }),
+    );
+
+    await synthesizeSpeech({
+      text: "Hello from Crackerbox.",
+      voice: "sarah",
+      speed: 1,
+      provider: "openrouter",
+    });
+
+    const [, request] = fetchMock.mock.calls[0];
+    expect(JSON.parse(String(request?.body))).toEqual({
+      model: "elevenlabs/eleven-flash-v2.5",
+      input: "Hello from Crackerbox.",
+      voice: "sarah",
+      response_format: "mp3",
+    });
+  });
+
+  it("picks the right cloud model and offline voice for each voice name", () => {
+    expect(openRouterModelForVoice("sarah")).toBe(
+      "elevenlabs/eleven-flash-v2.5",
+    );
+    expect(openRouterModelForVoice("jessica")).toBe(
+      "elevenlabs/eleven-flash-v2.5",
+    );
+    expect(openRouterModelForVoice("af_bella")).toBe("hexgrad/kokoro-82m");
+    expect(openRouterModelForVoice("af_sarah")).toBe("hexgrad/kokoro-82m");
+    expect(localVoiceFor("bf_emma")).toBe("bf_emma");
+    expect(localVoiceFor("af_sarah")).toBe("af_sarah");
+    expect(localVoiceFor("sarah")).toBe("af_heart");
+    expect(localVoiceFor("jessica")).toBe("af_heart");
   });
 
   it("rejects empty OpenRouter audio so the renderer can use local speech", async () => {
@@ -195,6 +243,20 @@ describe("synthesizeSpeech with the built-in voice", () => {
       cacheDir: expect.stringMatching(/speech-models$/),
     });
     expect(child.posted.filter((m) => m.type === "generate")).toHaveLength(2);
+  });
+
+  it("uses a built-in voice when a cloud-only voice is selected", async () => {
+    const child = new FakeVoiceProcess(answersWithAudio);
+    forkMock.mockReturnValue(child);
+    const service = await freshService();
+
+    await service.synthesizeSpeech({ ...LOCAL_INPUT, voice: "sarah" });
+    await service.synthesizeSpeech({ ...LOCAL_INPUT, voice: "bf_emma" });
+
+    const voices = child.posted
+      .filter((m) => m.type === "generate")
+      .map((m) => m.voice);
+    expect(voices).toEqual(["af_heart", "bf_emma"]);
   });
 
   it("starts a fresh voice process after the old one stops unexpectedly", async () => {

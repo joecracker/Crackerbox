@@ -8,12 +8,31 @@ import { getOpenRouterAppAttributionHeaders } from "../utils/openrouter_attribut
 
 const logger = log.scope("speech");
 const OPENROUTER_KOKORO_MODEL = "hexgrad/kokoro-82m";
+const OPENROUTER_ELEVENLABS_MODEL = "elevenlabs/eleven-flash-v2.5";
+// Cloud voices that belong to a model other than Kokoro. Any other voice name
+// is a Kokoro voice.
+const OPENROUTER_VOICE_MODELS: Record<string, string> = {
+  sarah: OPENROUTER_ELEVENLABS_MODEL,
+  jessica: OPENROUTER_ELEVENLABS_MODEL,
+};
+// The built-in (offline) voice only knows Kokoro voices. When a cloud-only
+// voice is chosen it still needs one of these for the offline backup.
+const LOCAL_FALLBACK_VOICE = "af_heart";
+
+export function openRouterModelForVoice(voice: string) {
+  return OPENROUTER_VOICE_MODELS[voice] ?? OPENROUTER_KOKORO_MODEL;
+}
+
+export function localVoiceFor(voice: string) {
+  return /^[ab][fm]_/.test(voice) ? voice : LOCAL_FALLBACK_VOICE;
+}
 const OPENROUTER_SPEECH_URL = "https://openrouter.ai/api/v1/audio/speech";
 
 const LOAD_TIMEOUT_MS = 5 * 60 * 1000;
 const GENERATE_TIMEOUT_MS = 60 * 1000;
-// The hosted voice usually answers in 4 to 15 seconds whatever the length, and
-// sometimes takes longer. Give it room; the player covers the wait.
+// In testing on 2026-10-12 ElevenLabs Flash answered in about 2 seconds for a
+// paragraph, while Kokoro took 2 to 15 seconds and at times never answered at
+// all. A request still silent after this long is treated as failed.
 const OPENROUTER_TIMEOUT_MS = 30_000;
 // The model holds a few hundred MB while loaded, so let it go after a quiet spell.
 const IDLE_SHUTDOWN_MS = 10 * 60 * 1000;
@@ -148,7 +167,13 @@ class KokoroSpeechProvider implements SpeechProvider {
       this.pending.set(id, { resolve, reject });
     });
     logger.info(`Generating speech (${text.length} chars)`);
-    child.postMessage({ type: "generate", id, text, voice, speed });
+    child.postMessage({
+      type: "generate",
+      id,
+      text,
+      voice: localVoiceFor(voice),
+      speed,
+    });
     try {
       const data = await withTimeout(result, timeoutMs, "Generating speech");
       return { data, mimeType: "audio/wav" as const };
@@ -172,6 +197,7 @@ class OpenRouterSpeechProvider implements SpeechProvider {
       throw new Error("OpenRouter is not connected");
     }
 
+    const model = openRouterModelForVoice(voice);
     logger.info(`Generating OpenRouter speech (${text.length} chars)`);
     const started = Date.now();
     const response = await withTimeout(
@@ -184,7 +210,7 @@ class OpenRouterSpeechProvider implements SpeechProvider {
           ...getOpenRouterAppAttributionHeaders(),
         },
         body: JSON.stringify({
-          model: OPENROUTER_KOKORO_MODEL,
+          model,
           input: text,
           voice,
           response_format: "mp3",
@@ -204,7 +230,9 @@ class OpenRouterSpeechProvider implements SpeechProvider {
     if (data.byteLength === 0) {
       throw new Error("OpenRouter voice returned empty audio");
     }
-    logger.info(`OpenRouter speech generated in ${Date.now() - started}ms`);
+    logger.info(
+      `OpenRouter speech generated in ${Date.now() - started}ms (${model})`,
+    );
     return { data, mimeType: "audio/mpeg" as const };
   }
 }

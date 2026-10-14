@@ -56,12 +56,27 @@ const FOLDABLE_TAGS = new Set([
   "dyad-ha-read-file",
   "dyad-ha-list-files",
   "dyad-ha-list-entities",
+  "dyad-ha-restart",
 ]);
 
 function isFoldableTag(tag: string, attributes: Record<string, string>) {
   if (!FOLDABLE_TAGS.has(tag)) return false;
   // An error report has a button to fix it, so it stays where you can see it.
   return !(tag === "dyad-output" && attributes.type === "error");
+}
+
+// After she changes files the app adds a one-line "Checks: ..." note to the end
+// of her message (see verification_ledger.ts). It is jargon, so when nothing
+// failed it folds away with her working. A failed or incomplete check stays
+// where you can see it.
+const CHECKS_NOTE = /\n+(Checks: [^\n]*)\s*$/;
+
+function peelChecksNote(message: string) {
+  const match = CHECKS_NOTE.exec(message);
+  if (!match || /\b(failed|incomplete)\b/.test(match[1])) return null;
+  const rest = message.slice(0, match.index);
+  if (!rest.trim()) return null;
+  return { rest, note: message.slice(match.index) };
 }
 
 export interface ReplySplit {
@@ -97,9 +112,12 @@ export function splitReply(content: string): ReplySplit | null {
   }
   if (!content.endsWith(last.content)) return null;
 
+  const peeled = peelChecksNote(last.content);
   return {
-    work: content.slice(0, content.length - last.content.length),
-    summary: last.content.trim(),
+    work:
+      content.slice(0, content.length - last.content.length) +
+      (peeled ? peeled.note : ""),
+    summary: (peeled ? peeled.rest : last.content).trim(),
     steps,
   };
 }

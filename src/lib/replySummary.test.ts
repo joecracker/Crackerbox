@@ -140,3 +140,28 @@ describe("stripSpokenNoise", () => {
     }
   });
 });
+
+describe("splitReply and the Checks note", () => {
+  const NOTE = "Checks: type check passed. tests/build/pre-commit not run.";
+
+  it("folds the app's Checks note away with her working", () => {
+    const content = `${READ}All done. The page works now.\n\n${NOTE}`;
+    const split = splitReply(content);
+
+    expect(split?.summary).toBe("All done. The page works now.");
+    expect(split?.work).toContain(NOTE);
+    expect(spokenTextForReply(content, true)).not.toContain("Checks");
+  });
+
+  it("keeps a failed or incomplete check where you can see it", () => {
+    const content = `${READ}Almost there.\n\nChecks: type check failed.`;
+    expect(splitReply(content)?.summary).toContain(
+      "Checks: type check failed.",
+    );
+  });
+
+  it("does not fold a reply that is only the note", () => {
+    const content = `${READ}\n\n${NOTE}`;
+    expect(splitReply(content)?.summary).toBe(NOTE);
+  });
+});

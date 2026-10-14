@@ -31,13 +31,18 @@ import {
   startPhoneHeartbeat,
   watchPhoneClient,
 } from "./phone_bridge_heartbeat";
+import {
+  PHONE_SESSION_GRACE_MS,
+  parsePageId,
+  ResumableSessions,
+} from "./phone_bridge_sessions";
 
 const logger = log.scope("phone_bridge_server");
 
 const PHONE_BRIDGE_PORT = 4319;
 const WS_PATH = "/__phone_bridge/ws";
 const SHIM_PATH = "/__phone_bridge/shim.js";
-const SHIM_SRC = `${SHIM_PATH}?v=5`;
+const SHIM_SRC = `${SHIM_PATH}?v=6`;
 const PREVIEW_PATH_PREFIX = "/__phone_preview/";
 const MIN_PREVIEW_PROXY_PORT = 42_100;
 const MAX_PREVIEW_PROXY_PORT = 52_149;
@@ -70,6 +75,8 @@ function isValidSendChannel(channel: string): boolean {
 let nextPhoneConnectionId = -1;
 
 class PhoneConnection {
+  private ws: WebSocket;
+  private closedForGood = false;
   readonly sender: {
     id: number;
     isDestroyed: () => boolean;
@@ -84,11 +91,14 @@ class PhoneConnection {
 
   private readonly emitter = new EventEmitter();
 
-  constructor(private readonly ws: WebSocket) {
+  constructor(ws: WebSocket) {
+    this.ws = ws;
     const senderId = nextPhoneConnectionId--;
     this.sender = {
       id: senderId,
-      isDestroyed: () => this.ws.readyState !== WebSocket.OPEN,
+      // Only gone for good once the page has not come back within the grace
+      // period. While its socket is down, sends are dropped quietly.
+      isDestroyed: () => this.closedForGood,
       isCrashed: () => false,
       send: (channel: string, ...args: unknown[]) => {
         if (this.ws.readyState !== WebSocket.OPEN) return;
@@ -106,7 +116,29 @@ class PhoneConnection {
     };
   }
 
+  /** The same page reconnected: its new socket replaces the old one. */
+  attach(ws: WebSocket): void {
+    const old = this.ws;
+    this.ws = ws;
+    if (
+      old !== ws &&
+      (old.readyState === WebSocket.OPEN ||
+        old.readyState === WebSocket.CONNECTING)
+    ) {
+      try {
+        old.close(4000, "replaced by a newer connection");
+      } catch {
+        // Already closing.
+      }
+    }
+  }
+
+  isCurrent(ws: WebSocket): boolean {
+    return this.ws === ws;
+  }
+
   notifyClosed(): void {
+    this.closedForGood = true;
     this.emitter.emit("destroyed");
     this.emitter.emit("render-process-gone");
   }
@@ -246,18 +278,48 @@ export const PHONE_SHIM_SCRIPT = `(function () {
   var filePickerActive = false;
 
   // ---- link health ----------------------------------------------------
-  // Phones freeze a page's connection whenever the browser is in the
-  // background, and a frozen connection can still claim to be open. Say so on
-  // screen, check the line when the page comes back, and reconnect in place,
-  // instead of letting a message vanish into a dead line.
+  // Phones freeze a page's connection whenever the browser is in the background
+  // (the camera, a file picker, another app, the screen off), and a frozen
+  // connection can still claim to be open. This page tells the laptop who it is
+  // so a reconnect picks up the same session, and it says on screen what is
+  // going on instead of letting a message vanish into a dead line.
   var SILENCE_LIMIT_MS = 65000;
-  var PROBE_REPLY_MS = 4000;
+  var PROBE_REPLY_MS = 10000;
+  var VISIBLE_GRACE_MS = 30000;
+  var HELLO_WAIT_MS = 4000;
   var lastHeard = Date.now();
   var lastProbe = 0;
+  var lastTick = Date.now();
+  var visibleSince = 0;
   var linkLost = false;
+  var hadConnection = false;
+  var awaitingHello = false;
   var reconnectTimer = null;
   var reconnectDelay = 1500;
   var banner = null;
+
+  function randomId() {
+    var bytes = new Uint8Array(12);
+    if (window.crypto && window.crypto.getRandomValues) {
+      window.crypto.getRandomValues(bytes);
+    } else {
+      for (var i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+    }
+    var out = "";
+    for (var j = 0; j < bytes.length; j++) out += (bytes[j] + 256).toString(16).slice(1);
+    return out;
+  }
+
+  // Stays the same for this tab until it is closed, including across reloads.
+  var pageId = "";
+  try {
+    pageId = window.sessionStorage.getItem("cbPageId") || "";
+    if (!pageId) {
+      pageId = randomId();
+      window.sessionStorage.setItem("cbPageId", pageId);
+    }
+  } catch (e) {}
+  if (!pageId) pageId = randomId();
 
   function showBanner(text, onTap) {
     if (!document.body) return;
@@ -274,28 +336,50 @@ export const PHONE_SHIM_SCRIPT = `(function () {
     banner.style.display = "block";
   }
 
-  function linkLostNow() {
+  function hideBanner() {
+    if (banner) banner.style.display = "none";
+  }
+
+  function linkLostNow(delay) {
     if (!linkLost) {
       linkLost = true;
       showBanner("Lost connection to Crackerbox on your computer. Reconnecting...", null);
     }
-    scheduleReconnect();
+    scheduleReconnect(delay === undefined ? reconnectDelay : delay);
   }
 
-  function linkRestored() {
-    reconnectDelay = 1500;
-    if (!linkLost) return;
-    linkLost = false;
-    // A new connection is a new session on the laptop, and it turns down any
-    // send from a page that still carries the old session. Start the page over
-    // so it gets a fresh one, the same as it always did after a drop.
+  // The laptop did not recognise this page (it restarted, or the page was away
+  // too long), so this page's session is no longer valid. Start the page over.
+  function startOver() {
+    awaitingHello = false;
     showBanner("Back online. Refreshing...", null);
     setTimeout(function () {
       location.reload();
     }, 400);
   }
 
-  function scheduleReconnect() {
+  function flushQueue() {
+    queue.forEach(function (json) { socket.send(json); });
+    queue.length = 0;
+  }
+
+  function handleHello(resumed) {
+    if (!awaitingHello) return;
+    awaitingHello = false;
+    if (!resumed) {
+      startOver();
+      return;
+    }
+    linkLost = false;
+    reconnectDelay = 1500;
+    showBanner("Reconnected.", null);
+    setTimeout(function () {
+      if (!linkLost) hideBanner();
+    }, 1500);
+    flushQueue();
+  }
+
+  function scheduleReconnect(delay) {
     if (reconnectTimer) return;
     reconnectTimer = setTimeout(function () {
       reconnectTimer = null;
@@ -307,7 +391,7 @@ export const PHONE_SHIM_SCRIPT = `(function () {
         return;
       }
       connectSocket();
-    }, reconnectDelay);
+    }, delay);
   }
 
   function forceClose() {
@@ -372,21 +456,31 @@ export const PHONE_SHIM_SCRIPT = `(function () {
   }
 
   function connectSocket() {
-    socket = new WebSocket(wsProtocol + "//" + location.host + "${WS_PATH}");
+    socket = new WebSocket(wsProtocol + "//" + location.host + "${WS_PATH}?pid=" + pageId);
     socket.addEventListener("open", function () {
       lastHeard = Date.now();
-      var wasLost = linkLost;
-      linkRestored();
-      // Calls made while the line was down belong to the old session, which the
-      // laptop turns down, and the page starts over right after. Drop them.
-      if (wasLost) queue.length = 0;
-      queue.forEach(function (json) { socket.send(json); });
-      queue.length = 0;
+      var reconnecting = hadConnection;
+      hadConnection = true;
+      if (!reconnecting) {
+        flushQueue();
+        return;
+      }
+      // A reconnect: hold calls until the laptop says whether it recognised this
+      // page. If it did, they go out on the same session; if not, the page starts
+      // over and they are dropped, since the laptop would turn them down.
+      awaitingHello = true;
+      setTimeout(function () {
+        if (awaitingHello) startOver();
+      }, HELLO_WAIT_MS);
     });
 
     socket.addEventListener("message", function (evt) {
       lastHeard = Date.now();
       var msg = rewritePreviewUrls(JSON.parse(evt.data));
+      if (msg.type === "hello") {
+        handleHello(msg.resumed === true);
+        return;
+      }
       if (msg.type === "invoke-result") {
         var entry = pending.get(msg.id);
         if (!entry) return;
@@ -413,10 +507,20 @@ export const PHONE_SHIM_SCRIPT = `(function () {
   connectSocket();
 
   // A line that goes quiet for over a minute is dead (the laptop sends a
-  // heartbeat every 25 seconds). A hidden page is frozen by the phone anyway.
+  // heartbeat every 25 seconds). A page that was just in the background, which
+  // is when the phone freezes it, gets time to hear from the laptop first.
   setInterval(function () {
-    if (document.visibilityState === "hidden") return;
-    if (socket.readyState === WebSocket.OPEN && Date.now() - lastHeard > SILENCE_LIMIT_MS) {
+    var now = Date.now();
+    var gap = now - lastTick;
+    lastTick = now;
+    if (document.visibilityState === "hidden") {
+      visibleSince = 0;
+      return;
+    }
+    // Timers stand still while the page is frozen; a long gap means it just woke.
+    if (!visibleSince || gap > 25000) visibleSince = now;
+    if (now - visibleSince < VISIBLE_GRACE_MS) return;
+    if (socket.readyState === WebSocket.OPEN && now - lastHeard > SILENCE_LIMIT_MS) {
       forceClose();
     }
   }, 10000);
@@ -447,18 +551,14 @@ export const PHONE_SHIM_SCRIPT = `(function () {
   }, true);
 
   function recoverIfDisconnected() {
+    if (socket.readyState === WebSocket.CONNECTING) return;
     if (socket.readyState !== WebSocket.OPEN) {
-      if (filePickerActive) {
-        if (socket.readyState !== WebSocket.CONNECTING) connectSocket();
-        return;
-      }
-      // Already reconnecting in place, with the banner showing: leave the page
-      // (and anything typed in it) alone.
-      if (linkLost) return;
-      location.reload();
-    } else {
-      probeLink();
+      // Reconnect right away. If the laptop still has this page's session, the
+      // page carries on exactly where it was (a photo picked, text typed).
+      linkLostNow(0);
+      return;
     }
+    probeLink();
   }
   document.addEventListener("visibilitychange", function () {
     if (document.visibilityState === "visible") recoverIfDisconnected();
@@ -839,6 +939,10 @@ export function startPhoneBridgeServer(devServerUrl: string | undefined) {
 
   const wss = new WebSocketServer({ noServer: true });
   const stopHeartbeat = startPhoneHeartbeat(() => wss.clients);
+  const sessions = new ResumableSessions<PhoneConnection>(
+    PHONE_SESSION_GRACE_MS,
+    (conn) => conn.notifyClosed(),
+  );
   server.on("upgrade", (req, socket, head) => {
     const requestUrl = new URL(req.url ?? "/", "http://internal");
     const pathname = requestUrl.pathname;
@@ -869,14 +973,26 @@ export function startPhoneBridgeServer(devServerUrl: string | undefined) {
     });
   });
 
-  wss.on("connection", (ws) => {
+  wss.on("connection", (ws, req) => {
     watchPhoneClient(ws);
-    const conn = new PhoneConnection(ws);
-    logger.info("Phone client connected");
+    const pageId = parsePageId(req.url);
+    const { value: conn, resumed } = sessions.acquire(
+      pageId,
+      () => new PhoneConnection(ws),
+    );
+    if (resumed) conn.attach(ws);
+    logger.info(
+      resumed
+        ? "Phone client connected (same page, session kept)"
+        : "Phone client connected",
+    );
+    // Lets the page know whether its session is still good.
+    ws.send(JSON.stringify({ type: "hello", resumed }));
     ws.on("message", (raw) => onSocketMessage(conn, ws, raw));
     ws.on("close", () => {
       logger.info("Phone client disconnected");
-      conn.notifyClosed();
+      // A socket that was replaced by a newer one does not end the session.
+      if (conn.isCurrent(ws)) sessions.release(pageId, conn);
     });
     ws.on("error", (error) => logger.warn("Phone WebSocket error:", error));
   });
@@ -893,6 +1009,7 @@ export function startPhoneBridgeServer(devServerUrl: string | undefined) {
   });
 
   app.on("before-quit", () => {
+    sessions.dispose();
     stopHeartbeat();
     wss.close();
     server.close();

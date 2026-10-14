@@ -79,7 +79,7 @@ class FakeSocket {
 }
 
 // Runs the real script the phone receives against a pretend browser.
-function boot() {
+function boot({ storedPageId }: { storedPageId?: string } = {}) {
   sockets = [];
   const documentListeners: Record<string, Listener[]> = {};
   const appended: any[] = [];
@@ -96,7 +96,15 @@ function boot() {
       (documentListeners[type] ||= []).push(fn);
     },
   };
-  const window: any = { addEventListener() {} };
+  const stored = new Map<string, string>();
+  if (storedPageId) stored.set("cbPageId", storedPageId);
+  const window: any = {
+    addEventListener() {},
+    sessionStorage: {
+      getItem: (key: string) => stored.get(key) ?? null,
+      setItem: (key: string, value: string) => stored.set(key, value),
+    },
+  };
   const location = {
     protocol: "https:",
     host: "remote.example.app",
@@ -116,11 +124,17 @@ function boot() {
     document,
     location,
     appended,
+    stored,
+    banner: () => appended[0],
     comeBack: () => documentListeners.visibilitychange?.forEach((fn) => fn()),
   };
 }
 
-describe("phone link health", () => {
+function pageIdOf(socket: FakeSocket) {
+  return new URL(socket.url).searchParams.get("pid");
+}
+
+describe("phone link", () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -131,6 +145,7 @@ describe("phone link health", () => {
   it("still answers calls normally", async () => {
     const env = boot();
     sockets[0].open();
+    sockets[0].receive({ type: "hello", resumed: false });
     const call = env.window.electron.ipcRenderer.invoke("some-channel", 1);
     const sent = JSON.parse(sockets[0].sent[0]);
     expect(sent).toMatchObject({
@@ -145,38 +160,97 @@ describe("phone link health", () => {
       result: "done",
     });
     await expect(call).resolves.toBe("done");
-  });
-
-  it("shows a banner, reconnects, then starts the page over for a fresh session", () => {
-    const env = boot();
-    sockets[0].open();
     expect(env.appended).toHaveLength(0);
-
-    sockets[0].close();
-    const banner = env.appended[0];
-    expect(banner.textContent).toContain("Lost connection");
-
-    vi.advanceTimersByTime(1600);
-    expect(sockets).toHaveLength(2);
-    sockets[1].open();
-    expect(banner.textContent).toContain("Refreshing");
-    expect(env.location.reload).not.toHaveBeenCalled();
-
-    vi.advanceTimersByTime(500);
-    expect(env.location.reload).toHaveBeenCalledTimes(1);
   });
 
-  it("does not replay calls made while the line was down into the new connection", () => {
+  it("tells the laptop who it is, and keeps the same id for the tab", () => {
     const env = boot();
+    const id = pageIdOf(sockets[0]);
+    expect(id).toMatch(/^[0-9a-f]{24}$/);
+    expect(env.stored.get("cbPageId")).toBe(id);
+
     sockets[0].open();
     sockets[0].close();
+    vi.advanceTimersByTime(1600);
+    expect(pageIdOf(sockets[1])).toBe(id);
+
+    const again = boot({ storedPageId: "abcdef0123456789abcdef01" });
+    expect(pageIdOf(sockets[0])).toBe("abcdef0123456789abcdef01");
+    expect(again.stored.get("cbPageId")).toBe("abcdef0123456789abcdef01");
+  });
+
+  it("carries on without a refresh when the laptop recognises the page", () => {
+    const env = boot();
+    sockets[0].open();
+    sockets[0].receive({ type: "hello", resumed: false });
+
+    sockets[0].close();
+    expect(env.banner().textContent).toContain("Lost connection");
+    // Something sent while the line was down waits for the reconnect.
     env.window.electron.ipcRenderer.send("some-channel", "hello");
     expect(sockets[0].sent).toHaveLength(0);
 
     vi.advanceTimersByTime(1600);
+    expect(sockets).toHaveLength(2);
     sockets[1].open();
+    // Held until the laptop says whether it knows this page.
+    expect(sockets[1].sent).toHaveLength(0);
+
+    sockets[1].receive({ type: "hello", resumed: true });
+    expect(env.banner().textContent).toContain("Reconnected");
+    expect(env.location.reload).not.toHaveBeenCalled();
+    expect(sockets[1].sent).toHaveLength(1);
+    expect(JSON.parse(sockets[1].sent[0])).toMatchObject({
+      type: "send",
+      channel: "some-channel",
+    });
+
+    vi.advanceTimersByTime(2000);
+    expect(env.banner().style.display).toBe("none");
+    expect(env.location.reload).not.toHaveBeenCalled();
+  });
+
+  it("starts the page over when the laptop does not recognise it", () => {
+    const env = boot();
+    sockets[0].open();
+    sockets[0].close();
+    env.window.electron.ipcRenderer.send("some-channel", "hello");
+
+    vi.advanceTimersByTime(1600);
+    sockets[1].open();
+    sockets[1].receive({ type: "hello", resumed: false });
+
+    expect(env.banner().textContent).toContain("Refreshing");
+    expect(env.location.reload).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(500);
+    expect(env.location.reload).toHaveBeenCalledTimes(1);
     // Those calls carry the old session, which the laptop would turn down.
     expect(sockets[1].sent).toHaveLength(0);
+  });
+
+  it("starts the page over if the laptop never says hello after a reconnect", () => {
+    const env = boot();
+    sockets[0].open();
+    sockets[0].close();
+    vi.advanceTimersByTime(1600);
+    sockets[1].open();
+
+    vi.advanceTimersByTime(3900);
+    expect(env.location.reload).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(600);
+    expect(env.location.reload).toHaveBeenCalledTimes(1);
+  });
+
+  it("reconnects right away on coming back to a closed connection, without reloading", () => {
+    const env = boot();
+    sockets[0].open();
+    // The phone froze the page; the socket is dead but no close event arrived.
+    sockets[0].readyState = 3;
+
+    env.comeBack();
+    vi.advanceTimersByTime(10);
+    expect(sockets).toHaveLength(2);
+    expect(env.location.reload).not.toHaveBeenCalled();
   });
 
   it("does not open a second connection while one is already connecting", () => {
@@ -200,7 +274,7 @@ describe("phone link health", () => {
     expect(env.appended).toHaveLength(0);
 
     vi.advanceTimersByTime(30_000);
-    expect(env.appended[0].textContent).toContain("Lost connection");
+    expect(env.banner().textContent).toContain("Lost connection");
   });
 
   it("does not judge the line while the page is hidden", () => {
@@ -211,6 +285,23 @@ describe("phone link health", () => {
     expect(env.appended).toHaveLength(0);
   });
 
+  it("gives a page that just came back from the background time to hear from the laptop", () => {
+    const env = boot();
+    sockets[0].open();
+    env.document.visibilityState = "hidden";
+    vi.advanceTimersByTime(120_000);
+
+    // Back from the camera: the last word from the laptop is two minutes old.
+    env.document.visibilityState = "visible";
+    vi.advanceTimersByTime(20_000);
+    expect(env.appended).toHaveLength(0);
+
+    // The next heartbeat arrives and the line stays up.
+    sockets[0].receive({ type: "heartbeat" });
+    vi.advanceTimersByTime(60_000);
+    expect(env.appended).toHaveLength(0);
+  });
+
   it("checks the line when you come back and gives up on a dead one", () => {
     const env = boot();
     sockets[0].open();
@@ -218,7 +309,9 @@ describe("phone link health", () => {
 
     env.comeBack();
     expect(sockets[0].sentTypes()).toContain("ping");
-    vi.advanceTimersByTime(4100);
+    vi.advanceTimersByTime(9_000);
+    expect(env.appended).toHaveLength(0);
+    vi.advanceTimersByTime(1_500);
     expect(env.appended[0].textContent).toContain("Lost connection");
   });
 
@@ -230,16 +323,7 @@ describe("phone link health", () => {
     env.comeBack();
     vi.advanceTimersByTime(500);
     sockets[0].receive({ type: "pong" });
-    vi.advanceTimersByTime(4100);
+    vi.advanceTimersByTime(11_000);
     expect(env.appended).toHaveLength(0);
-  });
-
-  it("does not reload the page while it is reconnecting in place", () => {
-    const env = boot();
-    sockets[0].open();
-    sockets[0].close();
-
-    env.comeBack();
-    expect(env.location.reload).not.toHaveBeenCalled();
   });
 });

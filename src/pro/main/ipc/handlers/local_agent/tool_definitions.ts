@@ -53,6 +53,7 @@ import { haListFilesTool } from "./tools/ha_list_files";
 import { haReadFileTool } from "./tools/ha_read_file";
 import { haWriteFileTool } from "./tools/ha_write_file";
 import { haDeleteFileTool } from "./tools/ha_delete_file";
+import { haRestartTool } from "./tools/ha_restart";
 import { sendEmailTool } from "./tools/send_email";
 import { githubReposTool } from "./tools/github_repos";
 import { viewPreviewTool } from "./tools/view_preview";
@@ -215,6 +216,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinition[] = [
   haReadFileTool,
   haWriteFileTool,
   haDeleteFileTool,
+  haRestartTool,
   sendEmailTool,
   githubReposTool,
   viewPreviewTool,

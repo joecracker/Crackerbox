@@ -1,4 +1,11 @@
-import { FileSearch, Files, ListTree, Trash2, Upload } from "lucide-react";
+import {
+  FileSearch,
+  Files,
+  ListTree,
+  RotateCw,
+  Trash2,
+  Upload,
+} from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -18,7 +25,8 @@ export type HomeAssistantAction =
   | "delete-file"
   | "read-file"
   | "list-files"
-  | "list-entities";
+  | "list-entities"
+  | "restart";
 
 interface DyadHomeAssistantProps {
   action: HomeAssistantAction;
@@ -35,6 +43,7 @@ const ACTION_ICONS = {
   "read-file": FileSearch,
   "list-files": Files,
   "list-entities": ListTree,
+  restart: RotateCw,
 };
 
 export function DyadHomeAssistant({

@@ -88,6 +88,7 @@ const DYAD_CUSTOM_TAG_NAMES = [
   "dyad-ha-read-file",
   "dyad-ha-list-files",
   "dyad-ha-list-entities",
+  "dyad-ha-restart",
 ];
 const DYAD_CUSTOM_TAG_SET = new Set(DYAD_CUSTOM_TAG_NAMES);
 

@@ -402,6 +402,7 @@
     "read-file": "Reading file",
     "list-files": "Listing files",
     "list-entities": "Listing entities",
+    "restart": "Restarting Home Assistant",
     "running": "Running",
     "interrupted": "Interrupted"
   },

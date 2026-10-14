@@ -30,6 +30,7 @@ const CUSTOM_TAG_NAMES = [
   "dyad-ha-read-file",
   "dyad-ha-list-files",
   "dyad-ha-list-entities",
+  "dyad-ha-restart",
 ];
 export const useCopyToClipboard = () => {
   const [copied, setCopied] = useState(false);
@@ -160,6 +161,7 @@ export const useCopyToClipboard = () => {
       case "dyad-ha-read-file":
       case "dyad-ha-list-files":
       case "dyad-ha-list-entities":
+      case "dyad-ha-restart":
         return "";
 
       case "dyad-edit": {

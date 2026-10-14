@@ -404,6 +404,7 @@ const PASSIVE_ACTIVITY_TAGS = new Set([
   "dyad-ha-read-file",
   "dyad-ha-list-files",
   "dyad-ha-list-entities",
+  "dyad-ha-restart",
 ]);
 
 interface ActivityRun {
@@ -727,6 +728,7 @@ function renderCustomTag(
     case "dyad-ha-read-file":
     case "dyad-ha-list-files":
     case "dyad-ha-list-entities":
+    case "dyad-ha-restart":
       return (
         <DyadHomeAssistant
           action={tag.slice("dyad-ha-".length) as HomeAssistantAction}

@@ -67,6 +67,7 @@ import { DragDropOverlay } from "./DragDropOverlay";
 import { FileAttachmentTypeDialog } from "./FileAttachmentTypeDialog";
 import { showExtraFilesToast, showWarning } from "@/lib/toast";
 import { useSummarizeInNewChat } from "./SummarizeInNewChatButton";
+import { useChatAlreadySummarized } from "@/hooks/useChatAlreadySummarized";
 import { ChatInputControls } from "../ChatInputControls";
 import { ChatErrorBox } from "./ChatErrorBox";
 import { AgentConsentBanner } from "./AgentConsentBanner";
@@ -307,6 +308,11 @@ export function ChatInput({ chatId }: { chatId?: number }) {
   const proposalOffersSummarize =
     proposal?.type === "action-proposal" &&
     proposal.actions.some((action) => action.id === "summarize-in-new-chat");
+  const alreadySummarized = useChatAlreadySummarized({
+    appId,
+    chatId: chatId ?? null,
+    enabled: chatId != null && summarizeSuggestedChatIds.includes(chatId),
+  });
 
   useEffect(() => {
     if (!chatId || !proposalOffersSummarize) return;
@@ -1044,6 +1050,7 @@ export function ChatInput({ chatId }: { chatId?: number }) {
           {!pendingToolConsent &&
             chatId &&
             summarizeSuggestedChatIds.includes(chatId) &&
+            !alreadySummarized &&
             !proposalOffersSummarize && (
               <div className="border-b border-border p-2 pb-0 flex items-center">
                 <div className="flex items-center gap-2 overflow-x-auto pb-2">

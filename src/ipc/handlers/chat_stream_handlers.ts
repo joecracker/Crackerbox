@@ -110,6 +110,7 @@ import fs from "node:fs";
 import * as path from "path";
 import * as crypto from "crypto";
 import { readFile, writeFile } from "fs/promises";
+import { prepareImagesForModel } from "@/ipc/utils/image_shrink";
 import { getMaxTokens, getTemperature } from "../utils/token_utils";
 import { MAX_CHAT_TURNS_IN_CONTEXT } from "@/constants/settings_constants";
 import { getProviderOptions, getAiHeaders } from "../utils/provider_options";
@@ -3529,28 +3530,30 @@ async function prepareMessageWithAttachments(
   });
 
   if (includeImageAttachments) {
-    // Add image parts for any image attachments
-    for (const filePath of attachmentPaths) {
+    // Add image parts for any image attachments. Big pictures are shrunk first
+    // and anything that still cannot fit is reported to the model as a note, so
+    // a picture is never dropped without anyone knowing.
+    const imageFiles = attachmentPaths.flatMap((filePath) => {
       const mimeType = getInlineImageMimeType(filePath);
-      if (mimeType) {
-        try {
-          // Read the file as a buffer and convert to base64 string
-          // Using base64 strings instead of raw Buffers ensures proper JSON serialization
-          // for storage in aiMessagesJson (raw Buffers serialize inefficiently and exceed size limits)
-          const imageBuffer = await readFile(filePath);
-          const base64Data = imageBuffer.toString("base64");
-
-          // Add the image to the content parts with base64 data and mediaType
-          contentParts.push({
-            type: "image",
-            image: base64Data,
-            mediaType: mimeType,
-          });
-
-          logger.log(`Added image attachment: ${filePath}`);
-        } catch (error) {
-          logger.error(`Error reading image file: ${error}`);
-        }
+      return mimeType ? [{ filePath, mimeType }] : [];
+    });
+    if (imageFiles.length > 0) {
+      const { images, notes } = await prepareImagesForModel(imageFiles);
+      for (const image of images) {
+        // Base64 strings (not raw Buffers) serialize properly for storage in
+        // aiMessagesJson.
+        contentParts.push({
+          type: "image",
+          image: image.data.toString("base64"),
+          mediaType: image.mimeType,
+        });
+        logger.log(
+          `Added image attachment: ${image.name} (${image.data.length} bytes${image.shrunk ? ", shrunk" : ""})`,
+        );
+      }
+      for (const note of notes) {
+        contentParts.push({ type: "text", text: `[Note: ${note}]` });
+        logger.warn(note);
       }
     }
   }

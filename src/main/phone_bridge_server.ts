@@ -37,7 +37,7 @@ const logger = log.scope("phone_bridge_server");
 const PHONE_BRIDGE_PORT = 4319;
 const WS_PATH = "/__phone_bridge/ws";
 const SHIM_PATH = "/__phone_bridge/shim.js";
-const SHIM_SRC = `${SHIM_PATH}?v=4`;
+const SHIM_SRC = `${SHIM_PATH}?v=5`;
 const PREVIEW_PATH_PREFIX = "/__phone_preview/";
 const MIN_PREVIEW_PROXY_PORT = 42_100;
 const MAX_PREVIEW_PROXY_PORT = 52_149;
@@ -286,9 +286,13 @@ export const PHONE_SHIM_SCRIPT = `(function () {
     reconnectDelay = 1500;
     if (!linkLost) return;
     linkLost = false;
-    showBanner("Back online. Tap here to refresh this screen.", function () {
+    // A new connection is a new session on the laptop, and it turns down any
+    // send from a page that still carries the old session. Start the page over
+    // so it gets a fresh one, the same as it always did after a drop.
+    showBanner("Back online. Refreshing...", null);
+    setTimeout(function () {
       location.reload();
-    });
+    }, 400);
   }
 
   function scheduleReconnect() {
@@ -296,7 +300,12 @@ export const PHONE_SHIM_SCRIPT = `(function () {
     reconnectTimer = setTimeout(function () {
       reconnectTimer = null;
       reconnectDelay = Math.min(reconnectDelay * 2, 10000);
-      if (socket.readyState === WebSocket.OPEN) return;
+      if (
+        socket.readyState === WebSocket.OPEN ||
+        socket.readyState === WebSocket.CONNECTING
+      ) {
+        return;
+      }
       connectSocket();
     }, reconnectDelay);
   }
@@ -366,7 +375,11 @@ export const PHONE_SHIM_SCRIPT = `(function () {
     socket = new WebSocket(wsProtocol + "//" + location.host + "${WS_PATH}");
     socket.addEventListener("open", function () {
       lastHeard = Date.now();
+      var wasLost = linkLost;
       linkRestored();
+      // Calls made while the line was down belong to the old session, which the
+      // laptop turns down, and the page starts over right after. Drop them.
+      if (wasLost) queue.length = 0;
       queue.forEach(function (json) { socket.send(json); });
       queue.length = 0;
     });

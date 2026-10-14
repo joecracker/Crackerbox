@@ -147,7 +147,7 @@ describe("phone link health", () => {
     await expect(call).resolves.toBe("done");
   });
 
-  it("shows a banner and reconnects in place when the connection drops", () => {
+  it("shows a banner, reconnects, then starts the page over for a fresh session", () => {
     const env = boot();
     sockets[0].open();
     expect(env.appended).toHaveLength(0);
@@ -159,13 +159,14 @@ describe("phone link health", () => {
     vi.advanceTimersByTime(1600);
     expect(sockets).toHaveLength(2);
     sockets[1].open();
-    expect(banner.textContent).toContain("Back online");
+    expect(banner.textContent).toContain("Refreshing");
+    expect(env.location.reload).not.toHaveBeenCalled();
 
-    banner.onclick();
+    vi.advanceTimersByTime(500);
     expect(env.location.reload).toHaveBeenCalledTimes(1);
   });
 
-  it("sends anything queued while the line was down once it is back", () => {
+  it("does not replay calls made while the line was down into the new connection", () => {
     const env = boot();
     sockets[0].open();
     sockets[0].close();
@@ -174,11 +175,20 @@ describe("phone link health", () => {
 
     vi.advanceTimersByTime(1600);
     sockets[1].open();
-    expect(sockets[1].sent).toHaveLength(1);
-    expect(JSON.parse(sockets[1].sent[0])).toMatchObject({
-      type: "send",
-      channel: "some-channel",
-    });
+    // Those calls carry the old session, which the laptop would turn down.
+    expect(sockets[1].sent).toHaveLength(0);
+  });
+
+  it("does not open a second connection while one is already connecting", () => {
+    const env = boot();
+    sockets[0].open();
+    sockets[0].close();
+
+    vi.advanceTimersByTime(1600);
+    expect(sockets).toHaveLength(2);
+    env.comeBack();
+    vi.advanceTimersByTime(5000);
+    expect(sockets).toHaveLength(2);
   });
 
   it("treats a long silence as a dead line, and heartbeats keep it alive", () => {

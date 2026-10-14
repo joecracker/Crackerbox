@@ -23,6 +23,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ChatTabs } from "@/components/chat/ChatTabs";
+import { MobileChatListSheet } from "@/components/chat/MobileChatListSheet";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { selectedChatIdAtom } from "@/atoms/chatAtoms";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/queryKeys";
@@ -43,6 +45,8 @@ export const TitleBar = () => {
   const queryClient = useQueryClient();
   const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false);
   const platform = useSystemPlatform();
+  const isMobile = useIsMobile();
+  const [chatsOpen, setChatsOpen] = useState(false);
   const showWindowControls =
     platform !== null && platform !== "darwin" && platform !== "win32";
   // On Windows, titleBarOverlay (see main.ts) draws real native caption
@@ -104,9 +108,22 @@ export const TitleBar = () => {
             className={`${showWindowControls ? "pl-2" : reserveWindowsOverlaySpace ? "pl-2" : "pl-18"}`}
           ></div>
 
-          <span className="ml-2 text-sm font-semibold text-primary shrink-0">
-            Crackerbox
-          </span>
+          {isMobile ? (
+            // Phone only: tapping the name opens the old-chats panel.
+            <button
+              type="button"
+              data-testid="title-bar-chats-button"
+              aria-label="Show chats"
+              className="no-app-region-drag ml-2 shrink-0 cursor-pointer px-1 py-1 text-sm font-semibold text-primary"
+              onClick={() => setChatsOpen(true)}
+            >
+              Crackerbox
+            </button>
+          ) : (
+            <span className="ml-2 text-sm font-semibold text-primary shrink-0">
+              Crackerbox
+            </span>
+          )}
 
           <Tooltip>
             <TooltipTrigger
@@ -157,6 +174,10 @@ export const TitleBar = () => {
 
         {showWindowControls && <WindowsControls />}
       </div>
+
+      {isMobile && (
+        <MobileChatListSheet open={chatsOpen} onOpenChange={setChatsOpen} />
+      )}
 
       {PRO_BILLING_FEATURES_ENABLED && <SubscriptionConnectionStatus />}
       <DyadProSuccessDialog

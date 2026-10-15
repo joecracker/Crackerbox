@@ -45,7 +45,7 @@ describe("AppQuickRenameDialog", () => {
   }
 
   async function typeName(name: string) {
-    const input = screen.getByLabelText("New app name");
+    const input = screen.getByLabelText("New project name");
     await userEvent.clear(input);
     await userEvent.type(input, name);
   }

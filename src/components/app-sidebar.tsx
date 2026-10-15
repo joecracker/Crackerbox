@@ -368,7 +368,7 @@ function AppIcons({
               <SidebarMenuItem key={item.title}>
                 <AppSidebarRailButton
                   icon={item.icon}
-                  label={item.title}
+                  label={item.title === "Apps" ? "Projects" : item.title}
                   to={item.to}
                   isActive={isActive}
                   isExpanded={isExpanded}

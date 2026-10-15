@@ -66,7 +66,7 @@ describe("useAppQuickActions", () => {
   it("renames, refreshes the app list, and closes the dialog", async () => {
     setup();
     fireEvent.click(screen.getByText("open rename"));
-    const input = await screen.findByLabelText("New app name");
+    const input = await screen.findByLabelText("New project name");
     await userEvent.clear(input);
     await userEvent.type(input, "Drywall Estimator");
     await userEvent.click(screen.getByRole("button", { name: "Rename" }));

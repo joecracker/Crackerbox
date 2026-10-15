@@ -44,11 +44,11 @@ test("app search - basic search dialog functionality", async ({ po }) => {
   await dialog.waitFor({ state: "visible", timeout: 10000 });
 
   // Test 4: Search for specific term
-  await po.page.getByPlaceholder("Search apps").fill("app");
+  await po.page.getByPlaceholder("Search projects").fill("app");
   await po.page.waitForTimeout(500);
 
   // Test 5: Clear search and close with Escape
-  await po.page.getByPlaceholder("Search apps").clear();
+  await po.page.getByPlaceholder("Search projects").clear();
   await po.page.keyboard.press("Escape");
   await dialog.waitFor({ state: "hidden", timeout: 5000 });
 });
@@ -82,19 +82,19 @@ test("app search - search functionality with different terms", async ({
   await po.page.getByTestId("app-search-dialog").waitFor();
 
   // Search for "calculator" - should find the calculator app through chat content
-  await po.page.getByPlaceholder("Search apps").fill("calculator");
+  await po.page.getByPlaceholder("Search projects").fill("calculator");
   await po.page.waitForTimeout(500);
 
   // Search for "task" - should find the task management app
-  await po.page.getByPlaceholder("Search apps").fill("task");
+  await po.page.getByPlaceholder("Search projects").fill("task");
   await po.page.waitForTimeout(500);
 
   // Search for "weather" - should find the weather dashboard
-  await po.page.getByPlaceholder("Search apps").fill("weather");
+  await po.page.getByPlaceholder("Search projects").fill("weather");
   await po.page.waitForTimeout(500);
 
   // Search for non-existent term
-  await po.page.getByPlaceholder("Search apps").fill("nonexistent");
+  await po.page.getByPlaceholder("Search projects").fill("nonexistent");
   await po.page.waitForTimeout(500);
 
   // Should show empty state
@@ -180,7 +180,7 @@ test("app search - empty search shows all apps", async ({ po }) => {
   await po.page.getByTestId("app-search-dialog").waitFor();
 
   // Clear any existing search (should show all apps)
-  await po.page.getByPlaceholder("Search apps").clear();
+  await po.page.getByPlaceholder("Search projects").clear();
   await po.page.waitForTimeout(500);
 
   // Should show all apps in the list
@@ -204,16 +204,16 @@ test("app search - case insensitive search", async ({ po }) => {
   await po.page.getByTestId("app-search-dialog").waitFor();
 
   // Search with different cases
-  await po.page.getByPlaceholder("Search apps").fill("test");
+  await po.page.getByPlaceholder("Search projects").fill("test");
   await po.page.waitForTimeout(500);
 
-  await po.page.getByPlaceholder("Search apps").fill("TEST");
+  await po.page.getByPlaceholder("Search projects").fill("TEST");
   await po.page.waitForTimeout(500);
 
-  await po.page.getByPlaceholder("Search apps").fill("Test");
+  await po.page.getByPlaceholder("Search projects").fill("Test");
   await po.page.waitForTimeout(500);
 
-  await po.page.getByPlaceholder("Search apps").fill("MIXED");
+  await po.page.getByPlaceholder("Search projects").fill("MIXED");
   await po.page.waitForTimeout(500);
 
   await po.page.keyboard.press("Escape");
@@ -233,16 +233,16 @@ test("app search - partial word matching", async ({ po }) => {
   await po.page.getByTestId("app-search-dialog").waitFor();
 
   // Search with partial words
-  await po.page.getByPlaceholder("Search apps").fill("proj");
+  await po.page.getByPlaceholder("Search projects").fill("proj");
   await po.page.waitForTimeout(500);
 
-  await po.page.getByPlaceholder("Search apps").fill("manage");
+  await po.page.getByPlaceholder("Search projects").fill("manage");
   await po.page.waitForTimeout(500);
 
-  await po.page.getByPlaceholder("Search apps").fill("comp");
+  await po.page.getByPlaceholder("Search projects").fill("comp");
   await po.page.waitForTimeout(500);
 
-  await po.page.getByPlaceholder("Search apps").fill("sol");
+  await po.page.getByPlaceholder("Search projects").fill("sol");
   await po.page.waitForTimeout(500);
 
   await po.page.keyboard.press("Escape");
@@ -284,18 +284,18 @@ test("app search - search by app name", async ({ po }) => {
       0,
       Math.min(4, firstAppName.length),
     );
-    await po.page.getByPlaceholder("Search apps").fill(searchTerm);
+    await po.page.getByPlaceholder("Search projects").fill(searchTerm);
     await po.page.waitForTimeout(500);
 
     // Clear and search for second app if available
     if (appNames.length > 1) {
-      await po.page.getByPlaceholder("Search apps").clear();
+      await po.page.getByPlaceholder("Search projects").clear();
       const secondAppName = appNames[1];
       const secondSearchTerm = secondAppName.substring(
         0,
         Math.min(4, secondAppName.length),
       );
-      await po.page.getByPlaceholder("Search apps").fill(secondSearchTerm);
+      await po.page.getByPlaceholder("Search projects").fill(secondSearchTerm);
       await po.page.waitForTimeout(500);
     }
   }

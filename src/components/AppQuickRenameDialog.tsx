@@ -73,7 +73,7 @@ export function AppQuickRenameDialog({
         data-testid="app-quick-rename-dialog"
       >
         <DialogHeader className="pb-2">
-          <DialogTitle>Rename app</DialogTitle>
+          <DialogTitle>Rename project</DialogTitle>
           <DialogDescription className="text-xs">
             Pick a name you will recognise in the list.
           </DialogDescription>
@@ -84,8 +84,8 @@ export function AppQuickRenameDialog({
           onKeyDown={(e) => {
             if (e.key === "Enter") void handleRename();
           }}
-          placeholder="Enter new app name"
-          aria-label="New app name"
+          placeholder="Enter new project name"
+          aria-label="New project name"
           className="my-2"
           autoFocus
         />
@@ -99,7 +99,7 @@ export function AppQuickRenameDialog({
             htmlFor="app-quick-rename-folder"
             className="text-xs text-muted-foreground"
           >
-            Also rename the app's folder to match
+            Also rename the project's folder to match
           </Label>
         </div>
         <DialogFooter className="pt-2">

@@ -83,7 +83,7 @@ export const TitleBar = () => {
   ]);
 
   const selectedApp = apps.find((app) => app.id === selectedAppId);
-  const displayText = selectedApp ? selectedApp.name : "No app selected";
+  const displayText = selectedApp ? selectedApp.name : "No project selected";
 
   const handleAppClick = () => {
     if (selectedApp) {
@@ -135,7 +135,7 @@ export const TitleBar = () => {
                   aria-label={
                     selectedApp
                       ? `Manage ${selectedApp.name}`
-                      : "No app selected"
+                      : "No project selected"
                   }
                   variant="outline"
                   size="sm"

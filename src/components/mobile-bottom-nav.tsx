@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 // tab bar that jumps straight to each section instead. Mirrors the same
 // five destinations as the desktop sidebar's icon rail.
 const items: Array<{ title: string; to: string; icon: LucideIcon }> = [
-  { title: "Apps", to: "/", icon: Home },
+  { title: "Projects", to: "/", icon: Home },
   { title: "Settings", to: "/settings", icon: Settings },
   { title: "Library", to: "/library", icon: BookOpen },
   { title: "Templates", to: "/templates", icon: Store },

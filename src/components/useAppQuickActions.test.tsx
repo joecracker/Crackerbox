@@ -85,7 +85,7 @@ describe("useAppQuickActions", () => {
     setup();
     fireEvent.click(screen.getByText("open delete"));
     await userEvent.click(
-      await screen.findByRole("button", { name: "Delete app" }),
+      await screen.findByRole("button", { name: "Delete project" }),
     );
 
     await waitFor(() => expect(h.deleteApp).toHaveBeenCalledWith({ appId: 7 }));
@@ -99,7 +99,7 @@ describe("useAppQuickActions", () => {
     const { store } = setup(7);
     fireEvent.click(screen.getByText("open delete"));
     await userEvent.click(
-      await screen.findByRole("button", { name: "Delete app" }),
+      await screen.findByRole("button", { name: "Delete project" }),
     );
 
     await waitFor(() => expect(store.get(selectedAppIdAtom)).toBeNull());
@@ -109,7 +109,7 @@ describe("useAppQuickActions", () => {
     const { store } = setup(99);
     fireEvent.click(screen.getByText("open delete"));
     await userEvent.click(
-      await screen.findByRole("button", { name: "Delete app" }),
+      await screen.findByRole("button", { name: "Delete project" }),
     );
 
     await waitFor(() => expect(h.deleteApp).toHaveBeenCalled());
@@ -121,7 +121,7 @@ describe("useAppQuickActions", () => {
     setup();
     fireEvent.click(screen.getByText("open delete"));
     await userEvent.click(
-      await screen.findByRole("button", { name: "Delete app" }),
+      await screen.findByRole("button", { name: "Delete project" }),
     );
 
     await waitFor(() => expect(h.showError).toHaveBeenCalledTimes(1));

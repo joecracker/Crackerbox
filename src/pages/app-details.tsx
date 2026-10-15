@@ -350,7 +350,7 @@ export default function AppDetailsPage() {
     onSuccess: async () => {
       await invalidateAppQuery(queryClient, { appId });
       await refreshApps();
-      showSuccess("App location updated");
+      showSuccess("Project location updated");
     },
     onError: (error) => {
       showError(error);
@@ -362,7 +362,7 @@ export default function AppDetailsPage() {
       <div className="relative min-h-screen p-8">
         <BackButton label="Back" className="absolute top-4 left-4 mb-0" />
         <div className="flex flex-col items-center justify-center h-full">
-          <h2 className="text-xl font-bold">App not found</h2>
+          <h2 className="text-xl font-bold">Project not found</h2>
         </div>
       </div>
     );
@@ -480,7 +480,7 @@ export default function AppDetailsPage() {
                   size="sm"
                   className="h-8 justify-start text-xs"
                 >
-                  Copy app
+                  Copy project
                 </Button>
                 <Button
                   onClick={() => setIsDeleteDialogOpen(true)}
@@ -676,12 +676,12 @@ export default function AppDetailsPage() {
         <Dialog open={isRenameDialogOpen} onOpenChange={setIsRenameDialogOpen}>
           <DialogContent className="max-w-sm p-4">
             <DialogHeader className="pb-2">
-              <DialogTitle>Rename App</DialogTitle>
+              <DialogTitle>Rename Project</DialogTitle>
             </DialogHeader>
             <Input
               value={newAppName}
               onChange={(e) => setNewAppName(e.target.value)}
-              placeholder="Enter new app name"
+              placeholder="Enter new project name"
               className="my-2"
               autoFocus
             />
@@ -715,9 +715,9 @@ export default function AppDetailsPage() {
         >
           <DialogContent className="max-w-sm p-4">
             <DialogHeader className="pb-2">
-              <DialogTitle>Rename app folder</DialogTitle>
+              <DialogTitle>Rename project folder</DialogTitle>
               <DialogDescription className="text-xs">
-                This will change only the folder name, not the app name.
+                This will change only the folder name, not the project name.
               </DialogDescription>
             </DialogHeader>
             <Input
@@ -814,7 +814,9 @@ export default function AppDetailsPage() {
                   </span>
                 </div>
                 <div className="text-left">
-                  <p className="font-medium text-xs">Rename app and folder</p>
+                  <p className="font-medium text-xs">
+                    Rename project and folder
+                  </p>
                   {renameFolderHasCollision ? (
                     <p className="text-xs text-yellow-600 dark:text-yellow-500">
                       {t("renameFolderCollision", {
@@ -838,7 +840,7 @@ export default function AppDetailsPage() {
                 disabled={isRenaming}
               >
                 <div className="text-left">
-                  <p className="font-medium text-xs">Rename app only</p>
+                  <p className="font-medium text-xs">Rename project only</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     The folder name will remain the same.
                   </p>
@@ -865,7 +867,7 @@ export default function AppDetailsPage() {
               <DialogHeader className="pb-2">
                 <DialogTitle>Copy "{selectedApp.name}"</DialogTitle>
                 <DialogDescription className="text-sm">
-                  <p>Create a copy of this app.</p>
+                  <p>Create a copy of this project.</p>
                   <p>
                     Note: this does not copy over the Supabase project or GitHub
                     project.
@@ -874,13 +876,13 @@ export default function AppDetailsPage() {
               </DialogHeader>
               <div className="space-y-3 my-2">
                 <div>
-                  <Label htmlFor="newAppName">New app name</Label>
+                  <Label htmlFor="newAppName">New project name</Label>
                   <div className="relative mt-1">
                     <Input
                       id="newAppName"
                       value={newCopyAppName}
                       onChange={handleAppNameChange}
-                      placeholder="Enter new app name"
+                      placeholder="Enter new project name"
                       className="pr-8"
                       disabled={copyAppMutation.isPending}
                     />
@@ -893,7 +895,7 @@ export default function AppDetailsPage() {
 
                   {nameExists && (
                     <p className="text-xs text-yellow-600 dark:text-yellow-500 mt-1">
-                      An app with this name already exists. Please choose
+                      A project with this name already exists. Please choose
                       another name.
                     </p>
                   )}
@@ -935,10 +937,10 @@ export default function AppDetailsPage() {
                     </div>
                     <div className="text-left">
                       <p className="font-medium text-xs">
-                        Copy app with history
+                        Copy project with history
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
-                        Copies the entire app, including the Git version
+                        Copies the entire project, including the Git version
                         history.
                       </p>
                     </div>
@@ -964,10 +966,10 @@ export default function AppDetailsPage() {
                       )}
                     <div className="text-left">
                       <p className="font-medium text-xs">
-                        Copy app without history
+                        Copy project without history
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
-                        Useful if the current app has a Git-related issue.
+                        Useful if the current project has a Git-related issue.
                       </p>
                     </div>
                   </Button>
@@ -994,10 +996,10 @@ export default function AppDetailsPage() {
         >
           <DialogContent className="max-w-sm p-4">
             <DialogHeader className="pb-2">
-              <DialogTitle>Change App Location</DialogTitle>
+              <DialogTitle>Change Project Location</DialogTitle>
               <DialogDescription className="text-xs">
-                Select a folder where this app will be stored. The app folder
-                name will remain the same.
+                Select a folder where this project will be stored. The project
+                folder name will remain the same.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter className="pt-2">
@@ -1033,8 +1035,8 @@ export default function AppDetailsPage() {
             <DialogHeader className="pb-2">
               <DialogTitle>Delete "{selectedApp.name}"?</DialogTitle>
               <DialogDescription className="text-xs">
-                This action is irreversible. All app files and chat history will
-                be permanently deleted.
+                This action is irreversible. All project files and chat history
+                will be permanently deleted.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter className="flex justify-end gap-2 pt-2">
@@ -1078,7 +1080,7 @@ export default function AppDetailsPage() {
                     Deleting...
                   </>
                 ) : (
-                  "Delete App"
+                  "Delete Project"
                 )}
               </Button>
             </DialogFooter>

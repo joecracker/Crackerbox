@@ -27,7 +27,7 @@ testSkipIfWindows(
     await po.page.getByTestId("apps-view-tab-collections").click();
     await expect(
       po.page.getByText(
-        "No collections yet. Create one to organize your apps.",
+        "No collections yet. Create one to organize your projects.",
       ),
     ).toBeVisible();
 
@@ -37,7 +37,7 @@ testSkipIfWindows(
       .fill("not-a-real-collection");
     await po.page.getByTestId("apps-view-tab-apps").click();
     await expect(
-      po.page.getByRole("textbox", { name: "Search apps" }),
+      po.page.getByRole("textbox", { name: "Search projects" }),
     ).toHaveValue("");
     await expect(
       po.page.getByTestId(`app-showcase-card-${appName1}`),
@@ -104,7 +104,7 @@ testSkipIfWindows(
     // Empty state should return — and the underlying apps must still exist.
     await expect(
       po.page.getByText(
-        "No collections yet. Create one to organize your apps.",
+        "No collections yet. Create one to organize your projects.",
       ),
     ).toBeVisible();
     await po.page.getByTestId("apps-view-tab-apps").click();

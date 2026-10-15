@@ -136,7 +136,9 @@ describe("AppQuickDeleteDialog", () => {
 
   it("deletes the app, reports it, and closes", async () => {
     const { onOpenChange, onDeleted } = setup();
-    await userEvent.click(screen.getByRole("button", { name: "Delete app" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Delete project" }),
+    );
 
     await waitFor(() => expect(h.deleteApp).toHaveBeenCalledWith({ appId: 7 }));
     await waitFor(() => expect(onDeleted).toHaveBeenCalledWith(7));
@@ -146,7 +148,9 @@ describe("AppQuickDeleteDialog", () => {
   it("does not report a deletion that failed", async () => {
     h.deleteApp.mockRejectedValue(new Error("disk busy"));
     const { onDeleted } = setup();
-    await userEvent.click(screen.getByRole("button", { name: "Delete app" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Delete project" }),
+    );
 
     await waitFor(() => expect(h.showError).toHaveBeenCalledTimes(1));
     expect(onDeleted).not.toHaveBeenCalled();

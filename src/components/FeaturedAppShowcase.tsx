@@ -38,7 +38,7 @@ export function FeaturedAppShowcase() {
       className="w-full max-w-6xl mx-auto px-8 mt-8 mb-12"
     >
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold">Featured Apps</h2>
+        <h2 className="text-lg font-semibold">Featured Projects</h2>
         <button
           type="button"
           onClick={() => navigate({ to: "/apps" })}
@@ -52,7 +52,7 @@ export function FeaturedAppShowcase() {
         <div
           tabIndex={0}
           role="region"
-          aria-label="App showcase"
+          aria-label="Project showcase"
           className="flex gap-4 overflow-x-auto scrollbar-on-hover pb-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-lg"
         >
           {featured.map((app) => (

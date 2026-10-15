@@ -51,7 +51,7 @@ describe("GitHub import dialog (integration)", () => {
 
   async function mountImportDialog() {
     harness.mountSurface({ route: "/import-app" });
-    return screen.findByRole("dialog", { name: "Import App" });
+    return screen.findByRole("dialog", { name: "Import Project" });
   }
 
   function getTabByText(text: string): HTMLElement {
@@ -96,7 +96,9 @@ describe("GitHub import dialog (integration)", () => {
   async function waitForDialogClosed() {
     await waitFor(
       () => {
-        expect(screen.queryByRole("dialog", { name: "Import App" })).toBeNull();
+        expect(
+          screen.queryByRole("dialog", { name: "Import Project" }),
+        ).toBeNull();
       },
       { timeout: 60_000 },
     );

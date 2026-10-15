@@ -18,11 +18,11 @@ testSkipIfWindows(
     await po.appManagement.getTitleBarAppNameButton().click();
     await po.appManagement.clickAppDetailsRenameAppButton();
     await po.page
-      .getByRole("textbox", { name: "Enter new app name" })
+      .getByRole("textbox", { name: "Enter new project name" })
       .fill("Lumen Notes");
     await po.page.getByRole("button", { name: "Continue" }).click();
     await po.page
-      .getByRole("button", { name: "Recommended Rename app and" })
+      .getByRole("button", { name: "Recommended Rename project and" })
       .click();
     await expect(async () => {
       expect(await po.appManagement.getCurrentAppName()).toBe("Lumen Notes");
@@ -31,7 +31,7 @@ testSkipIfWindows(
     // Second app runs the blueprint flow; approving it tries to take the same
     // name. Instead of blocking with a dialog, approval auto-resolves the
     // conflict by appending a numeric suffix to the name and folder. Navigate
-    // back to the home page first so the "Import App" button is available
+    // back to the home page first so the "Import Project" button is available
     // (it lives on the new-app screen).
     await po.navigation.goToAppsTab();
     await po.page.getByRole("button", { name: "New Project" }).click();

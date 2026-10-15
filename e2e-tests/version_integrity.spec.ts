@@ -20,7 +20,7 @@ const runVersionIntegrityTest = async (po: PageObject) => {
   await po.setUp({ autoApprove: true });
 
   // Importing a simple app with a few files.
-  await po.page.getByRole("button", { name: "Import App" }).click();
+  await po.page.getByRole("button", { name: "Import Project" }).click();
   await eph.stubDialog(po.electronApp, "showOpenDialog", {
     filePaths: [
       path.join(__dirname, "fixtures", "import-app", "version-integrity"),
@@ -28,9 +28,11 @@ const runVersionIntegrityTest = async (po: PageObject) => {
   });
 
   await po.page.getByRole("button", { name: "Select Folder" }).click();
-  await po.page.getByRole("textbox", { name: "Enter new app name" }).click();
   await po.page
-    .getByRole("textbox", { name: "Enter new app name" })
+    .getByRole("textbox", { name: "Enter new project name" })
+    .click();
+  await po.page
+    .getByRole("textbox", { name: "Enter new project name" })
     .fill("version-integrity-app");
   await po.page.getByRole("button", { name: "Import" }).click();
 

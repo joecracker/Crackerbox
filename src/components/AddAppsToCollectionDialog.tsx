@@ -75,7 +75,7 @@ export function AddAppsToCollectionDialog({
         appIds: Array.from(selected),
       });
       showSuccess(
-        `Added ${selected.size} app${selected.size === 1 ? "" : "s"} to "${collection.name}"`,
+        `Added ${selected.size} project${selected.size === 1 ? "" : "s"} to "${collection.name}"`,
       );
       onOpenChange(false);
     } catch (error) {
@@ -94,16 +94,16 @@ export function AddAppsToCollectionDialog({
     >
       <DialogContent className="max-w-md p-4">
         <DialogHeader className="pb-2">
-          <DialogTitle>Add apps to "{collection.name}"</DialogTitle>
+          <DialogTitle>Add projects to "{collection.name}"</DialogTitle>
           <DialogDescription className="text-xs">
-            Select apps to add. Apps already in another collection will be
-            moved.
+            Select projects to add. Projects already in another collection will
+            be moved.
           </DialogDescription>
         </DialogHeader>
 
         <Input
           type="text"
-          placeholder="Search apps..."
+          placeholder="Search projects..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="bg-(--background-lighter)"
@@ -117,8 +117,8 @@ export function AddAppsToCollectionDialog({
           {availableApps.length === 0 ? (
             <div className="p-3 text-center text-xs text-muted-foreground">
               {allApps.length === collection.appIds.length
-                ? "All apps are already in this collection."
-                : "No apps match your search."}
+                ? "All projects are already in this collection."
+                : "No projects match your search."}
             </div>
           ) : (
             availableApps.map((app) => {
@@ -168,7 +168,7 @@ export function AddAppsToCollectionDialog({
                 Adding...
               </>
             ) : (
-              `Add ${selected.size} app${selected.size === 1 ? "" : "s"}`
+              `Add ${selected.size} project${selected.size === 1 ? "" : "s"}`
             )}
           </Button>
         </DialogFooter>

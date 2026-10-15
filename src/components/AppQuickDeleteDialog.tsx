@@ -55,8 +55,8 @@ export function AppQuickDeleteDialog({
         <DialogHeader className="pb-2">
           <DialogTitle>Delete "{app?.name}"?</DialogTitle>
           <DialogDescription className="text-xs">
-            This action is irreversible. All app files and chat history will be
-            permanently deleted.
+            This action is irreversible. All project files and chat history will
+            be permanently deleted.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="flex justify-end gap-2 pt-2">
@@ -82,7 +82,7 @@ export function AppQuickDeleteDialog({
                 Deleting...
               </>
             ) : (
-              "Delete app"
+              "Delete project"
             )}
           </Button>
         </DialogFooter>

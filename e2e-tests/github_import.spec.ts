@@ -29,7 +29,7 @@ test("imports apps from the authenticated list and a GitHub URL", async ({
   po,
 }) => {
   await po.setUp();
-  await po.page.getByRole("button", { name: "Import App" }).click();
+  await po.page.getByRole("button", { name: "Import Project" }).click();
   await po.page.getByRole("tab", { name: "Your GitHub Repos" }).click();
   await po.githubConnector.connect();
 
@@ -38,7 +38,9 @@ test("imports apps from the authenticated list and a GitHub URL", async ({
   );
   await expect(repoRow).toBeVisible({ timeout: Timeout.MEDIUM });
   await repoRow.getByRole("button", { name: "Import" }).click();
-  await expect(po.page.getByRole("dialog", { name: "Import App" })).toBeHidden({
+  await expect(
+    po.page.getByRole("dialog", { name: "Import Project" }),
+  ).toBeHidden({
     timeout: Timeout.LONG,
   });
   await expectImportedApp(po, "existing-vite-app");
@@ -60,7 +62,7 @@ test("imports apps from the authenticated list and a GitHub URL", async ({
     .toBe(true);
 
   await po.navigation.goToAppsTab();
-  await po.page.getByRole("button", { name: "Import App" }).click();
+  await po.page.getByRole("button", { name: "Import Project" }).click();
   await po.page.getByRole("tab", { name: "GitHub URL" }).click();
   const urlPanel = po.page.getByLabel("GitHub URL");
   const urlInput = urlPanel.getByPlaceholder(
@@ -72,7 +74,9 @@ test("imports apps from the authenticated list and a GitHub URL", async ({
   await expect(appNameInput).toHaveValue("existing-vite-app");
   await appNameInput.fill("github-url-e2e");
   await urlPanel.getByRole("button", { name: "Import", exact: true }).click();
-  await expect(po.page.getByRole("dialog", { name: "Import App" })).toBeHidden({
+  await expect(
+    po.page.getByRole("dialog", { name: "Import Project" }),
+  ).toBeHidden({
     timeout: Timeout.LONG,
   });
   await expectImportedApp(po, "github-url-e2e");
@@ -89,7 +93,7 @@ test("uses a unique folder when a GitHub import destination already exists", asy
   fs.mkdirSync(destinationPath, { recursive: true });
   fs.writeFileSync(markerPath, "do not overwrite");
 
-  await po.page.getByRole("button", { name: "Import App" }).click();
+  await po.page.getByRole("button", { name: "Import Project" }).click();
   await po.page.getByRole("tab", { name: "GitHub URL" }).click();
   const urlPanel = po.page.getByLabel("GitHub URL");
   const urlInput = urlPanel.getByPlaceholder(
@@ -106,7 +110,9 @@ test("uses a unique folder when a GitHub import destination already exists", asy
     `Successfully imported ${appName} to folder ${appName}-2 because the original folder name was already in use`,
     Timeout.LONG,
   );
-  await expect(po.page.getByRole("dialog", { name: "Import App" })).toBeHidden({
+  await expect(
+    po.page.getByRole("dialog", { name: "Import Project" }),
+  ).toBeHidden({
     timeout: Timeout.LONG,
   });
   await expectImportedApp(po, appName);

@@ -17,7 +17,7 @@ testSkipIfWindows("import app without copying to dyad-apps", async ({ po }) => {
   const tempDir = path.join(os.tmpdir(), `dyad-import-test-${Date.now()}`);
   fs.cpSync(fixtureSource, tempDir, { recursive: true });
 
-  await po.page.getByRole("button", { name: "Import App" }).click();
+  await po.page.getByRole("button", { name: "Import Project" }).click();
 
   await eph.stubDialog(po.electronApp, "showOpenDialog", {
     filePaths: [tempDir],
@@ -30,7 +30,7 @@ testSkipIfWindows("import app without copying to dyad-apps", async ({ po }) => {
 
   // Fill in app name (folder basename is used by default)
   await po.page
-    .getByRole("textbox", { name: "Enter new app name" })
+    .getByRole("textbox", { name: "Enter new project name" })
     .fill("minimal-in-place");
 
   await po.page.getByRole("button", { name: "Import" }).click();

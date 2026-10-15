@@ -5,15 +5,17 @@ import * as eph from "electron-playwright-helpers";
 
 testSkipIfWindows("import app", async ({ po }) => {
   await po.setUp();
-  await po.page.getByRole("button", { name: "Import App" }).click();
+  await po.page.getByRole("button", { name: "Import Project" }).click();
   await eph.stubDialog(po.electronApp, "showOpenDialog", {
     filePaths: [path.join(__dirname, "fixtures", "import-app", "minimal")],
   });
 
   await po.page.getByRole("button", { name: "Select Folder" }).click();
-  await po.page.getByRole("textbox", { name: "Enter new app name" }).click();
   await po.page
-    .getByRole("textbox", { name: "Enter new app name" })
+    .getByRole("textbox", { name: "Enter new project name" })
+    .click();
+  await po.page
+    .getByRole("textbox", { name: "Enter new project name" })
     .fill("minimal-imported-app");
   await po.page.getByRole("button", { name: "Import" }).click();
 
@@ -23,7 +25,7 @@ testSkipIfWindows("import app", async ({ po }) => {
 
 testSkipIfWindows("import app with AI rules", async ({ po }) => {
   await po.setUp();
-  await po.page.getByRole("button", { name: "Import App" }).click();
+  await po.page.getByRole("button", { name: "Import Project" }).click();
   await eph.stubDialog(po.electronApp, "showOpenDialog", {
     filePaths: [
       path.join(__dirname, "fixtures", "import-app", "minimal-with-ai-rules"),
@@ -31,9 +33,11 @@ testSkipIfWindows("import app with AI rules", async ({ po }) => {
   });
 
   await po.page.getByRole("button", { name: "Select Folder" }).click();
-  await po.page.getByRole("textbox", { name: "Enter new app name" }).click();
   await po.page
-    .getByRole("textbox", { name: "Enter new app name" })
+    .getByRole("textbox", { name: "Enter new project name" })
+    .click();
+  await po.page
+    .getByRole("textbox", { name: "Enter new project name" })
     .fill("minimal-imported-app");
   await po.page.getByRole("button", { name: "Import" }).click();
 
@@ -52,13 +56,13 @@ testSkipIfWindows("import app with AI rules", async ({ po }) => {
 
 testSkipIfWindows("import app with custom commands", async ({ po }) => {
   await po.setUp();
-  await po.page.getByRole("button", { name: "Import App" }).click();
+  await po.page.getByRole("button", { name: "Import Project" }).click();
   await eph.stubDialog(po.electronApp, "showOpenDialog", {
     filePaths: [path.join(__dirname, "fixtures", "import-app", "minimal")],
   });
   await po.page.getByRole("button", { name: "Select Folder" }).click();
   await po.page
-    .getByRole("textbox", { name: "Enter new app name" })
+    .getByRole("textbox", { name: "Enter new project name" })
     .fill("minimal-imported-app");
 
   await po.page.getByRole("button", { name: "Advanced options" }).click();
@@ -83,14 +87,14 @@ testSkipIfWindows(
   "advanced options: both cleared are valid and use defaults",
   async ({ po }) => {
     await po.setUp();
-    await po.page.getByRole("button", { name: "Import App" }).click();
+    await po.page.getByRole("button", { name: "Import Project" }).click();
     await eph.stubDialog(po.electronApp, "showOpenDialog", {
       filePaths: [path.join(__dirname, "fixtures", "import-app", "minimal")],
     });
     await po.page.getByRole("button", { name: "Select Folder" }).click();
 
     await po.page
-      .getByRole("textbox", { name: "Enter new app name" })
+      .getByRole("textbox", { name: "Enter new project name" })
       .fill("both-cleared");
 
     await po.page.getByRole("button", { name: "Advanced options" }).click();

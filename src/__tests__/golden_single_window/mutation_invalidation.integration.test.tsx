@@ -94,7 +94,7 @@ describe("golden single-window: production mutation invalidation", () => {
       await screen.findByTestId("app-details-more-options-button"),
     );
     await harness.clickMenuItem("Delete");
-    await harness.confirmDialog(/Delete "/, "Delete App");
+    await harness.confirmDialog(/Delete "/, "Delete Project");
     await waitFor(() => expect(harness.currentLocation().pathname).toBe("/"));
 
     // Protects app-delete deduplication in the Phase B invalidation channel.

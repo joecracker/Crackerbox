@@ -143,7 +143,7 @@ export class AppManagement {
   }
 
   async clickAppDetailsCopyAppButton() {
-    await this.page.getByRole("button", { name: "Copy app" }).click();
+    await this.page.getByRole("button", { name: "Copy project" }).click();
   }
 
   async clickConnectSupabaseButton() {
@@ -226,7 +226,7 @@ export class AppManagement {
   }
 
   async importApp(appDir: string) {
-    await this.page.getByRole("button", { name: "Import App" }).click();
+    await this.page.getByRole("button", { name: "Import Project" }).click();
     await eph.stubDialog(this.electronApp, "showOpenDialog", {
       filePaths: [
         path.join(

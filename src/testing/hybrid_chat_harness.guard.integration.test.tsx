@@ -68,7 +68,7 @@ describe("hybrid chat harness guards", () => {
         text: "Configure Dyad",
       },
       { route: "/library/media" as const, text: "Media" },
-      { route: "/import-app" as const, text: "Import App" },
+      { route: "/import-app" as const, text: "Import Project" },
     ];
 
     for (const surface of surfaceCases) {

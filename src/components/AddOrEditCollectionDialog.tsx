@@ -119,8 +119,8 @@ export function AddOrEditCollectionDialog({
           </DialogTitle>
           <DialogDescription className="text-xs">
             {isEdit
-              ? "Rename this collection or change which apps belong to it."
-              : "Group related apps together."}
+              ? "Rename this collection or change which projects belong to it."
+              : "Group related projects together."}
           </DialogDescription>
         </DialogHeader>
 
@@ -145,7 +145,7 @@ export function AddOrEditCollectionDialog({
 
           <div>
             <span className="text-xs font-medium text-muted-foreground block mb-1">
-              Apps in this collection
+              Projects in this collection
             </span>
 
             <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
@@ -156,7 +156,7 @@ export function AddOrEditCollectionDialog({
                 <ul className="flex flex-wrap gap-1.5 items-center">
                   {selectedApps.length === 0 && (
                     <li className="text-xs text-muted-foreground">
-                      No apps yet.
+                      No projects yet.
                     </li>
                   )}
                   {selectedApps.map((app) => {
@@ -199,7 +199,7 @@ export function AddOrEditCollectionDialog({
                       )}
                       disabled={isSubmitting || pickableApps.length === 0}
                       data-testid="collection-add-apps-picker-trigger"
-                      aria-label="Add apps"
+                      aria-label="Add projects"
                     >
                       <Plus className="h-3 w-3" />
                     </PopoverTrigger>
@@ -210,7 +210,7 @@ export function AddOrEditCollectionDialog({
                 <div className="max-h-64 overflow-y-auto p-1">
                   {pickableApps.length === 0 ? (
                     <div className="text-xs text-muted-foreground p-3 text-center">
-                      All apps already added.
+                      All projects already added.
                     </div>
                   ) : (
                     pickableApps.map((app) => {

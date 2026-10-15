@@ -158,7 +158,7 @@ export default function AppsPage() {
           .map((r) => apps.find((a) => a.id === r.appId)?.name ?? `#${r.appId}`)
           .join(", ");
         showError(
-          `Failed to delete ${failed.length} app${failed.length === 1 ? "" : "s"}: ${failedNames}`,
+          `Failed to delete ${failed.length} project${failed.length === 1 ? "" : "s"}: ${failedNames}`,
         );
         // Keep only the failed ids selected so the user can retry.
         setSelectedAppIds(new Set(failed.map((r) => r.appId)));
@@ -210,10 +210,10 @@ export default function AppsPage() {
             <input
               type="text"
               placeholder={
-                view === "apps" ? "Search apps..." : "Search collections..."
+                view === "apps" ? "Search projects..." : "Search collections..."
               }
               aria-label={
-                view === "apps" ? "Search apps" : "Search collections"
+                view === "apps" ? "Search projects" : "Search collections"
               }
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -295,18 +295,18 @@ export default function AppsPage() {
         {view === "apps" ? (
           loading ? (
             <div className="text-muted-foreground text-center py-12">
-              Loading apps...
+              Loading projects...
             </div>
           ) : filteredApps.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
               <p className="text-muted-foreground text-center">
                 {searchQuery
-                  ? "No apps match your search."
-                  : "You haven't created any apps yet."}
+                  ? "No projects match your search."
+                  : "You haven't created any projects yet."}
               </p>
               {!searchQuery && (
                 <Button onClick={() => navigate({ to: "/" })} size="sm">
-                  Create your first app
+                  Create your first project
                 </Button>
               )}
             </div>
@@ -362,7 +362,7 @@ export default function AppsPage() {
                 <p className="text-muted-foreground text-center">
                   {searchQuery
                     ? "No collections match your search."
-                    : "No collections yet. Create one to organize your apps."}
+                    : "No collections yet. Create one to organize your projects."}
                 </p>
                 {!searchQuery && (
                   <Button
@@ -413,8 +413,8 @@ export default function AppsPage() {
               {selectedAppIds.size === 1 ? "" : "s"}?
             </DialogTitle>
             <DialogDescription className="text-xs">
-              This action is irreversible. All app files and chat history for
-              these apps will be permanently deleted.
+              This action is irreversible. All project files and chat history
+              for these projects will be permanently deleted.
             </DialogDescription>
           </DialogHeader>
           {selectedApps.length > 0 && (

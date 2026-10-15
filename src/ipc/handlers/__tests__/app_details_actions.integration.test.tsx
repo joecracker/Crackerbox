@@ -127,18 +127,18 @@ describe("app details actions (integration)", () => {
 
     await mountAppDetails(source);
     await openMoreOptions();
-    await harness.clickMenuItem("Copy app");
+    await harness.clickMenuItem("Copy project");
 
     const copiedName = "copied-app-with-history";
     const dialog = await harness.findDialog(
       new RegExp(`Copy "${source.name}"`),
     );
-    fireEvent.change(screen.getByLabelText("New app name"), {
+    fireEvent.change(screen.getByLabelText("New project name"), {
       target: { value: copiedName },
     });
 
     const copyButton = await screen.findByRole("button", {
-      name: /Copy app with history/i,
+      name: /Copy project with history/i,
     });
     expect((copyButton as HTMLButtonElement).disabled).toBe(true);
     await waitFor(() => {
@@ -181,15 +181,15 @@ describe("app details actions (integration)", () => {
 
     await mountAppDetails(source);
     await openMoreOptions();
-    await harness.clickMenuItem("Copy app");
+    await harness.clickMenuItem("Copy project");
 
     const copiedName = "copied-app-without-history";
-    fireEvent.change(await screen.findByLabelText("New app name"), {
+    fireEvent.change(await screen.findByLabelText("New project name"), {
       target: { value: copiedName },
     });
 
     const copyButton = await screen.findByRole("button", {
-      name: /Copy app without history/i,
+      name: /Copy project without history/i,
     });
     await waitFor(() => {
       expect((copyButton as HTMLButtonElement).disabled).toBe(false);
@@ -219,7 +219,7 @@ describe("app details actions (integration)", () => {
     await harness.clickMenuItem("Delete");
     await harness.confirmDialog(
       new RegExp(`Delete "${app.name}"`),
-      "Delete App",
+      "Delete Project",
     );
 
     await waitFor(async () => {
@@ -246,12 +246,15 @@ describe("app details actions (integration)", () => {
 
     await mountAppDetails(app);
     fireEvent.click(screen.getByTestId("app-details-rename-app-button"));
-    fireEvent.change(await screen.findByPlaceholderText("Enter new app name"), {
-      target: { value: newName },
-    });
+    fireEvent.change(
+      await screen.findByPlaceholderText("Enter new project name"),
+      {
+        target: { value: newName },
+      },
+    );
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     const renameFolderButton = await screen.findByRole("button", {
-      name: /Rename app and folder/i,
+      name: /Rename project and folder/i,
     });
     await waitFor(() => {
       expect((renameFolderButton as HTMLButtonElement).disabled).toBe(false);
@@ -284,13 +287,16 @@ describe("app details actions (integration)", () => {
 
     await mountAppDetails(app);
     fireEvent.click(screen.getByTestId("app-details-rename-app-button"));
-    fireEvent.change(await screen.findByPlaceholderText("Enter new app name"), {
-      target: { value: newName },
-    });
+    fireEvent.change(
+      await screen.findByPlaceholderText("Enter new project name"),
+      {
+        target: { value: newName },
+      },
+    );
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     fireEvent.click(
       await screen.findByRole("button", {
-        name: /Rename app only/i,
+        name: /Rename project only/i,
       }),
     );
 
@@ -314,13 +320,16 @@ describe("app details actions (integration)", () => {
 
     await mountAppDetails(app);
     fireEvent.click(screen.getByTestId("app-details-rename-app-button"));
-    fireEvent.change(await screen.findByPlaceholderText("Enter new app name"), {
-      target: { value: desiredName },
-    });
+    fireEvent.change(
+      await screen.findByPlaceholderText("Enter new project name"),
+      {
+        target: { value: desiredName },
+      },
+    );
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
     const renameFolderButton = await screen.findByRole("button", {
-      name: /Rename app and folder/i,
+      name: /Rename project and folder/i,
     });
     await screen.findByText(
       `Folder "${desiredName}" is already in use. Choose a different app name to rename the folder.`,

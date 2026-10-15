@@ -59,18 +59,18 @@ export function CollectionDetailView({
           data-testid="collection-detail-add-apps-button"
         >
           <Plus className="h-4 w-4" />
-          Add apps
+          Add projects
         </Button>
       </div>
 
       {memberApps.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 gap-3">
           <p className="text-muted-foreground text-center">
-            No apps in this collection yet.
+            No projects in this collection yet.
           </p>
           <Button size="sm" onClick={() => setIsAddDialogOpen(true)}>
             <Plus className="mr-1 h-4 w-4" />
-            Add apps
+            Add projects
           </Button>
         </div>
       ) : (

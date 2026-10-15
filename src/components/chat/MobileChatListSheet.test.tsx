@@ -4,6 +4,10 @@ import { describe, expect, it, vi } from "vitest";
 import { selectedChatIdAtom } from "@/atoms/chatAtoms";
 import { MobileChatListSheet } from "./MobileChatListSheet";
 
+vi.mock("@/components/NewProjectButton", () => ({
+  NewProjectButton: () => <button type="button">New Project</button>,
+}));
+
 vi.mock("@/components/ChatList", () => ({
   ChatList: () => (
     <div data-testid="chat-list-stub">
@@ -36,6 +40,7 @@ describe("MobileChatListSheet", () => {
     const { onOpenChange } = renderSheet(true);
     expect(screen.getByTestId("chat-list-stub")).toBeTruthy();
     expect(screen.getByText("Chats")).toBeTruthy();
+    expect(screen.getByText("New Project")).toBeTruthy();
     expect(onOpenChange).not.toHaveBeenCalled();
   });
 

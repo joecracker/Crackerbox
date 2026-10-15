@@ -106,7 +106,7 @@ export function AppList({ show }: { show?: boolean }) {
                 className="flex flex-1 items-center justify-start gap-2 py-3"
               >
                 <PlusCircle size={16} />
-                <span>New App</span>
+                <span>New Project</span>
               </Button>
               <Button
                 onClick={() => setIsSearchDialogOpen(!isSearchDialogOpen)}

@@ -34,7 +34,7 @@ testSkipIfWindows(
     // back to the home page first so the "Import App" button is available
     // (it lives on the new-app screen).
     await po.navigation.goToAppsTab();
-    await po.page.getByRole("button", { name: "New App" }).click();
+    await po.page.getByRole("button", { name: "New Project" }).click();
     await po.importApp("minimal");
     await po.chatActions.selectLocalAgentMode();
     await po.appManagement.enableAppBlueprintForCurrentApp();

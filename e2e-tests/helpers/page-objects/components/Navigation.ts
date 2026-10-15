@@ -27,7 +27,7 @@ export class Navigation {
         .isVisible({ timeout: 500 })
         .catch(() => false);
       const isAppListVisible = await this.page
-        .getByRole("button", { name: "New App" })
+        .getByRole("button", { name: "New Project" })
         .isVisible({ timeout: 500 })
         .catch(() => false);
 

@@ -10,6 +10,7 @@ import {
 import { useSettings } from "@/hooks/useSettings";
 import { useEffect, useCallback, useMemo } from "react";
 import { HomeChatInput } from "@/components/chat/HomeChatInput";
+import { NewProjectButton } from "@/components/NewProjectButton";
 import { usePostHog } from "posthog-js/react";
 import { PrivacyBanner } from "@/components/TelemetryBanner";
 
@@ -220,6 +221,9 @@ export default function HomePage() {
               </Button>
             </div>
           )}
+          <div className="mb-4 flex justify-center md:hidden">
+            <NewProjectButton />
+          </div>
           <HomeChatInput
             onSubmit={handleSubmit}
             disabled={isCheckingProviders}

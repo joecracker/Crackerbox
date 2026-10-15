@@ -1,6 +1,7 @@
 import { useEffect, useRef, type MouseEvent } from "react";
 import { useAtomValue } from "jotai";
 import { ChatList } from "@/components/ChatList";
+import { NewProjectButton } from "@/components/NewProjectButton";
 import {
   Sheet,
   SheetContent,
@@ -51,6 +52,9 @@ export function MobileChatListSheet({
         <SheetHeader className="pb-2">
           <SheetTitle>Chats</SheetTitle>
         </SheetHeader>
+        <div className="px-4 pb-2">
+          <NewProjectButton className="w-full justify-start" />
+        </div>
         <div
           className="min-h-0 flex-1 overflow-hidden"
           onClickCapture={handleClickCapture}

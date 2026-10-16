@@ -39,19 +39,20 @@ vi.mock("electron-log", () => {
 import { PHONE_SHIM_SCRIPT } from "./phone_bridge_server";
 
 // Pull the real rewrite function out of the script the phone actually receives.
-function loadRewrite(): (value: unknown) => unknown {
+function loadRewrite(
+  where = {
+    origin: "https://remote.example.app",
+    protocol: "https:",
+    hostname: "remote.example.app",
+  },
+): (value: unknown) => unknown {
   const start = PHONE_SHIM_SCRIPT.indexOf("function rewritePreviewUrl(value)");
   const end = PHONE_SHIM_SCRIPT.indexOf("function rewritePreviewUrls(value)");
   expect(start).toBeGreaterThan(-1);
   expect(end).toBeGreaterThan(start);
   const source = PHONE_SHIM_SCRIPT.slice(start, end);
-  const location = {
-    origin: "https://remote.example.app",
-    protocol: "https:",
-    hostname: "remote.example.app",
-  };
   return new Function("location", source + "; return rewritePreviewUrl;")(
-    location,
+    where,
   );
 }
 
@@ -93,18 +94,34 @@ describe("phone address rewriting", () => {
     );
   });
 
-  it("points a preview address at the computer's own address on the preview's port", () => {
-    // The preview keeps its own port (its own address), never the same address
-    // as Crackerbox itself, so the preview app's "/" can't be mistaken for
-    // Crackerbox's own page.
+  it("over https (Cloudflare) serves the preview on the second port, naming which preview", () => {
     expect(rewrite("http://localhost:42137/")).toBe(
-      "https://remote.example.app:42137/",
+      "https://remote.example.app:8443/?cbp=42137",
     );
     expect(rewrite("http://127.0.0.1:42137/page?x=1")).toBe(
-      "https://remote.example.app:42137/page?x=1",
+      "https://remote.example.app:8443/page?x=1&cbp=42137",
+    );
+    expect(rewrite("http://localhost:42137")).toBe(
+      "https://remote.example.app:8443/?cbp=42137",
     );
   });
 
+  it("over plain http (home Wi-Fi) keeps the preview's own port on the computer's address", () => {
+    const lan = loadRewrite({
+      origin: "http://192.168.1.16:4319",
+      protocol: "http:",
+      hostname: "192.168.1.16",
+    });
+    expect(lan("http://localhost:42137/")).toBe("http://192.168.1.16:42137/");
+    expect(lan("http://127.0.0.1:42137/page?x=1")).toBe(
+      "http://192.168.1.16:42137/page?x=1",
+    );
+  });
+
+  it("never lets Crackerbox start inside another page", () => {
+    expect(PHONE_SHIM_SCRIPT).toContain("window.top !== window");
+    expect(PHONE_SHIM_SCRIPT).toContain("window.stop()");
+  });
   it("leaves addresses outside the preview port range alone", () => {
     expect(rewrite("http://localhost:5173/")).toBe("http://localhost:5173/");
     expect(rewrite("https://example.com/")).toBe("https://example.com/");

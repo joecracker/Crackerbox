@@ -32,6 +32,16 @@ import {
   watchPhoneClient,
 } from "./phone_bridge_heartbeat";
 import {
+  PREVIEW_PUBLIC_PORT,
+  PREVIEW_SELECT_PARAM,
+  allowFramingBy,
+  cookiesForPreviewApp,
+  hostName,
+  isPreviewHost,
+  planPreviewHostRequest,
+  selectCookieHeader,
+} from "./phone_bridge_preview_host";
+import {
   PHONE_INSTALL_HEAD_TAGS,
   servePhoneInstallAsset,
 } from "./phone_bridge_install";
@@ -249,6 +259,14 @@ function onSocketMessage(conn: PhoneConnection, ws: WebSocket, raw: RawData) {
 // ---------------------------------------------------------------------------
 // Exported so tests can check the address rewriting.
 export const PHONE_SHIM_SCRIPT = `(function () {
+  // Crackerbox itself never belongs inside another page. If it ends up in a
+  // frame (a preview address that was not recognised), say so instead of
+  // starting a second Crackerbox inside the first.
+  if (window.top && window.top !== window) {
+    document.documentElement.innerHTML = "<body style='font:16px system-ui;padding:16px'>This preview could not be loaded.</body>";
+    window.stop();
+    return;
+  }
 
   // Insecure (plain-http, non-localhost) contexts don't expose
   // crypto.randomUUID -- it's spec-restricted to secure contexts. The phone
@@ -451,16 +469,24 @@ export const PHONE_SHIM_SCRIPT = `(function () {
     if (value.indexOf(mediaPrefix) !== -1) {
       return value.split(mediaPrefix).join(location.origin + "${PHONE_MEDIA_PATH_PREFIX}");
     }
-    return value.replace(
-      new RegExp("^http://(?:localhost|127[.]0[.]0[.]1):([0-9]{5})(?=/|$)"),
-      function (match, port) {
-        var numericPort = Number(port);
-        if (numericPort < ${MIN_PREVIEW_PROXY_PORT} || numericPort > ${MAX_PREVIEW_PROXY_PORT}) {
-          return match;
-        }
-        return location.protocol + "//" + location.hostname + ":" + port;
-      }
-    );
+    var found = new RegExp("^http://(?:localhost|127[.]0[.]0[.]1):([0-9]{5})(?=/|$)").exec(value);
+    if (!found) return value;
+    var port = found[1];
+    var numericPort = Number(port);
+    if (numericPort < ${MIN_PREVIEW_PROXY_PORT} || numericPort > ${MAX_PREVIEW_PROXY_PORT}) {
+      return value;
+    }
+    var after = value.slice(found[0].length);
+    if (location.protocol === "https:") {
+      // Through Cloudflare only ordinary web ports reach the computer. The
+      // preview is served on the same host name but a second ordinary port
+      // (its own address, so it never mixes with Crackerbox's); the first
+      // request says which preview, and the laptop remembers it.
+      var rest = new URL(after || "/", "http://internal");
+      rest.searchParams.set("${PREVIEW_SELECT_PARAM}", port);
+      return "https://" + location.hostname + ":${PREVIEW_PUBLIC_PORT}" + rest.pathname + rest.search + rest.hash;
+    }
+    return location.protocol + "//" + location.hostname + ":" + port + after;
   }
 
   function rewritePreviewUrls(value) {
@@ -912,6 +938,67 @@ function proxyPhonePreviewWebSocket(
   proxyReq.end();
 }
 
+// A request that arrived on the preview port (see phone_bridge_preview_host.ts):
+// served straight from the chosen preview, at its own addresses, so the preview
+// app sees an ordinary site of its own.
+function servePreviewHostRequest(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+) {
+  const plan = planPreviewHostRequest(
+    req.url ?? "/",
+    req.headers.cookie,
+    MIN_PREVIEW_PROXY_PORT,
+    MAX_PREVIEW_PROXY_PORT,
+  );
+  if (plan.kind === "select") {
+    logger.info(`Preview chosen on the preview port: ${plan.port}`);
+    res.writeHead(302, {
+      Location: plan.location,
+      "Set-Cookie": selectCookieHeader(plan.port),
+      "Cache-Control": "no-store",
+    });
+    res.end();
+    return;
+  }
+  if (plan.kind === "none") {
+    res.writeHead(404, { "Content-Type": "text/plain" });
+    res.end("No preview is selected.");
+    return;
+  }
+  const name = hostName(req.headers.host);
+  const headers: http.OutgoingHttpHeaders = {
+    ...req.headers,
+    host: `localhost:${plan.port}`,
+  };
+  const cookie = cookiesForPreviewApp(req.headers.cookie);
+  if (cookie) headers.cookie = cookie;
+  else delete headers.cookie;
+  const proxyReq = http.request(
+    {
+      hostname: "127.0.0.1",
+      port: plan.port,
+      path: plan.path,
+      method: req.method,
+      insecureHTTPParser: true,
+      headers,
+    },
+    (proxyRes) => {
+      const out = name
+        ? allowFramingBy(proxyRes.headers, `https://${name}`)
+        : proxyRes.headers;
+      res.writeHead(proxyRes.statusCode ?? 200, out);
+      proxyRes.pipe(res);
+    },
+  );
+  proxyReq.on("error", (error) => {
+    logger.error("Preview-port proxy error:", error);
+    if (!res.headersSent) res.writeHead(502);
+    res.end("Crackerbox could not reach this app preview");
+  });
+  req.pipe(proxyReq);
+}
+
 function getLanUrls(port: number): string[] {
   const urls: string[] = [];
   for (const addrs of Object.values(os.networkInterfaces())) {
@@ -927,6 +1014,15 @@ export function startPhoneBridgeServer(devServerUrl: string | undefined) {
   const rendererRoot = path.join(__dirname, "../renderer/main_window");
 
   const server = http.createServer((req, res) => {
+    if (req.headers["sec-fetch-dest"] === "iframe") {
+      logger.info(
+        `Frame request: host=${req.headers.host} path=${(req.url ?? "").replace(/cbp=\d+/, "cbp=N")}`,
+      );
+    }
+    if (isPreviewHost(req.headers.host)) {
+      servePreviewHostRequest(req, res);
+      return;
+    }
     const requestUrl = new URL(req.url ?? "/", "http://internal");
     const pathname = requestUrl.pathname;
 
@@ -985,6 +1081,20 @@ export function startPhoneBridgeServer(devServerUrl: string | undefined) {
     (conn) => conn.notifyClosed(),
   );
   server.on("upgrade", (req, socket, head) => {
+    if (isPreviewHost(req.headers.host)) {
+      const plan = planPreviewHostRequest(
+        req.url ?? "/",
+        req.headers.cookie,
+        MIN_PREVIEW_PROXY_PORT,
+        MAX_PREVIEW_PROXY_PORT,
+      );
+      if (plan.kind === "proxy") {
+        proxyPhonePreviewWebSocket(plan.port, plan.path, req, socket, head);
+      } else {
+        socket.destroy();
+      }
+      return;
+    }
     const requestUrl = new URL(req.url ?? "/", "http://internal");
     const pathname = requestUrl.pathname;
     if (pathname.startsWith(PREVIEW_PATH_PREFIX)) {

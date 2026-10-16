@@ -126,7 +126,6 @@ export default function ChatPage() {
   // drawn there, so clear the mark.
   useEffect(() => {
     if (!isPreviewOpen && isChatPanelHidden) {
-      previousSizeRef.current = 100;
       setIsChatPanelHidden(false);
     }
   }, [isPreviewOpen, isChatPanelHidden, setIsChatPanelHidden]);
@@ -149,7 +148,11 @@ export default function ChatPage() {
       chatPanelRef.current.resize(1);
     } else {
       // Restore to previous size when re-opened via button
-      chatPanelRef.current.resize(previousSizeRef.current);
+      // With the preview closed the chat gets the whole width; otherwise go back
+      // to the size it had before it was hidden.
+      chatPanelRef.current.resize(
+        isPreviewOpen ? previousSizeRef.current : 100,
+      );
     }
   }, [isChatPanelHidden]);
 

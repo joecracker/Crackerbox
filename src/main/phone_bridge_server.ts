@@ -567,6 +567,38 @@ export const PHONE_SHIM_SCRIPT = `(function () {
     });
   }
 
+  // Opened from the "Add a phone" QR code (it carries cbpair=1): offer to
+  // install Crackerbox as an app. Chrome only raises the install event on the
+  // https address, once the page is installable.
+  var installEvent = null;
+  function wantsInstall() {
+    try {
+      return new URL(location.href).searchParams.get("cbpair") === "1";
+    } catch (e) {
+      return false;
+    }
+  }
+  function offerInstall() {
+    if (!installEvent || !wantsInstall()) return;
+    showBanner("Tap here to install Crackerbox on this phone", function () {
+      var ev = installEvent;
+      installEvent = null;
+      try {
+        var clean = new URL(location.href);
+        clean.searchParams.delete("cbpair");
+        history.replaceState(history.state, "", clean.pathname + clean.search + clean.hash);
+      } catch (e) {}
+      hideBanner();
+      ev.prompt();
+    });
+  }
+  window.addEventListener("beforeinstallprompt", function (evt) {
+    evt.preventDefault();
+    installEvent = evt;
+    offerInstall();
+  });
+  window.addEventListener("load", offerInstall);
+
   connectSocket();
 
   // A line that goes quiet for over a minute is dead (the laptop sends a
@@ -997,6 +1029,11 @@ function servePreviewHostRequest(
     res.end("Crackerbox could not reach this app preview");
   });
   req.pipe(proxyReq);
+}
+
+/** What Settings needs to show a QR code for a phone on the same Wi-Fi. */
+export function getPhoneAccessInfo(): { lanUrls: string[] } {
+  return { lanUrls: getLanUrls(PHONE_BRIDGE_PORT) };
 }
 
 function getLanUrls(port: number): string[] {

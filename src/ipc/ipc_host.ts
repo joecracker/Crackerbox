@@ -5,6 +5,7 @@ import { registerSettingsHandlers } from "./handlers/settings_handlers";
 import { registerShellHandlers } from "./handlers/shell_handler";
 import { registerDependencyHandlers } from "./handlers/dependency_handlers";
 import { registerCustomAppsFolderHandlers } from "./handlers/custom_apps_folder_handlers";
+import { registerPhoneAccessHandlers } from "./handlers/phone_access_handlers";
 import { registerConnectionFlowHandlers } from "./handlers/connection_flow_handlers";
 import { registerGithubHandlers } from "./handlers/github_handlers";
 import { registerGithubBranchHandlers } from "./handlers/git_branch_handlers";
@@ -72,6 +73,7 @@ export function registerIpcHandlers() {
   registerShellHandlers();
   registerDependencyHandlers();
   registerCustomAppsFolderHandlers();
+  registerPhoneAccessHandlers();
   registerConnectionFlowHandlers();
   registerGithubHandlers();
   registerGithubBranchHandlers();

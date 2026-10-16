@@ -92,6 +92,11 @@ export const SelectCustomAppsFolderResultSchema = z.object({
   canceled: z.boolean(),
 });
 
+export const GetPhoneAccessInfoResultSchema = z.object({
+  /** Addresses a phone on the same Wi-Fi can open, e.g. http://192.168.1.16:4319 */
+  lanUrls: z.array(z.string()),
+});
+
 export const GetCustomAppsFolderResultSchema = z.object({
   path: z.string(),
   isPathAvailable: z.boolean(),
@@ -313,6 +318,13 @@ export const systemContracts = {
     channel: "select-app-folder",
     input: z.void(),
     output: SelectAppFolderResultSchema,
+  }),
+
+  // Phone access (the QR code in Settings)
+  getPhoneAccessInfo: defineContract({
+    channel: "get-phone-access-info",
+    input: z.void(),
+    output: GetPhoneAccessInfoResultSchema,
   }),
 
   // Custom apps folder

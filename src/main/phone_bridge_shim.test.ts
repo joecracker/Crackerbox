@@ -77,6 +77,18 @@ describe("two pages sharing one page id", () => {
   });
 });
 
+describe("install offer after scanning the Add a phone code", () => {
+  it("only offers to install when the address carries the scan marker", () => {
+    expect(PHONE_SHIM_SCRIPT).toContain('get("cbpair") === "1"');
+    expect(PHONE_SHIM_SCRIPT).toContain("beforeinstallprompt");
+    expect(PHONE_SHIM_SCRIPT).toContain("ev.prompt()");
+  });
+
+  it("takes the marker out of the address once the offer is used", () => {
+    expect(PHONE_SHIM_SCRIPT).toContain('clean.searchParams.delete("cbpair")');
+  });
+});
+
 describe("phone address rewriting", () => {
   const rewrite = loadRewrite();
 

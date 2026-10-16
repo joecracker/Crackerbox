@@ -12,6 +12,10 @@ More info at: [https://dyad.sh/](https://dyad.sh/)
 - 🛠 **Bring your own keys**: Use your own AI API keys — no vendor lock-in.
 - 🖥️ **Cross-platform**: Easy to run on Mac or Windows.
 
+## 📱 Phone
+
+Open Crackerbox on your phone by scanning a code in **Settings > Add a phone**. Using it away from home needs your own Cloudflare account; see [docs/phone-remote.md](docs/phone-remote.md).
+
 ## 📦 Download
 
 No sign-up required. Just download and go.

@@ -31,6 +31,7 @@ import { HomeAssistantSettings } from "@/components/HomeAssistantSettings";
 import { OpenRouterBalanceSettings } from "@/components/OpenRouterBalanceSettings";
 import { PreviewTabletSizeSettings } from "@/components/PreviewTabletSizeSettings";
 import { LocalAiSettings } from "@/components/settings/LocalAiSettings";
+import { PhoneSettings } from "@/components/settings/PhoneSettings";
 import { RuntimeModeSelector } from "@/components/RuntimeModeSelector";
 import { NodePathSelector } from "@/components/NodePathSelector";
 import { AgentToolsSettings } from "@/components/settings/AgentToolsSettings";
@@ -192,6 +193,14 @@ export default function SettingsPage() {
               value={settings?.cbMemory ?? ""}
               onSave={(value) => updateSettings({ cbMemory: value })}
             />
+          </SettingsSection>
+
+          <SettingsSection
+            id="add-a-phone"
+            title="Add a phone"
+            description="Scan a code with your phone to use Crackerbox from it."
+          >
+            <PhoneSettings />
           </SettingsSection>
 
           <SettingsSection

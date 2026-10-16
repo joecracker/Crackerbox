@@ -545,6 +545,10 @@ const BaseUserSettingsFields = {
   // every app -- not scoped to the current chat's message history like
   // everything else here.
   cbMemory: z.string().optional(),
+  // The address of the user's own Cloudflare tunnel to this computer (for
+  // example https://remote.example.com), used only to make the "Add a phone"
+  // QR code. Blank = home Wi-Fi only.
+  phoneRemoteAddress: z.string().optional(),
   // OpenRouter management key. Only used to read the account balance
   // (GET /credits) for the header chip; never used for model calls.
   openRouterManagementKey: SecretSchema.optional(),

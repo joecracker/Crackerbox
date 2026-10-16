@@ -55,6 +55,27 @@ function loadRewrite(): (value: unknown) => unknown {
   );
 }
 
+describe("two pages sharing one page id", () => {
+  it("has the pushed-out page take a new id and refresh instead of reconnecting", () => {
+    // Server tells the page it was replaced; the page must not just reconnect.
+    expect(PHONE_SHIM_SCRIPT).toContain('msg.type === "replaced"');
+    expect(PHONE_SHIM_SCRIPT).toContain("evt.code === 4000");
+    expect(PHONE_SHIM_SCRIPT).toContain("function takeNewPageId()");
+    // A new random id is stored, then the page refreshes onto it.
+    const start = PHONE_SHIM_SCRIPT.indexOf("function takeNewPageId()");
+    const body = PHONE_SHIM_SCRIPT.slice(start, start + 400);
+    expect(body).toContain('setItem("cbPageId", randomId())');
+    expect(body).toContain("location.reload()");
+  });
+
+  it("ignores a replaced notice that arrives on an old connection", () => {
+    expect(PHONE_SHIM_SCRIPT).toContain(
+      "if (thisSocket === socket) takeNewPageId();",
+    );
+    expect(PHONE_SHIM_SCRIPT).toContain("if (thisSocket !== socket) return;");
+  });
+});
+
 describe("phone address rewriting", () => {
   const rewrite = loadRewrite();
 
@@ -70,6 +91,23 @@ describe("phone address rewriting", () => {
     expect(rewrite(text)).toBe(
       "Here you go:\n\n![shot](https://remote.example.app/__phone_bridge/media/chat/1/a.png) and ![two](https://remote.example.app/__phone_bridge/media/chat/1/b.png)",
     );
+  });
+
+  it("points a preview address at the computer's own address on the preview's port", () => {
+    // The preview keeps its own port (its own address), never the same address
+    // as Crackerbox itself, so the preview app's "/" can't be mistaken for
+    // Crackerbox's own page.
+    expect(rewrite("http://localhost:42137/")).toBe(
+      "https://remote.example.app:42137/",
+    );
+    expect(rewrite("http://127.0.0.1:42137/page?x=1")).toBe(
+      "https://remote.example.app:42137/page?x=1",
+    );
+  });
+
+  it("leaves addresses outside the preview port range alone", () => {
+    expect(rewrite("http://localhost:5173/")).toBe("http://localhost:5173/");
+    expect(rewrite("https://example.com/")).toBe("https://example.com/");
   });
 
   it("leaves text without a picture address alone", () => {

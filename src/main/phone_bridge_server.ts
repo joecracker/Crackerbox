@@ -32,6 +32,10 @@ import {
   watchPhoneClient,
 } from "./phone_bridge_heartbeat";
 import {
+  PHONE_INSTALL_HEAD_TAGS,
+  servePhoneInstallAsset,
+} from "./phone_bridge_install";
+import {
   PHONE_SESSION_GRACE_MS,
   parsePageId,
   ResumableSessions,
@@ -125,6 +129,16 @@ class PhoneConnection {
       (old.readyState === WebSocket.OPEN ||
         old.readyState === WebSocket.CONNECTING)
     ) {
+      try {
+        // Tell the old connection why, before closing it. If it is the same
+        // page reconnecting, it has already moved on and ignores this. If it is
+        // a different page that shares this page id (a copied tab, the
+        // installed app next to a browser tab), it takes a new id of its own
+        // instead of reconnecting and knocking this page off again.
+        old.send(JSON.stringify({ type: "replaced" }));
+      } catch {
+        // Not able to send.
+      }
       try {
         old.close(4000, "replaced by a newer connection");
       } catch {
@@ -321,6 +335,20 @@ export const PHONE_SHIM_SCRIPT = `(function () {
   } catch (e) {}
   if (!pageId) pageId = randomId();
 
+  // Another page is using this page's id (a copied tab, or the installed app
+  // open next to a browser tab). Two pages with one id take each other's
+  // connection back and forth every couple of seconds, which shows as the
+  // orange "Reconnecting" bar flashing. The page that was pushed out takes a
+  // new id and refreshes, so both pages keep their own connection.
+  var handedOver = false;
+  function takeNewPageId() {
+    if (handedOver) return;
+    handedOver = true;
+    try { window.sessionStorage.setItem("cbPageId", randomId()); } catch (e) {}
+    showBanner("Crackerbox is open in another window. Refreshing...", null);
+    setTimeout(function () { location.reload(); }, 400);
+  }
+
   function showBanner(text, onTap) {
     if (!document.body) return;
     if (!banner) {
@@ -477,6 +505,10 @@ export const PHONE_SHIM_SCRIPT = `(function () {
     socket.addEventListener("message", function (evt) {
       lastHeard = Date.now();
       var msg = rewritePreviewUrls(JSON.parse(evt.data));
+      if (msg.type === "replaced") {
+        if (thisSocket === socket) takeNewPageId();
+        return;
+      }
       if (msg.type === "hello") {
         handleHello(msg.resumed === true);
         return;
@@ -498,9 +530,14 @@ export const PHONE_SHIM_SCRIPT = `(function () {
     });
 
     var thisSocket = socket;
-    socket.addEventListener("close", function () {
+    socket.addEventListener("close", function (evt) {
       console.warn("[phone bridge] connection to Crackerbox lost");
-      if (thisSocket === socket) linkLostNow();
+      if (thisSocket !== socket) return;
+      if (evt && evt.code === 4000) {
+        takeNewPageId();
+        return;
+      }
+      linkLostNow();
     });
   }
 
@@ -625,7 +662,7 @@ export const PHONE_SHIM_SCRIPT = `(function () {
 `;
 
 function injectShimIntoHtml(html: string): string {
-  const tag = `<script src="${SHIM_SRC}"></script>`;
+  const tag = `<script src="${SHIM_SRC}"></script>\n    ${PHONE_INSTALL_HEAD_TAGS}`;
   if (html.includes("<head>")) {
     return html.replace("<head>", `<head>\n    ${tag}`);
   }
@@ -899,6 +936,10 @@ export function startPhoneBridgeServer(devServerUrl: string | undefined) {
         "Cache-Control": "no-store",
       });
       res.end(PHONE_SHIM_SCRIPT);
+      return;
+    }
+
+    if (servePhoneInstallAsset(pathname, res)) {
       return;
     }
 

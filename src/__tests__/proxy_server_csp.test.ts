@@ -129,6 +129,7 @@ describe("proxy worker Content-Security-Policy", () => {
 
   async function proxyResponse(
     upstreamOpts?: Parameters<typeof startUpstream>[0],
+    hostHeader?: string,
   ) {
     const upstream = await startUpstream(upstreamOpts);
     cleanup.push(upstream.close);
@@ -148,7 +149,12 @@ describe("proxy worker Content-Security-Policy", () => {
       rawHeaders: string[];
     }>((resolve, reject) => {
       const req = http.get(
-        { host: "localhost", path: "/", port: proxyPort },
+        {
+          host: "localhost",
+          path: "/",
+          port: proxyPort,
+          headers: hostHeader ? { host: hostHeader } : undefined,
+        },
         (res) => {
           const chunks: Buffer[] = [];
           res.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
@@ -184,6 +190,36 @@ describe("proxy worker Content-Security-Policy", () => {
     expect(
       rawHeaderValues(response.rawHeaders, "content-security-policy"),
     ).toEqual([appCsp, PROXY_FRAME_ANCESTORS_CSP]);
+  });
+
+  it("also lets a page on the same private network address frame the preview", async () => {
+    for (const host of [
+      "192.168.1.16:42137",
+      "10.147.18.91:42137",
+      "172.20.0.5",
+    ]) {
+      const response = await proxyResponse(undefined, host);
+      const ip = host.split(":")[0];
+
+      expect(
+        rawHeaderValues(response.rawHeaders, "content-security-policy"),
+      ).toEqual([`${PROXY_FRAME_ANCESTORS_CSP} http://${ip}:*`]);
+    }
+  });
+
+  it("keeps the localhost-only policy for public or non-IP hosts", async () => {
+    for (const host of [
+      "8.8.8.8:42137",
+      "172.32.0.1:42137",
+      "example.com:42137",
+      "192.168.1.999:42137",
+    ]) {
+      const response = await proxyResponse(undefined, host);
+
+      expect(
+        rawHeaderValues(response.rawHeaders, "content-security-policy"),
+      ).toEqual([PROXY_FRAME_ANCESTORS_CSP]);
+    }
   });
 
   it("keeps app CSP independent on the HTML injection path", async () => {

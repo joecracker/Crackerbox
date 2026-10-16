@@ -425,12 +425,43 @@ function appendHeader(headers, name, value) {
   return headers;
 }
 
-function applyProxyFrameAncestorsCsp(headers) {
+// A phone (or tablet) opens Crackerbox through this computer's network address,
+// for example 192.168.1.16 or a ZeroTier 10.x address, never through localhost.
+// The page that frames the preview then lives on that same address, so it must
+// be allowed to frame it. Only private-network IPv4 addresses qualify, taken from
+// the Host header the request arrived on; anything else keeps the localhost-only
+// policy.
+function privateHostFromHostHeader(hostHeader) {
+  if (typeof hostHeader !== "string") return null;
+  const match = hostHeader
+    .trim()
+    .match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})(?::\d{1,5})?$/);
+  if (!match) return null;
+  const octets = match.slice(1).map(Number);
+  if (octets.some((n) => n > 255)) return null;
+  const [a, b] = octets;
+  const isPrivate =
+    a === 10 ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    (a === 169 && b === 254) ||
+    (a === 100 && b >= 64 && b <= 127);
+  return isPrivate ? octets.join(".") : null;
+}
+
+function frameAncestorsCspFor(hostHeader) {
+  const host = privateHostFromHostHeader(hostHeader);
+  return host
+    ? PROXY_FRAME_ANCESTORS_CSP + " http://" + host + ":*"
+    : PROXY_FRAME_ANCESTORS_CSP;
+}
+
+function applyProxyFrameAncestorsCsp(headers, hostHeader) {
   // Separate CSP header means app-supplied policies keep enforcing unchanged.
   return appendHeader(
     headers,
     "content-security-policy",
-    PROXY_FRAME_ANCESTORS_CSP,
+    frameAncestorsCspFor(hostHeader),
   );
 }
 
@@ -508,7 +539,7 @@ const server = http.createServer((clientReq, clientRes) => {
 
     if (!inject) {
       rewriteSetCookieHeaders(upRes.headers);
-      applyProxyFrameAncestorsCsp(upRes.headers);
+      applyProxyFrameAncestorsCsp(upRes.headers, clientReq.headers.host);
       clientRes.writeHead(upRes.statusCode, upRes.headers);
       return void upRes.pipe(clientRes);
     }
@@ -539,7 +570,7 @@ const server = http.createServer((clientReq, clientRes) => {
         delete hdrs["expires"];
         hdrs["cache-control"] = "no-store, must-revalidate";
         rewriteSetCookieHeaders(hdrs);
-        applyProxyFrameAncestorsCsp(hdrs);
+        applyProxyFrameAncestorsCsp(hdrs, clientReq.headers.host);
 
         clientRes.writeHead(upRes.statusCode, hdrs);
         clientRes.end(patched);

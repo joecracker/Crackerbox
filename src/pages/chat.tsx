@@ -121,6 +121,16 @@ export default function ChatPage() {
   const ref = useRef<ImperativePanelHandle>(null);
   const chatPanelRef = useRef<ImperativePanelHandle>(null);
 
+  // Closing the preview gives the chat the whole width back. If the chat was
+  // marked hidden (preview dragged wide, or "Hide chat"), nothing would be
+  // drawn there, so clear the mark.
+  useEffect(() => {
+    if (!isPreviewOpen && isChatPanelHidden) {
+      previousSizeRef.current = 100;
+      setIsChatPanelHidden(false);
+    }
+  }, [isPreviewOpen, isChatPanelHidden, setIsChatPanelHidden]);
+
   // Keep chat panel size in sync with hidden state (from toolbar button / other views)
   useEffect(() => {
     if (!chatPanelRef.current) return;

@@ -1,3 +1,4 @@
+import fsSync from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
@@ -5,6 +6,7 @@ import {
   AGENT_READ_FILE_TRUNCATION_NOTICE,
   readTextFileLines,
 } from "@/ipc/utils/bounded_text_file";
+import { getUserDataPath } from "@/paths/paths";
 import { isDotenvFilePath, redactDotenvValues } from "@/utils/dotenv_redaction";
 
 /**
@@ -142,12 +144,60 @@ export function isBlockedHostFile(filePath: string): boolean {
   return BLOCKED_FILE_NAMES.some((pattern) => pattern.test(name));
 }
 
+// Folders Tim adds himself, one path per line, in blocked-folders.txt inside the
+// app's data folder (lines starting with # are notes). Nothing in them is ever
+// opened, searched or listed.
+const BLOCKED_FOLDERS_FILE = "blocked-folders.txt";
+let blockedFoldersCache: { mtimeMs: number; dirs: string[] } | undefined;
+
+function userBlockedFolders(): string[] {
+  try {
+    const file = path.join(getUserDataPath(), BLOCKED_FOLDERS_FILE);
+    const { mtimeMs } = fsSync.statSync(file);
+    if (blockedFoldersCache?.mtimeMs === mtimeMs) {
+      return blockedFoldersCache.dirs;
+    }
+    const dirs = fsSync
+      .readFileSync(file, "utf8")
+      .split(/\r?\n/)
+      .map((line) => line.trim().replace(/^"(.*)"$/, "$1"))
+      .filter((line) => line && !line.startsWith("#"))
+      .map((line) => path.resolve(line).toLowerCase());
+    blockedFoldersCache = { mtimeMs, dirs };
+    return dirs;
+  } catch {
+    return [];
+  }
+}
+
+function isInsideUserBlockedFolder(target: string): boolean {
+  const resolved = path.resolve(target).toLowerCase();
+  return userBlockedFolders().some(
+    (dir) => resolved === dir || resolved.startsWith(dir + path.sep),
+  );
+}
+
+/** Ripgrep exclusions for blocked folders that sit inside `searchRoot`. */
+export function userBlockedRipgrepGlobs(searchRoot: string): string[] {
+  const root = path.resolve(searchRoot).toLowerCase();
+  return userBlockedFolders()
+    .filter((dir) => dir.startsWith(root + path.sep))
+    .map(
+      (dir) =>
+        `!${dir
+          .slice(root.length + 1)
+          .split(path.sep)
+          .join("/")}/**`,
+    );
+}
+
 export function isBlockedHostDirectory(dirPath: string): boolean {
   const parts = path
     .resolve(dirPath)
     .toLowerCase()
     .split(/[\\/]+/)
     .filter(Boolean);
+  if (isInsideUserBlockedFolder(dirPath)) return true;
   if (parts.some((part) => BLOCKED_DIRECTORY_NAMES.has(part))) return true;
   return BLOCKED_PATH_SEQUENCES.some((sequence) => {
     for (let i = 0; i + sequence.length <= parts.length; i++) {

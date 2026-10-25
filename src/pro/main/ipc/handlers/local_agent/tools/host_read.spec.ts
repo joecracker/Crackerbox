@@ -1,7 +1,10 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+
+const userData = vi.hoisted(() => ({ dir: "" }));
+vi.mock("@/paths/paths", () => ({ getUserDataPath: () => userData.dir }));
 import {
   hostListDirectory,
   hostReadFile,
@@ -9,6 +12,7 @@ import {
   isBlockedHostFile,
   isHostPath,
   redactSecrets,
+  userBlockedRipgrepGlobs,
 } from "./host_read";
 
 describe("redactSecrets", () => {
@@ -101,5 +105,44 @@ describe("hostReadFile and hostListDirectory", () => {
     expect(names).toContain("keystore.jks");
     expect(names).toContain(".ssh");
     expect(names).not.toContain(".ssh/config");
+  });
+});
+
+describe("folders Tim adds himself", () => {
+  let dataDir: string;
+  let vault: string;
+  beforeAll(async () => {
+    dataDir = await fs.mkdtemp(path.join(os.tmpdir(), "host-data-"));
+    vault = path.join(os.tmpdir(), "my-private-vault");
+    await fs.mkdir(vault, { recursive: true });
+    await fs.writeFile(path.join(vault, "note.txt"), "just a note");
+    await fs.writeFile(
+      path.join(dataDir, "blocked-folders.txt"),
+      `# my keys\n"${vault}"\n`,
+    );
+    userData.dir = dataDir;
+  });
+  afterAll(async () => {
+    userData.dir = "";
+    await fs.rm(dataDir, { recursive: true, force: true });
+    await fs.rm(vault, { recursive: true, force: true });
+  });
+
+  it("never opens, lists or searches a folder on his blocked list", async () => {
+    expect(isBlockedHostDirectory(vault)).toBe(true);
+    await expect(
+      hostReadFile({ filePath: path.join(vault, "note.txt") }),
+    ).rejects.toThrow(/never opened/);
+    await expect(
+      hostListDirectory({ directory: vault, recursive: false }),
+    ).rejects.toThrow(/never opened/);
+    const globs = userBlockedRipgrepGlobs(os.tmpdir());
+    expect(globs).toContain("!my-private-vault/**");
+  });
+
+  it("does nothing special when the list does not exist", () => {
+    userData.dir = path.join(dataDir, "missing");
+    expect(isBlockedHostDirectory(vault)).toBe(false);
+    userData.dir = dataDir;
   });
 });

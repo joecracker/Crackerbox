@@ -24,6 +24,7 @@ import {
   isBlockedHostFile,
   isHostPath,
   redactSecrets,
+  userBlockedRipgrepGlobs,
 } from "./host_read";
 import log from "electron-log";
 
@@ -162,6 +163,7 @@ async function runRipgrep({
   maxMatches,
   excludeDyadFolder,
   hostMode,
+  hostRoot,
 }: {
   appPath: string;
   query: string;
@@ -173,6 +175,7 @@ async function runRipgrep({
   maxMatches?: number;
   excludeDyadFolder?: boolean;
   hostMode?: boolean;
+  hostRoot?: string;
 }): Promise<{ matches: RipgrepMatch[]; stoppedEarly: boolean }> {
   return new Promise((resolve, reject) => {
     const results: RipgrepMatch[] = [];
@@ -216,9 +219,11 @@ async function runRipgrep({
     args.push(...exclusionGlobs.flatMap((glob) => ["--glob", glob]));
 
     if (hostMode) {
-      args.push(
-        ...HOST_RIPGREP_EXCLUDE_GLOBS.flatMap((glob) => ["--glob", glob]),
-      );
+      const hostGlobs = [
+        ...HOST_RIPGREP_EXCLUDE_GLOBS,
+        ...(hostRoot ? userBlockedRipgrepGlobs(hostRoot) : []),
+      ];
+      args.push(...hostGlobs.flatMap((glob) => ["--glob", glob]));
     }
 
     if (excludeDyadFolder) {
@@ -389,6 +394,7 @@ export const grepTool: ToolDefinition<z.infer<typeof grepSchema>> = {
         maxMatches: args.include_ignored ? limit + 1 : undefined,
         excludeDyadFolder: Boolean(args.app_name),
         hostMode: Boolean(hostDirectory),
+        hostRoot: hostDirectory,
       });
       allMatches = result.matches;
       stoppedEarly = result.stoppedEarly;

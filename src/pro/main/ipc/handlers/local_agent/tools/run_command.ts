@@ -124,7 +124,7 @@ Good uses: installing or updating a package not covered by add_dependency, runni
 
 Do NOT use this to edit files (use write_file / search_replace), to restart or reinstall the app (use restart_app / reinstall_and_restart_app), or to run the project's own build/test/typecheck (use the dedicated tools) - those tools track state the agent relies on and this one does not.
 
-The command runs with the current user's permissions, starting in the app's project folder by default; cwd may be any absolute folder on this PC when the task needs it (e.g. an Android project). For Android builds, read C:\\Users\\user\\AndroidStudioProjects\\ANDROID_BUILD_NOTES.md first. It has no confirmation step of its own beyond the tool consent prompt - treat it as executing for real, not a dry run.`,
+The command runs with the current user's permissions, starting in the app's project folder by default; cwd may be any absolute folder on this PC when the task needs it (e.g. an Android project). For Android builds, first read C:\\Users\\user\\AndroidStudioProjects\\ANDROID_BUILD_NOTES.md by running Get-Content on it with this tool (read_file only reaches the open project). It has no confirmation step of its own beyond the tool consent prompt - treat it as executing for real, not a dry run.`,
   inputSchema: runCommandSchema,
   defaultConsent: "ask",
   modifiesState: true,

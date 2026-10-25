@@ -89,39 +89,134 @@ export interface ReplySplit {
 }
 
 /**
- * Splits a finished reply into her working and her final message. Returns null
- * when the reply should just be shown as it is: no steps to fold, it ends on a
- * step instead of a message, something in it needs your attention, or the
- * stream is still open.
+ * Splits a finished reply into her working and what she leaves for you to read.
+ * Everything up to her last tool step folds into `work`; what comes after it
+ * (her final message, plus any notice or question that needs you) stays visible
+ * as `summary`. Returns null only when the reply should be shown as it is: no
+ * steps to fold, a step that is still open, or something in the middle of her
+ * working that needs your attention.
  */
 export function splitReply(content: string): ReplySplit | null {
   if (!content.includes("<")) return null;
   const { blocks } = parseFullMessage(content);
-  const last = blocks.at(-1);
-  if (!last || last.kind !== "markdown" || !last.content.trim()) return null;
-  const work = blocks.slice(0, -1);
-  if (work.length === 0) return null;
+
+  let lastStep = -1;
+  blocks.forEach((block, index) => {
+    if (
+      block.kind === "custom-tag" &&
+      isFoldableTag(block.tag, block.attributes)
+    ) {
+      lastStep = index;
+    }
+  });
+  if (lastStep < 0) return null;
 
   let steps = 0;
-  for (const block of work) {
+  for (let i = 0; i < blocks.length; i++) {
+    const block = blocks[i];
     if (block.kind !== "custom-tag") continue;
-    if (block.inProgress || !isFoldableTag(block.tag, block.attributes)) {
-      return null;
+    if (block.inProgress) return null;
+    if (i <= lastStep) {
+      if (!isFoldableTag(block.tag, block.attributes)) return null;
+      if (block.tag !== "think") steps++;
     }
-    if (block.tag !== "think") steps++;
   }
-  if (!content.endsWith(last.content)) return null;
 
-  const peeled = peelChecksNote(last.content);
+  // Find where the last step ends in the raw text: the Nth closing tag of its
+  // name, where N counts that tag's blocks up to and including this one.
+  const stepBlock = blocks[lastStep];
+  if (stepBlock.kind !== "custom-tag") return null;
+  let nth = 0;
+  for (let i = 0; i <= lastStep; i++) {
+    const block = blocks[i];
+    if (block.kind === "custom-tag" && block.tag === stepBlock.tag) nth++;
+  }
+  const closing = `</${stepBlock.tag}>`;
+  let end = -1;
+  for (let found = 0, from = 0; found < nth; found++) {
+    const at = content.indexOf(closing, from);
+    if (at < 0) return null;
+    end = at + closing.length;
+    from = end;
+  }
+
+  const tail = content.slice(end);
+  const peeled = blocks
+    .slice(lastStep + 1)
+    .every((block) => block.kind === "markdown")
+    ? peelChecksNote(tail)
+    : null;
   return {
-    work:
-      content.slice(0, content.length - last.content.length) +
-      (peeled ? peeled.note : ""),
-    summary: (peeled ? peeled.rest : last.content).trim(),
+    work: content.slice(0, end) + (peeled ? peeled.note : ""),
+    summary: (peeled ? peeled.rest : tail).trim(),
     steps,
   };
 }
 
+const baseName = (value: string) =>
+  value.split(/[\\/]/).filter(Boolean).pop() || value;
+
+/**
+ * One plain line about what she is doing right now, taken from her latest step,
+ * e.g. "Reading MainActivity.kt". Shown while she works instead of the steps.
+ */
+export function describeCurrentAction(content: string): string {
+  if (!content.includes("<")) return "Working";
+  const { blocks } = parseFullMessage(content);
+  for (let i = blocks.length - 1; i >= 0; i--) {
+    const block = blocks[i];
+    if (block.kind !== "custom-tag") continue;
+    const a = block.attributes;
+    const file = a.path ? baseName(a.path) : "";
+    switch (block.tag) {
+      case "think":
+        return "Thinking it through";
+      case "dyad-read":
+        return file ? `Reading ${file}` : "Reading a file";
+      case "dyad-list-files":
+        return "Looking through the project";
+      case "dyad-grep":
+      case "dyad-code-search":
+      case "dyad-explore-code":
+        return a.query ? `Searching for "${a.query}"` : "Searching the code";
+      case "dyad-write":
+        return file ? `Writing ${file}` : "Writing a file";
+      case "dyad-edit":
+      case "dyad-search-replace":
+        return file ? `Editing ${file}` : "Editing a file";
+      case "dyad-rename":
+        return "Renaming a file";
+      case "dyad-delete":
+        return "Removing a file";
+      case "dyad-add-dependency":
+        return "Adding packages";
+      case "dyad-execute-sql":
+        return "Running a database query";
+      case "dyad-read-logs":
+        return "Checking the logs";
+      case "dyad-web-search":
+      case "dyad-web-search-result":
+        return "Searching the web";
+      case "dyad-web-fetch":
+        return "Reading a web page";
+      case "dyad-git":
+        return "Working with git";
+      case "dyad-script":
+        return a.description || "Running a command";
+      case "dyad-status":
+        return a.title || "Working";
+      case "dyad-output":
+        return "Working";
+      default:
+        if (block.tag.startsWith("dyad-ha-"))
+          return "Working with Home Assistant";
+        if (block.tag.startsWith("dyad-mcp-"))
+          return a.tool ? `Using ${a.tool}` : "Using a tool";
+        return "Working";
+    }
+  }
+  return "Working";
+}
 /**
  * True while a reply is still being worked on and has nothing that needs your
  * attention yet, so the chat can show a working indicator instead of a stream

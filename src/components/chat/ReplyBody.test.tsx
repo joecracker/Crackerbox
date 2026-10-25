@@ -75,7 +75,9 @@ describe("ReplyBody", () => {
     });
 
     expect(screen.queryByTestId("markdown")).toBeNull();
-    expect(screen.getByTestId("loading-streaming")).toBeTruthy();
+    expect(screen.getByTestId("live-action").textContent).toContain(
+      "Reading a.ts",
+    );
   });
 
   it("shows a streaming plain answer as it arrives", () => {

@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { isWorkInProgress, splitReply } from "@/lib/replySummary";
 import { DyadMarkdownParser } from "./DyadMarkdownParser";
+import { LiveActionLine } from "./LiveActionLine";
 import { StreamingLoadingAnimation } from "./StreamingLoadingAnimation";
 
 interface ReplyBodyProps {
@@ -70,7 +71,8 @@ export function ReplyBody({
           showStreamingPreview={live}
         />
       )}
-      {live && <StreamingLoadingAnimation variant="streaming" />}
+      {live && working && <LiveActionLine content={content} />}
+      {live && !working && <StreamingLoadingAnimation variant="streaming" />}
     </>
   );
 }

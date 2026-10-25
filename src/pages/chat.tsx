@@ -18,6 +18,30 @@ import { ipc } from "@/ipc/types";
 
 const DEFAULT_CHAT_PANEL_SIZE = 50;
 
+// The preview opens at half the window so the chat and the preview sit side by
+// side. After Tim drags the divider, that width is remembered for next time.
+const DEFAULT_PREVIEW_PANEL_SIZE = 50;
+const MIN_PREVIEW_PANEL_SIZE = 5;
+const PREVIEW_SIZE_STORAGE_KEY = "crackerbox:previewPanelSize";
+
+function readPreviewPanelSize(): number {
+  try {
+    const saved = Number(localStorage.getItem(PREVIEW_SIZE_STORAGE_KEY));
+    if (saved >= MIN_PREVIEW_PANEL_SIZE && saved <= 95) return saved;
+  } catch {
+    // Storage can be unavailable; fall back to half.
+  }
+  return DEFAULT_PREVIEW_PANEL_SIZE;
+}
+
+function writePreviewPanelSize(size: number) {
+  try {
+    localStorage.setItem(PREVIEW_SIZE_STORAGE_KEY, String(Math.round(size)));
+  } catch {
+    // Not worth surfacing.
+  }
+}
+
 export default function ChatPage() {
   const { id: chatId, appId: routeAppId } = useSearch({ from: "/chat" });
   const navigate = useNavigate();
@@ -112,6 +136,7 @@ export default function ChatPage() {
     const frame = requestAnimationFrame(() => {
       if (isPreviewOpen) {
         ref.current?.expand();
+        ref.current?.resize(readPreviewPanelSize());
       } else {
         ref.current?.collapse();
       }
@@ -199,6 +224,15 @@ export default function ChatPage() {
                 // Consider hidden if panel is less than 5% width
                 setIsChatPanelHidden(percentage < 5);
               }
+              // Remember where Tim left the divider for the next time it opens.
+              const previewSize = ref.current?.getSize();
+              if (
+                previewSize !== undefined &&
+                previewSize >= MIN_PREVIEW_PANEL_SIZE &&
+                !ref.current?.isCollapsed()
+              ) {
+                writePreviewPanelSize(previewSize);
+              }
             });
           }
         }}
@@ -213,7 +247,7 @@ export default function ChatPage() {
         ref={ref}
         id="preview-panel"
         defaultSize={0}
-        minSize={20}
+        minSize={MIN_PREVIEW_PANEL_SIZE}
         className={cn(!isResizing && "transition-all duration-100 ease-in-out")}
       >
         <PreviewPanel />

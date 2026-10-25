@@ -57,6 +57,7 @@ import { haRestartTool } from "./tools/ha_restart";
 import { sendEmailTool } from "./tools/send_email";
 import { githubReposTool } from "./tools/github_repos";
 import { viewPreviewTool } from "./tools/view_preview";
+import { phoneScreenshotTool } from "./tools/phone_screenshot";
 import { generateTestAssertionsTool } from "./tools/generate_test_assertions";
 import {
   reinstallAndRestartAppTool,
@@ -220,6 +221,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinition[] = [
   sendEmailTool,
   githubReposTool,
   viewPreviewTool,
+  phoneScreenshotTool,
   runTestsTool,
   generateTestAssertionsTool,
   restartAppTool,

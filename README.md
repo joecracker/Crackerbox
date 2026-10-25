@@ -1,16 +1,12 @@
-# Dyad
+# Crackerbox
 
-Dyad is a local, open-source AI app builder. It's fast, private, and fully under your control — like Lovable, v0, or Bolt, but running right on your machine.
-
-[![Image](https://github.com/user-attachments/assets/f6c83dfc-6ffd-4d32-93dd-4b9c46d17790)](https://dyad.sh/)
-
-More info at: [https://dyad.sh/](https://dyad.sh/)
+Crackerbox is a local, open-source AI app builder: chat with an AI and it builds the app. It is a heavily remixed fork of [Dyad](https://github.com/dyad-sh/dyad), with thanks to its makers. Free beta for Windows.
 
 ## 🚀 Features
 
 - ⚡️ **Local**: Fast, private and no lock-in.
 - 🛠 **Bring your own keys**: Use your own AI API keys — no vendor lock-in.
-- 🖥️ **Cross-platform**: Easy to run on Mac or Windows.
+- **Windows**: built and tested on Windows only for now.
 
 ## 📱 Phone
 
@@ -20,11 +16,11 @@ Open Crackerbox on your phone by scanning a code in **Settings > Add a phone**. 
 
 No sign-up required. Just download and go.
 
-### [👉 Download for your platform](https://www.dyad.sh/#download)
+### [Download Crackerbox for Windows](https://get.crackerbox.app/crackerbox/install/)
 
 ## 🤝 Community
 
-Join our growing community of AI app builders on **Reddit**: [r/dyadbuilders](https://www.reddit.com/r/dyadbuilders/) - share your projects and get help from the community!
+Got an idea or hit a bug? Use [Discussions](https://github.com/joecracker/Crackerbox/discussions/new?category=ideas) or [Issues](https://github.com/joecracker/Crackerbox/issues/new). I read everything, but I only change things that make Crackerbox better for me too.
 
 ## 🛠️ Contributing
 

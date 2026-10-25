@@ -23,19 +23,25 @@ const runCommandSchema = z.object({
     .string()
     .min(1)
     .describe(
-      "The executable to run, e.g. \"npm\", \"git\", \"node\". Not a full shell line.",
+      'The executable to run, e.g. "npm", "git", "node". Not a full shell line.',
     ),
   args: z
     .array(z.string())
     .optional()
     .describe(
-      "Arguments to pass to the command, as separate array entries (e.g. [\"install\", \"--save-dev\", \"vitest\"]). Never combine multiple arguments into one string.",
+      'Arguments to pass to the command, as separate array entries (e.g. ["install", "--save-dev", "vitest"]). Never combine multiple arguments into one string.',
     ),
   cwd: z
     .string()
     .optional()
     .describe(
-      "Directory to run the command in, relative to the app's project root. Defaults to the project root. Cannot escape the project directory.",
+      "Directory to run the command in. A relative path stays inside the app's project root (default: the project root). An absolute path (e.g. C:\\Users\\user\\AndroidStudioProjects\\SALTINE_FRESH) may be any folder on this PC.",
+    ),
+  env: z
+    .record(z.string(), z.string())
+    .optional()
+    .describe(
+      "Extra environment variables for this command only, e.g. JAVA_HOME and ANDROID_HOME for Android builds.",
     ),
   description: z
     .string()
@@ -98,6 +104,18 @@ export function resolveWindowsExeName(
   return command;
 }
 
+function resolveAbsoluteCwd(cwd: string | undefined): string | undefined {
+  if (!cwd || !path.isAbsolute(cwd)) return undefined;
+  const resolved = path.resolve(cwd);
+  if (!fs.existsSync(resolved) || !fs.statSync(resolved).isDirectory()) {
+    throw new DyadError(
+      `Directory does not exist: "${cwd}"`,
+      DyadErrorKind.Validation,
+    );
+  }
+  return resolved;
+}
+
 export const runCommandTool: ToolDefinition<RunCommandArgs> = {
   name: "run_command",
   description: `Run an arbitrary command-line command in the current app's project folder. Use this when no named tool (add_dependency, run_tests, run_build, run_type_checks, execute_sql, git tools, etc.) already covers what's needed - those are safer and better-verified, so prefer them first.
@@ -106,7 +124,7 @@ Good uses: installing or updating a package not covered by add_dependency, runni
 
 Do NOT use this to edit files (use write_file / search_replace), to restart or reinstall the app (use restart_app / reinstall_and_restart_app), or to run the project's own build/test/typecheck (use the dedicated tools) - those tools track state the agent relies on and this one does not.
 
-The command runs with the current user's permissions, scoped to the app's project folder (cwd cannot escape it). It has no confirmation step of its own beyond the tool consent prompt - treat it as executing for real, not a dry run.`,
+The command runs with the current user's permissions, starting in the app's project folder by default; cwd may be any absolute folder on this PC when the task needs it (e.g. an Android project). For Android builds, read C:\\Users\\user\\AndroidStudioProjects\\ANDROID_BUILD_NOTES.md first. It has no confirmation step of its own beyond the tool consent prompt - treat it as executing for real, not a dry run.`,
   inputSchema: runCommandSchema,
   defaultConsent: "ask",
   modifiesState: true,
@@ -162,14 +180,16 @@ The command runs with the current user's permissions, scoped to the app's projec
       : `<dyad-status title="Running: ${escapeXmlAttr(args.command ?? "")}"></dyad-status>`,
 
   execute: async (args: RunCommandArgs, ctx: AgentContext) => {
-    const relativeCwd = resolveDirectoryWithinAppPath({
-      appPath: ctx.appPath,
-      directory: args.cwd ?? ".",
-    });
-    const cwd = path.resolve(ctx.appPath, relativeCwd);
+    const absoluteCwd = resolveAbsoluteCwd(args.cwd);
+    const relativeCwd = absoluteCwd
+      ? "."
+      : resolveDirectoryWithinAppPath({
+          appPath: ctx.appPath,
+          directory: args.cwd ?? ".",
+        });
+    const cwd = absoluteCwd ?? path.resolve(ctx.appPath, relativeCwd);
 
-    const timeoutMs =
-      (args.timeout_seconds ?? DEFAULT_TIMEOUT_SECONDS) * 1000;
+    const timeoutMs = (args.timeout_seconds ?? DEFAULT_TIMEOUT_SECONDS) * 1000;
 
     ctx.onXmlStream(
       `<dyad-status title="Running: ${escapeXmlAttr(args.command)}"></dyad-status>`,
@@ -181,6 +201,7 @@ The command runs with the current user's permissions, scoped to the app's projec
         command: resolveWindowsExeName(args.command),
         args: args.args ?? [],
         cwd,
+        env: args.env ? { ...process.env, ...args.env } : undefined,
         signal: ctx.abortSignal,
         timeoutMs,
       });

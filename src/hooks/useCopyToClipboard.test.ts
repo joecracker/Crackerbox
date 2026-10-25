@@ -291,4 +291,25 @@ describe("useCopyToClipboard", () => {
       expect(out).not.toContain("```\n\n\nTail para.");
     });
   });
+
+  it("leaves tool activity out of the copy so only her words (and file changes) come through", async () => {
+    const noisy =
+      "Here is what I found.\n\n" +
+      '<dyad-mcp-tool-result call-id="1" server="x" tool="y">\n' +
+      "HUGE OUTPUT ".repeat(200) +
+      "\n</dyad-mcp-tool-result>\n\n" +
+      '<dyad-web-fetch url="https://example.com">\nPAGE DUMP\n</dyad-web-fetch>\n\n' +
+      '<dyad-status title="Working" state="finished">\nSTATUS NOISE\n</dyad-status>\n\n' +
+      "All done.";
+    const { result } = renderHook(() => useCopyToClipboard());
+    await act(async () => {
+      await result.current.copyMessageContent(noisy);
+    });
+    expect(clipboardText).toContain("Here is what I found.");
+    expect(clipboardText).toContain("All done.");
+    expect(clipboardText).not.toContain("HUGE OUTPUT");
+    expect(clipboardText).not.toContain("PAGE DUMP");
+    expect(clipboardText).not.toContain("STATUS NOISE");
+    expect(clipboardText).not.toContain("<dyad-");
+  });
 });

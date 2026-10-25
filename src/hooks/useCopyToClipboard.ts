@@ -31,6 +31,40 @@ const CUSTOM_TAG_NAMES = [
   "dyad-ha-list-files",
   "dyad-ha-list-entities",
   "dyad-ha-restart",
+  "dyad-copy",
+  "dyad-git",
+  "dyad-status",
+  "dyad-web-search",
+  "dyad-web-search-result",
+  "dyad-web-fetch",
+  "dyad-explore-code",
+  "dyad-code-search",
+  "dyad-explore-chat-history",
+  "dyad-search-chats",
+  "dyad-mcp-tool-call",
+  "dyad-mcp-tool-result",
+  "dyad-mcp-tool-schema",
+  "dyad-mcp-tool-search",
+  "dyad-database-schema",
+  "dyad-db-table-schema",
+  "dyad-supabase-table-schema",
+  "dyad-supabase-project-info",
+  "dyad-neon-project-info",
+  "dyad-neon-table-schema",
+  "dyad-test-assertions",
+  "dyad-generate-test",
+  "dyad-claude-tool",
+  "dyad-image-generation",
+  "dyad-compaction",
+  "dyad-step-limit",
+  "dyad-subagent",
+  "dyad-enable-nitro",
+  "dyad-exit-plan",
+  "dyad-questionnaire",
+  "dyad-app-blueprint",
+  "dyad-security-finding",
+  "dyad-search-replace",
+  "dyad-write-plan",
 ];
 export const useCopyToClipboard = () => {
   const [copied, setCopied] = useState(false);
@@ -164,6 +198,7 @@ export const useCopyToClipboard = () => {
       case "dyad-ha-restart":
         return "";
 
+      case "dyad-search-replace":
       case "dyad-edit": {
         const editPath = attributes.path || "file";
         const editDesc = attributes.description || "";
@@ -279,6 +314,38 @@ export const useCopyToClipboard = () => {
       }
 
       case "dyad-chat-summary":
+      case "dyad-copy":
+      case "dyad-git":
+      case "dyad-status":
+      case "dyad-web-search":
+      case "dyad-web-search-result":
+      case "dyad-web-fetch":
+      case "dyad-explore-code":
+      case "dyad-code-search":
+      case "dyad-explore-chat-history":
+      case "dyad-search-chats":
+      case "dyad-mcp-tool-call":
+      case "dyad-mcp-tool-result":
+      case "dyad-mcp-tool-schema":
+      case "dyad-mcp-tool-search":
+      case "dyad-database-schema":
+      case "dyad-db-table-schema":
+      case "dyad-supabase-table-schema":
+      case "dyad-supabase-project-info":
+      case "dyad-neon-project-info":
+      case "dyad-neon-table-schema":
+      case "dyad-test-assertions":
+      case "dyad-generate-test":
+      case "dyad-claude-tool":
+      case "dyad-image-generation":
+      case "dyad-compaction":
+      case "dyad-step-limit":
+      case "dyad-subagent":
+      case "dyad-enable-nitro":
+      case "dyad-exit-plan":
+      case "dyad-questionnaire":
+      case "dyad-app-blueprint":
+      case "dyad-security-finding":
       case "dyad-command":
         // Don't include these in copy
         return "";

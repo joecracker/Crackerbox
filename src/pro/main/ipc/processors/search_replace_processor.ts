@@ -273,6 +273,27 @@ function logMatchFailure(
 }
 
 /**
+ * When a search block matches nothing, show the model the lines the file really
+ * has where the best partial match is, so its next attempt can copy them
+ * exactly instead of guessing again.
+ */
+function describeClosestMatch(
+  resultLines: string[],
+  searchLines: string[],
+): string {
+  const best = findBestPartialMatch(resultLines, searchLines);
+  if (best.matchingLines === 0) return "";
+  const shown = resultLines.slice(
+    best.startIndex,
+    best.startIndex + Math.min(searchLines.length, 12),
+  );
+  const listing = shown
+    .map((line, i) => `${best.startIndex + i + 1}: ${line.slice(0, 200)}`)
+    .join("\n");
+  return `\nClosest match is near line ${best.startIndex + 1} (${best.matchingLines} of ${searchLines.length} lines agree). The file actually has:\n${listing}\nCopy the search text from these lines exactly, including spacing.`;
+}
+
+/**
  * Cascading fuzzy matching: try each pass in order until we find a match
  * Returns the match index or -1 if no match found, along with any error
  */
@@ -383,7 +404,9 @@ export function applySearchReplace(
       logMatchFailure(resultLines, searchLines, appliedCount);
       return {
         success: false,
-        error: matchResult.error,
+        error: matchResult.error.includes("did not match")
+          ? matchResult.error + describeClosestMatch(resultLines, searchLines)
+          : matchResult.error,
       };
     }
 

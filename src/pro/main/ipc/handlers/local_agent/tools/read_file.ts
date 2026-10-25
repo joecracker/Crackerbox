@@ -15,6 +15,7 @@ import {
   readTextFileLines,
 } from "@/ipc/utils/bounded_text_file";
 import { SANDBOX_READ_FILE_LIMIT_BYTES } from "@/ipc/utils/sandbox/limits";
+import { hostReadFile, isHostPath } from "./host_read";
 import {
   isDotenvFilePath,
   redactDotenvValues,
@@ -67,7 +68,8 @@ export const readFileTool: ToolDefinition<z.infer<typeof readFileSchema>> = {
   name: "read_file",
   description: `Read the content of a file from the codebase or an attachment path such as attachments:notes.txt.
 
-- Batch independent file reads when several files are concretely likely to be useful.`,
+- Batch independent file reads when several files are concretely likely to be useful.
+- An absolute path (e.g. C:/Users/user/AndroidStudioProjects/SALTINE_FRESH/README.md) reads a file anywhere on this PC, read-only. Passwords, keys and tokens are never shown.`,
   inputSchema: readFileSchema,
   defaultConsent: "always",
 
@@ -108,6 +110,13 @@ export const readFileTool: ToolDefinition<z.infer<typeof readFileSchema>> = {
 
   execute: async (args, ctx: AgentContext) => {
     const targetAppPath = resolveTargetAppPath(ctx, args.app_name);
+    if (!args.app_name && isHostPath(args.path, targetAppPath)) {
+      return await hostReadFile({
+        filePath: args.path,
+        startLine: args.start_line_one_indexed,
+        endLineInclusive: args.end_line_one_indexed_inclusive,
+      });
+    }
     let fullFilePath: string;
     if (args.path.startsWith("attachments:")) {
       const attachment = await resolveAttachmentLogicalPath(

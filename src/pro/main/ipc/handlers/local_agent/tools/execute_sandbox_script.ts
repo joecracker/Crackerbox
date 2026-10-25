@@ -106,9 +106,9 @@ function scriptNeedsMainThread(script: string, ctx: AgentContext): boolean {
     ...(ctx.mcpToolDefs ?? []).map((def) => def.jsName),
   ];
   return mainOnlyNames.some((name) =>
-    new RegExp(
-      `(?<![A-Za-z0-9_$])${escapeRegExp(name)}(?![A-Za-z0-9_$])`,
-    ).test(script),
+    new RegExp(`(?<![A-Za-z0-9_$])${escapeRegExp(name)}(?![A-Za-z0-9_$])`).test(
+      script,
+    ),
   );
 }
 
@@ -387,7 +387,7 @@ export const executeSandboxScriptTool: ToolDefinition<ExecuteSandboxScriptArgs> 
   {
     name: "execute_sandbox_script",
     description:
-      "Run a MustardScript program in a sandbox. Supports file inspection, file writes, and MCP tool calls.",
+      "Run a MustardScript program in a sandbox. Supports file inspection, file writes, and MCP tool calls. MustardScript is a small JavaScript subset: no eval, no regex look-ahead or look-behind, no node_modules, and a step limit, so for heavy work (reading Word or Excel files, big loops) use run_command with Node or Python instead.",
     inputSchema: executeSandboxScriptSchema,
     defaultConsent: "always",
     modifiesState: (ctx) => ctx.sandboxWriteFileHostEnabled === true,

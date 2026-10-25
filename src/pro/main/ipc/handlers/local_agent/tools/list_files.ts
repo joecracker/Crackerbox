@@ -10,6 +10,7 @@ import {
 import { listCodebaseFileMetadata } from "../../../../../../utils/codebase";
 import { resolveDirectoryWithinAppPath } from "./path_safety";
 import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
+import { hostListDirectory, isHostPath } from "./host_read";
 import {
   DYAD_INTERNAL_GLOB,
   filterDyadInternalFiles,
@@ -90,7 +91,7 @@ function isDyadInternalRelativePath(relativePath: string): boolean {
 export const listFilesTool: ToolDefinition<ListFilesArgs> = {
   name: "list_files",
   description:
-    "List files in the application directory. By default, lists only the immediate directory contents. Use recursive=true to list all files recursively. Use include_ignored=true to include git-ignored and hidden paths; recursive ignored listings require directory to be set. Results are capped at 1000 paths.",
+    "List files in the application directory. By default, lists only the immediate directory contents. Use recursive=true to list all files recursively. Use include_ignored=true to include git-ignored and hidden paths; recursive ignored listings require directory to be set. Results are capped at 1000 paths. directory may also be an absolute path to any folder on this PC (read-only; credential folders are not opened).",
   inputSchema: listFilesSchema,
   defaultConsent: "always",
 
@@ -111,6 +112,37 @@ export const listFilesTool: ToolDefinition<ListFilesArgs> = {
 
   execute: async (args, ctx: AgentContext) => {
     const targetAppPath = resolveTargetAppPath(ctx, args.app_name);
+
+    if (
+      args.directory &&
+      !args.app_name &&
+      isHostPath(args.directory, targetAppPath)
+    ) {
+      const { paths, total } = await hostListDirectory({
+        directory: args.directory,
+        recursive: Boolean(args.recursive),
+      });
+      const sorted = sortListedPaths(paths);
+      const fullList = sorted
+        .map((entry) => " - " + getDisplayPath(entry))
+        .join("\n");
+      const hostResult =
+        total > sorted.length
+          ? `${fullList}\n\n[TRUNCATED: Showing ${sorted.length} of ${total} paths. Use directory to narrow the listing.]`
+          : fullList;
+      const shown = sorted
+        .slice(0, 20)
+        .map((entry) => " - " + getDisplayPath(entry))
+        .join("\n");
+      const hostCountInfo =
+        total > 20
+          ? `\n... and ${total - 20} more paths (${total} total)`
+          : `\n(${total} paths total)`;
+      ctx.onXmlComplete(
+        `<dyad-list-files${getXmlAttributes(args, sorted.length, total)}>${escapeXmlContent(shown + hostCountInfo)}</dyad-list-files>`,
+      );
+      return hostResult;
+    }
 
     // Validate directory path to prevent path traversal attacks
     let sanitizedDirectory: string | undefined;

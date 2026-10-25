@@ -1,4 +1,5 @@
 import { z } from "zod";
+import path from "node:path";
 import { spawn } from "node:child_process";
 import {
   ToolDefinition,
@@ -17,6 +18,13 @@ import {
 } from "./resolve_app_context";
 import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
 import { isDotenvFilePath } from "@/utils/dotenv_redaction";
+import {
+  HOST_RIPGREP_EXCLUDE_GLOBS,
+  assertHostPathAllowed,
+  isBlockedHostFile,
+  isHostPath,
+  redactSecrets,
+} from "./host_read";
 import log from "electron-log";
 
 const logger = log.scope("grep");
@@ -36,6 +44,12 @@ const grepSchema = z.object({
     .optional()
     .describe(
       "Optional. Name of a referenced app (from `@app:Name` mentions in the user's prompt) to search in instead of the current app. Omit to search the current app.",
+    ),
+  directory: z
+    .string()
+    .optional()
+    .describe(
+      "Optional. An absolute path to any folder on this PC to search instead of the current app (read-only). Credential files are skipped and secrets are blanked out.",
     ),
   include_pattern: z
     .string()
@@ -147,6 +161,7 @@ async function runRipgrep({
   literal,
   maxMatches,
   excludeDyadFolder,
+  hostMode,
 }: {
   appPath: string;
   query: string;
@@ -157,6 +172,7 @@ async function runRipgrep({
   literal?: boolean;
   maxMatches?: number;
   excludeDyadFolder?: boolean;
+  hostMode?: boolean;
 }): Promise<{ matches: RipgrepMatch[]; stoppedEarly: boolean }> {
   return new Promise((resolve, reject) => {
     const results: RipgrepMatch[] = [];
@@ -199,6 +215,12 @@ async function runRipgrep({
       : RIPGREP_EXCLUDED_GLOBS;
     args.push(...exclusionGlobs.flatMap((glob) => ["--glob", glob]));
 
+    if (hostMode) {
+      args.push(
+        ...HOST_RIPGREP_EXCLUDE_GLOBS.flatMap((glob) => ["--glob", glob]),
+      );
+    }
+
     if (excludeDyadFolder) {
       args.push("--glob", DYAD_INTERNAL_RIPGREP_EXCLUDE);
     }
@@ -237,6 +259,9 @@ async function runRipgrep({
           }
 
           const normalizedPath = normalizeRipgrepMatchPath(matchPath);
+          if (hostMode && isBlockedHostFile(normalizedPath)) {
+            continue;
+          }
           if (isDotenvFilePath(normalizedPath)) {
             continue;
           }
@@ -250,7 +275,9 @@ async function runRipgrep({
           results.push({
             path: normalizedPath,
             lineNumber,
-            lineText: lineText.replace(/\r?\n$/, ""),
+            lineText: hostMode
+              ? redactSecrets(lineText.replace(/\r?\n$/, ""))
+              : lineText.replace(/\r?\n$/, ""),
           });
 
           if (maxMatches !== undefined && results.length >= maxMatches) {
@@ -295,6 +322,7 @@ export const grepTool: ToolDefinition<z.infer<typeof grepSchema>> = {
   description: `Search for a regex pattern or exact literal text in the codebase using ripgrep.
 
 - Returns matching lines with file paths and line numbers
+- Set directory to an absolute path to search any folder on this PC (read-only)
 - By default, the search is case-insensitive
 - Use literal=true for exact symbols/snippets with punctuation, e.g. createBooking({, import strings, route paths, or JSX tags
 - Use include_pattern to filter by file type (e.g. '*.tsx')
@@ -334,6 +362,13 @@ export const grepTool: ToolDefinition<z.infer<typeof grepSchema>> = {
 
   execute: async (args, ctx: AgentContext) => {
     const targetAppPath = resolveTargetAppPath(ctx, args.app_name);
+    const hostDirectory =
+      args.directory &&
+      !args.app_name &&
+      isHostPath(args.directory, targetAppPath)
+        ? path.resolve(args.directory)
+        : undefined;
+    if (hostDirectory) assertHostPathAllowed(hostDirectory);
     const includePatWasWildcard = args.include_pattern === "*";
     const limit = Math.min(args.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
 
@@ -344,7 +379,7 @@ export const grepTool: ToolDefinition<z.infer<typeof grepSchema>> = {
     let stoppedEarly: boolean;
     try {
       const result = await runRipgrep({
-        appPath: targetAppPath,
+        appPath: hostDirectory ?? targetAppPath,
         query: args.query,
         includePat: args.include_pattern,
         excludePat: args.exclude_pattern,
@@ -353,6 +388,7 @@ export const grepTool: ToolDefinition<z.infer<typeof grepSchema>> = {
         literal: args.literal,
         maxMatches: args.include_ignored ? limit + 1 : undefined,
         excludeDyadFolder: Boolean(args.app_name),
+        hostMode: Boolean(hostDirectory),
       });
       allMatches = result.matches;
       stoppedEarly = result.stoppedEarly;

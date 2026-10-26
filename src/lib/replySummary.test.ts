@@ -55,6 +55,13 @@ describe("splitReply", () => {
     expect(splitReply(`${READ}${questionnaire}${READ}All done.`)).toBeNull();
   });
 
+  it("folds a failed tool she worked past", () => {
+    const error =
+      '<dyad-output type="error" message="Tool grep failed">x</dyad-output>';
+    const split = splitReply(`${READ}${error}${READ}Done.`);
+    expect(split?.summary).toBe("Done.");
+  });
+
   it("keeps error reports visible", () => {
     const error =
       '<dyad-output type="error" message="Build failed">details</dyad-output>';

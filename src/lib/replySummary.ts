@@ -117,7 +117,10 @@ export function splitReply(content: string): ReplySplit | null {
     if (block.kind !== "custom-tag") continue;
     if (block.inProgress) return null;
     if (i <= lastStep) {
-      if (!isFoldableTag(block.tag, block.attributes)) return null;
+      // A tool that failed and that she then worked past is part of her working.
+      const workedPast = block.tag === "dyad-output" && i < lastStep;
+      if (!workedPast && !isFoldableTag(block.tag, block.attributes))
+        return null;
       if (block.tag !== "think") steps++;
     }
   }

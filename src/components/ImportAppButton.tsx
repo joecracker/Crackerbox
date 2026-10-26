@@ -24,7 +24,7 @@ export function ImportAppButton({
           onClick={() => setIsDialogOpen(true)}
         >
           <Upload className="sm:mr-2 h-4 w-4" />
-          <span className="hidden sm:inline">Import App</span>
+          <span className="hidden sm:inline">Import Project</span>
         </Button>
       </div>
       <ImportAppDialog

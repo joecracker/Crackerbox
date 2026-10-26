@@ -18,6 +18,8 @@ No sign-up required. Just download and go.
 
 ### [Download Crackerbox for Windows](https://get.crackerbox.app/crackerbox/install/)
 
+> **If Windows says "Smart App Control blocked part of this app"** (with no way to continue): Smart App Control only allows apps Microsoft already knows, and Crackerbox is not code-signed yet. Open **Settings > Privacy & security > Windows Security > App & browser control > Smart App Control settings**, switch it **Off**, then run the installer again. On an up-to-date Windows you can switch it back on afterward; on an older build, turning it off is permanent without resetting Windows.
+
 ## 🤝 Community
 
 Got an idea or hit a bug? Use [Discussions](https://github.com/joecracker/Crackerbox/discussions/new?category=ideas) or [Issues](https://github.com/joecracker/Crackerbox/issues/new). I read everything, but I only change things that make Crackerbox better for me too.

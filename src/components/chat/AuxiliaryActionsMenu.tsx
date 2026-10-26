@@ -181,7 +181,7 @@ export function AuxiliaryActionsMenu({
               }}
             >
               <Upload size={16} className="mr-2" />
-              Import app
+              Import Project
             </DropdownMenuItem>
           )}
 

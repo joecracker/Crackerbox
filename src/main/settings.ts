@@ -29,6 +29,7 @@ import {
 } from "@/ipc/shared/remote_desktop_config";
 import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
 import { ZodError } from "zod";
+import { parseSettingsWithRepair } from "@/lib/settingsRepair";
 import {
   getRecoveryStats,
   recoverLegacySafeStorageSecret,
@@ -846,7 +847,15 @@ function readExistingSettingsFile(
   }
 
   // Validate stored settings (allows deprecated values like "agent" chat mode)
-  const storedSettings = StoredUserSettingsSchema.parse(combinedSettings);
+  // A value this version does not understand (say, a choice saved by a newer
+  // Crackerbox) resets only that one setting instead of the whole file.
+  const warnRepair = (message: string) => logger.warn(message);
+  const storedSettings = parseSettingsWithRepair(
+    StoredUserSettingsSchema,
+    combinedSettings,
+    DEFAULT_SETTINGS,
+    warnRepair,
+  );
   // "conservative" is deprecated, use undefined to use the default value
   if (storedSettings.proSmartContextOption === "conservative") {
     storedSettings.proSmartContextOption = undefined;
@@ -854,7 +863,12 @@ function readExistingSettingsFile(
   // Migrate stored settings to active settings (converts deprecated values)
   const migratedSettings = migrateStoredSettings(storedSettings);
   // Validate the migrated settings against the active schema
-  const settings = UserSettingsSchema.parse(migratedSettings);
+  const settings = parseSettingsWithRepair(
+    UserSettingsSchema,
+    migratedSettings,
+    DEFAULT_SETTINGS,
+    warnRepair,
+  );
   return { settings, preserved: ctx.preserved };
 }
 

@@ -53,7 +53,7 @@ export const SynthesizeSpeechParamsSchema = z.object({
   text: z.string().min(1).max(12_000),
   voice: z.string().min(1).max(64),
   speed: z.number().min(0.7).max(1.35),
-  provider: z.enum(["openrouter", "local"]),
+  provider: z.enum(["openrouter", "venice", "local"]),
 });
 
 export const SynthesizeSpeechResultSchema = z.object({

@@ -61,7 +61,11 @@ export function VoiceSettings() {
         <Select
           value={provider}
           onValueChange={(value) => {
-            if (value === "openrouter" || value === "local") {
+            if (
+              value === "openrouter" ||
+              value === "venice" ||
+              value === "local"
+            ) {
               void updateSettings({ speechProvider: value });
             }
           }}
@@ -72,6 +76,9 @@ export function VoiceSettings() {
           <SelectContent>
             <SelectItem value="openrouter">
               OpenRouter — smooth cloud voice
+            </SelectItem>
+            <SelectItem value="venice">
+              Venice — uses your Venice key
             </SelectItem>
             <SelectItem value="local">Local — offline backup</SelectItem>
           </SelectContent>
@@ -114,9 +121,15 @@ export function VoiceSettings() {
         </Select>
       </div>
       <p className="text-[13px] leading-relaxed text-muted-foreground">
-        OpenRouter uses your existing key and the hosted Kokoro voice model. If
-        the cloud is unavailable, Crackerbox automatically uses the local voice.
+        OpenRouter and Venice both use your existing key and the hosted Kokoro
+        voice model. If the cloud is unavailable, Crackerbox automatically uses
+        the local voice.
       </p>
+      {provider === "venice" && voice === "bf_isabella" && (
+        <p className="text-[13px] leading-relaxed text-muted-foreground">
+          Venice doesn't have Isabella, so it speaks with Heart instead.
+        </p>
+      )}
     </div>
   );
 }

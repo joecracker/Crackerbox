@@ -125,6 +125,90 @@ describe("synthesizeSpeech", () => {
   });
 });
 
+describe("synthesizeSpeech with Venice", () => {
+  beforeEach(() => {
+    readSettings.mockReset();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("uses the saved Venice provider key and Venice's Kokoro model", async () => {
+    readSettings.mockReturnValue({
+      providerSettings: {
+        openrouter: { apiKey: { value: "openrouter-test-key" } },
+        "custom::Venice AI": { apiKey: { value: "venice-test-key" } },
+      },
+    });
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(
+        new Response(new Uint8Array([1, 2, 3]), { status: 200 }),
+      );
+
+    await expect(
+      synthesizeSpeech({
+        text: "Hello from Crackerbox.",
+        voice: "af_bella",
+        speed: 1,
+        provider: "venice",
+      }),
+    ).resolves.toEqual({ audioBase64: "AQID", mimeType: "audio/mpeg" });
+
+    const [url, request] = fetchMock.mock.calls[0];
+    expect(url).toBe("https://api.venice.ai/api/v1/audio/speech");
+    expect(new Headers(request?.headers).get("Authorization")).toBe(
+      "Bearer venice-test-key",
+    );
+    expect(JSON.parse(String(request?.body))).toEqual({
+      model: "tts-kokoro",
+      input: "Hello from Crackerbox.",
+      voice: "af_bella",
+      response_format: "mp3",
+    });
+  });
+
+  it("swaps a voice Venice lacks for Heart", async () => {
+    readSettings.mockReturnValue({
+      providerSettings: { venice: { apiKey: { value: "venice-test-key" } } },
+    });
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(new Uint8Array([1]), { status: 200 }));
+
+    await synthesizeSpeech({
+      text: "Hello.",
+      voice: "bf_isabella",
+      speed: 1,
+      provider: "venice",
+    });
+
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body)).voice).toBe(
+      "af_heart",
+    );
+  });
+
+  it("fails without a Venice key so the player can fall back", async () => {
+    readSettings.mockReturnValue({
+      providerSettings: {
+        openrouter: { apiKey: { value: "openrouter-test-key" } },
+      },
+    });
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+
+    await expect(
+      synthesizeSpeech({
+        text: "Hello.",
+        voice: "af_bella",
+        speed: 1,
+        provider: "venice",
+      }),
+    ).rejects.toThrow("couldn't generate speech");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
 type VoiceRequest = { type: string; id: number };
 
 /** Stands in for the separate process that runs the built-in voice. */

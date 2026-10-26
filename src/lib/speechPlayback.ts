@@ -142,6 +142,9 @@ function splitOpening(chunks: string[]) {
   return { opening: chunks.slice(0, used), rest: chunks.slice(used).join(" ") };
 }
 
+/** "openrouter" and "venice" are hosted voices; "local" runs on this PC. */
+export type SpeechEngine = "openrouter" | "venice" | "local";
+
 export async function playSpeech({
   messageId,
   text,
@@ -153,17 +156,14 @@ export async function playSpeech({
   text: string;
   voice: string;
   speed: number;
-  provider: "openrouter" | "local";
+  provider: SpeechEngine;
 }) {
   stopSpeechPlayback();
   const version = requestVersion;
   publish({ messageId, status: "loading" });
 
   try {
-    const synthesize = (
-      chunk: string,
-      selectedProvider: "openrouter" | "local",
-    ) =>
+    const synthesize = (chunk: string, selectedProvider: SpeechEngine) =>
       ipc.audio.synthesizeSpeech({
         text: chunk,
         voice,
@@ -198,7 +198,8 @@ export async function playSpeech({
     const localChunks = splitForLocalVoice(text);
     const { opening, rest } = splitOpening(localChunks);
 
-    if (provider === "openrouter" && rest.length >= MIN_CLOUD_LENGTH) {
+    if (provider !== "local" && rest.length >= MIN_CLOUD_LENGTH) {
+      const cloud = provider;
       const cloudPieces =
         rest.length <= CLOUD_CHUNK_MAX_LENGTH
           ? [rest]
@@ -210,7 +211,7 @@ export async function playSpeech({
 
       // Ask the hosted voice for everything after the opening right now, so it
       // is already working while the opening is spoken.
-      let pending = synthesize(cloudPieces[0], "openrouter");
+      let pending = synthesize(cloudPieces[0], cloud);
       pending.catch(() => {});
 
       const spoken = { done: 0 };
@@ -222,7 +223,7 @@ export async function playSpeech({
         // rest of the opening as well.
         try {
           const unspoken = opening.slice(spoken.done).join(" ");
-          const openingAudio = await synthesize(unspoken, "openrouter");
+          const openingAudio = await synthesize(unspoken, cloud);
           if (version !== requestVersion) return;
           publish({ messageId, status: "playing" });
           await playAudio(
@@ -253,7 +254,7 @@ export async function playSpeech({
         // Buffer the following hosted piece while this MP3 plays. This keeps
         // long replies moving without replaying already heard text on fallback.
         if (i + 1 < cloudPieces.length) {
-          pending = synthesize(cloudPieces[i + 1], "openrouter");
+          pending = synthesize(cloudPieces[i + 1], cloud);
           pending.catch(() => {});
         }
         try {

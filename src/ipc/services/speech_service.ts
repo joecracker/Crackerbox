@@ -9,6 +9,18 @@ import { getOpenRouterAppAttributionHeaders } from "../utils/openrouter_attribut
 const logger = log.scope("speech");
 const OPENROUTER_KOKORO_MODEL = "hexgrad/kokoro-82m";
 const OPENROUTER_SPEECH_URL = "https://openrouter.ai/api/v1/audio/speech";
+const VENICE_KOKORO_MODEL = "tts-kokoro";
+const VENICE_SPEECH_URL = "https://api.venice.ai/api/v1/audio/speech";
+// Kokoro voices Venice offers (checked against its model list on 2026-10-25).
+// Isabella is not one of them, so a voice it lacks is swapped for Heart.
+const VENICE_VOICES = new Set([
+  "af_bella",
+  "af_heart",
+  "af_nicole",
+  "af_sarah",
+  "bf_emma",
+]);
+const VENICE_FALLBACK_VOICE = "af_heart";
 
 const LOAD_TIMEOUT_MS = 5 * 60 * 1000;
 const GENERATE_TIMEOUT_MS = 60 * 1000;
@@ -212,8 +224,64 @@ class OpenRouterSpeechProvider implements SpeechProvider {
   }
 }
 
+/** The saved key of the Venice provider set up under AI providers. */
+function findVeniceApiKey(): string | undefined {
+  const providerSettings = readSettings().providerSettings ?? {};
+  for (const [id, setting] of Object.entries(providerSettings)) {
+    const key = setting?.apiKey?.value;
+    if (/venice/i.test(id) && key) return key;
+  }
+  return undefined;
+}
+
+export function veniceVoiceFor(voice: string) {
+  return VENICE_VOICES.has(voice) ? voice : VENICE_FALLBACK_VOICE;
+}
+
+class VeniceSpeechProvider implements SpeechProvider {
+  async synthesize({ text, voice }: SpeechSynthesisInput) {
+    const apiKey = findVeniceApiKey();
+    if (!apiKey) {
+      throw new Error("Venice is not connected");
+    }
+
+    logger.info(`Generating Venice speech (${text.length} chars)`);
+    const started = Date.now();
+    const response = await withTimeout(
+      fetch(VENICE_SPEECH_URL, {
+        method: "POST",
+        signal: AbortSignal.timeout(OPENROUTER_TIMEOUT_MS),
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: VENICE_KOKORO_MODEL,
+          input: text,
+          voice: veniceVoiceFor(voice),
+          response_format: "mp3",
+        }),
+      }),
+      OPENROUTER_TIMEOUT_MS,
+      "Generating Venice speech",
+    );
+    if (!response.ok) {
+      const detail = (await response.text()).slice(0, 200);
+      logger.warn(`Venice voice returned HTTP ${response.status}: ${detail}`);
+      throw new Error(`Venice voice returned HTTP ${response.status}`);
+    }
+    const data = new Uint8Array(await response.arrayBuffer());
+    if (data.byteLength === 0) {
+      throw new Error("Venice voice returned empty audio");
+    }
+    logger.info(`Venice speech generated in ${Date.now() - started}ms`);
+    return { data, mimeType: "audio/mpeg" as const };
+  }
+}
+
 const providers: Record<SpeechSynthesisInput["provider"], SpeechProvider> = {
   openrouter: new OpenRouterSpeechProvider(),
+  venice: new VeniceSpeechProvider(),
   local: new KokoroSpeechProvider(),
 };
 

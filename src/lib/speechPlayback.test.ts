@@ -37,7 +37,7 @@ type Request = {
   text: string;
   voice: string;
   speed: number;
-  provider: "local" | "openrouter";
+  provider: "local" | "openrouter" | "venice";
 };
 
 const FIRST =
@@ -91,7 +91,7 @@ describe("playSpeech", () => {
     FakeAudio.instances = [];
     synthesizeSpeech.mockReset();
     synthesizeSpeech.mockImplementation(async (request: Request) =>
-      request.provider === "openrouter" ? CLOUD_AUDIO : LOCAL_AUDIO,
+      request.provider === "local" ? LOCAL_AUDIO : CLOUD_AUDIO,
     );
     vi.stubGlobal("Audio", FakeAudio);
     Object.assign(URL, {
@@ -104,6 +104,48 @@ describe("playSpeech", () => {
     stopSpeechPlayback();
     vi.useRealTimers();
     vi.unstubAllGlobals();
+  });
+
+  it("reads a short reply as one hosted recording when the voice is Venice", async () => {
+    const done = playSpeech({
+      messageId: 1,
+      text: SHORT,
+      voice: "af_heart",
+      speed: 1,
+      provider: "venice",
+    });
+
+    await vi.waitFor(() => expect(FakeAudio.instances).toHaveLength(1));
+    FakeAudio.instances[0].onended?.();
+    await done;
+
+    expect(callsFor("local")).toHaveLength(0);
+    expect(callsFor("venice")).toHaveLength(1);
+    expect(callsFor("venice")[0].text).toBe(SHORT);
+  });
+
+  it("falls back to the built-in voice for the whole reply if Venice fails", async () => {
+    synthesizeSpeech.mockImplementation(async (request: Request) => {
+      if (request.provider === "venice") throw new Error("Venice is down");
+      return LOCAL_AUDIO;
+    });
+    const done = playSpeech({
+      messageId: 1,
+      text: SHORT,
+      voice: "af_heart",
+      speed: 1,
+      provider: "venice",
+    });
+
+    await endAudio(0);
+    for (let i = 1; i < 6; i++) await endAudio(i).catch(() => {});
+    await done;
+
+    expect(callsFor("venice")).toHaveLength(1);
+    const spokenLocally = callsFor("local")
+      .map((request) => request.text)
+      .join(" ");
+    expect(spokenLocally).toBe(SHORT);
   });
 
   it("starts generating the next local chunk while the current one is playing", async () => {

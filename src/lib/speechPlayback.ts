@@ -196,9 +196,19 @@ export async function playSpeech({
       playLocalChunks(splitForLocalVoice(localText));
 
     const localChunks = splitForLocalVoice(text);
-    const { opening, rest } = splitOpening(localChunks);
+    // Venice answers fast enough to read the whole reply, short or long, as one
+    // smooth recording. The built-in voice only runs on this PC at about the
+    // speed it is spoken, so it leaves a pause between sentences; with Venice
+    // it is just the backup if the hosted voice does not answer in time.
+    const cloudFirst = provider === "venice";
+    const { opening, rest }: { opening: string[]; rest: string } = cloudFirst
+      ? { opening: [], rest: text }
+      : splitOpening(localChunks);
 
-    if (provider !== "local" && rest.length >= MIN_CLOUD_LENGTH) {
+    if (
+      provider !== "local" &&
+      (cloudFirst ? rest.trim().length > 0 : rest.length >= MIN_CLOUD_LENGTH)
+    ) {
       const cloud = provider;
       const cloudPieces =
         rest.length <= CLOUD_CHUNK_MAX_LENGTH

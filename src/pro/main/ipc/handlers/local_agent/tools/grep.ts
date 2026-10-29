@@ -1,5 +1,6 @@
 import { z } from "zod";
 import path from "node:path";
+import fsPromises from "node:fs/promises";
 import { spawn } from "node:child_process";
 import {
   ToolDefinition,
@@ -327,7 +328,7 @@ export const grepTool: ToolDefinition<z.infer<typeof grepSchema>> = {
   description: `Search for a regex pattern or exact literal text in the codebase using ripgrep.
 
 - Returns matching lines with file paths and line numbers
-- Set directory to an absolute path to search any folder on this PC (read-only)
+- Set directory to an absolute path to search any folder (or a single file) on this PC (searching is read-only; changing files outside the project is done with write_file / search_replace and asks the user first)
 - By default, the search is case-insensitive
 - Use literal=true for exact symbols/snippets with punctuation, e.g. createBooking({, import strings, route paths, or JSX tags
 - Use include_pattern to filter by file type (e.g. '*.tsx')
@@ -367,13 +368,28 @@ export const grepTool: ToolDefinition<z.infer<typeof grepSchema>> = {
 
   execute: async (args, ctx: AgentContext) => {
     const targetAppPath = resolveTargetAppPath(ctx, args.app_name);
-    const hostDirectory =
+    let hostDirectory =
       args.directory &&
       !args.app_name &&
       isHostPath(args.directory, targetAppPath)
         ? path.resolve(args.directory)
         : undefined;
     if (hostDirectory) assertHostPathAllowed(hostDirectory);
+    let hostIncludePattern = args.include_pattern;
+    if (hostDirectory) {
+      // A single file given as the directory: search just that file.
+      try {
+        if ((await fsPromises.stat(hostDirectory)).isFile()) {
+          hostIncludePattern = path.basename(hostDirectory);
+          hostDirectory = path.dirname(hostDirectory);
+        }
+      } catch {
+        throw new DyadError(
+          `Path does not exist: ${args.directory}`,
+          DyadErrorKind.NotFound,
+        );
+      }
+    }
     const includePatWasWildcard = args.include_pattern === "*";
     const limit = Math.min(args.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
 
@@ -386,7 +402,7 @@ export const grepTool: ToolDefinition<z.infer<typeof grepSchema>> = {
       const result = await runRipgrep({
         appPath: hostDirectory ?? targetAppPath,
         query: args.query,
-        includePat: args.include_pattern,
+        includePat: hostIncludePattern,
         excludePat: args.exclude_pattern,
         includeIgnored: args.include_ignored,
         caseSensitive: args.case_sensitive,

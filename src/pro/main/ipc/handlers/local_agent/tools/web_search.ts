@@ -7,6 +7,19 @@ import {
   escapeXmlContent,
 } from "./types";
 import { readSettings } from "@/main/settings";
+
+const VENICE_CHAT_URL = "https://api.venice.ai/api/v1/chat/completions";
+
+function findVeniceApiKey(
+  providerSettings: Record<string, any> | undefined,
+): string | undefined {
+  for (const [id, value] of Object.entries(providerSettings ?? {})) {
+    if (/venice/i.test(id) && value?.apiKey?.value) {
+      return value.apiKey.value as string;
+    }
+  }
+  return undefined;
+}
 import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
 
 const logger = log.scope("web_search");
@@ -99,10 +112,9 @@ function parseSSEEvents(
 const WEB_SEARCH_TIMEOUT_MS = 90_000;
 
 /**
- * Call OpenRouter's chat completions endpoint with the "web" search
- * plugin enabled (Parallel engine, turbo mode) and stream results.
- * Crackerbox doesn't use Dyad's Pro engine -- this runs on Tim's own
- * OpenRouter key instead, same key he already uses for chat.
+ * Call Venice's chat completions endpoint with web search switched on
+ * and stream results. Runs on Tim's own Venice key and the Venice model
+ * he has selected for chat.
  */
 async function callWebSearchSSE(
   query: string,
@@ -111,16 +123,23 @@ async function callWebSearchSSE(
   ctx.onXmlStream(`<dyad-web-search query="${escapeXmlAttr(query)}">`);
 
   const settings = readSettings();
-  const apiKey = settings.providerSettings?.openrouter?.apiKey?.value;
+  const apiKey = findVeniceApiKey(settings.providerSettings);
 
   if (!apiKey) {
     throw new DyadError(
-      "An OpenRouter API key is required for web search. Add one in Settings.",
+      "A Venice API key is required for web search. Add one in Settings.",
       DyadErrorKind.Auth,
     );
   }
 
-  const model = settings.selectedModel?.name || "openai/gpt-4o-mini";
+  const selected = settings.selectedModel;
+  if (!selected?.name || !/venice/i.test(selected.provider ?? "")) {
+    throw new DyadError(
+      "Web search runs on Venice. Pick a Venice model for this chat and try again.",
+      DyadErrorKind.Precondition,
+    );
+  }
+  const model = selected.name;
 
   const controller = new AbortController();
   const onAbort = () => controller.abort(ctx.abortSignal?.reason);
@@ -135,7 +154,7 @@ async function callWebSearchSSE(
 
   let response: Response;
   try {
-    response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    response = await fetch(VENICE_CHAT_URL, {
       method: "POST",
       signal: controller.signal,
       headers: {
@@ -152,14 +171,10 @@ async function callWebSearchSSE(
             content: `Search the web and answer concisely, citing sources: ${query}`,
           },
         ],
-        plugins: [
-          {
-            id: "web",
-            engine: "parallel",
-            mode: "turbo",
-            max_results: 5,
-          },
-        ],
+        venice_parameters: {
+          enable_web_search: "on",
+          enable_web_citations: true,
+        },
       }),
     });
   } finally {
@@ -233,7 +248,7 @@ export const webSearchTool: ToolDefinition<z.infer<typeof webSearchSchema>> = {
   inputSchema: webSearchSchema,
   defaultConsent: "ask",
 
-  // Uses Tim's own OpenRouter key -- no Dyad Pro engine required.
+  // Uses Tim's own Venice key -- no Dyad Pro engine required.
   isEnabled: () => true,
 
   getConsentPreview: (args) => `Search the web: "${args.query}"`,

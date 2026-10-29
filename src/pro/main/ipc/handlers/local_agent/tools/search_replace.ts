@@ -20,6 +20,8 @@ import { sendTelemetryEvent } from "@/ipc/utils/telemetry";
 import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
 import { queueCloudSandboxSnapshotSync } from "@/ipc/utils/cloud_sandbox_provider";
 import { withLock, getFileWriteKey } from "@/ipc/utils/lock_utils";
+import { isHostPath } from "./host_read";
+import { hostSearchReplace } from "./host_write";
 
 const logger = log.scope("search_replace");
 
@@ -43,7 +45,7 @@ export const searchReplaceTool: ToolDefinition<
   z.infer<typeof searchReplaceSchema>
 > = {
   name: "search_replace",
-  description: `Use this tool to propose a search and replace operation on an existing file.
+  description: `Use this tool to propose a search and replace operation on an existing file. Paths are relative to the project; an absolute path outside the project also works but asks the user for approval first.
 
 The tool will replace ONE occurrence of old_string with new_string in the specified file. Matching is line-based: old_string must match whole file lines, not a partial fragment within a line. To edit part of a line, include the entire original line in old_string and the entire edited line in new_string.
 
@@ -101,6 +103,14 @@ CRITICAL REQUIREMENTS FOR USING THIS TOOL:
       );
     }
 
+    if (isHostPath(args.file_path, ctx.appPath)) {
+      return await hostSearchReplace({
+        filePath: args.file_path,
+        oldString: args.old_string,
+        newString: args.new_string,
+        ctx,
+      });
+    }
     const operationPath = await assertMutationPathAllowed({
       appPath: ctx.appPath,
       relativePath: args.file_path,

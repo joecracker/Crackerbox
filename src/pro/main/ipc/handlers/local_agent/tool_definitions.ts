@@ -330,6 +330,8 @@ export async function requireAgentToolConsent(
     inputPreview?: string | null;
     metadata?: SqlConsentMetadata | null;
     abortSignal?: AbortSignal;
+    /** Ask every time, even when this tool is set to always allow. */
+    forceAsk?: boolean;
     subagent?: {
       threadId: string;
       persona: "explorer" | "implementer";
@@ -339,7 +341,7 @@ export async function requireAgentToolConsent(
 ): Promise<boolean> {
   const current = getAgentToolConsent(params.toolName);
 
-  if (current === "always") return true;
+  if (current === "always" && !params.forceAsk) return true;
   if (current === "never")
     throw new DyadError(
       "Should not ask for consent for a tool marked as 'never'",

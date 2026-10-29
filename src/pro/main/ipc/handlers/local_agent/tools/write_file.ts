@@ -17,6 +17,8 @@ import {
 } from "../../../../../../supabase_admin/supabase_utils";
 import { queueCloudSandboxSnapshotSync } from "@/ipc/utils/cloud_sandbox_provider";
 import { withLock, getFileWriteKey } from "@/ipc/utils/lock_utils";
+import { isHostPath } from "./host_read";
+import { hostWriteFile } from "./host_write";
 const logger = log.scope("write_file");
 
 const writeFileSchema = z.object({
@@ -30,7 +32,8 @@ const writeFileSchema = z.object({
 
 export const writeFileTool: ToolDefinition<z.infer<typeof writeFileSchema>> = {
   name: "write_file",
-  description: "Create or completely overwrite a file in the codebase",
+  description:
+    "Create or completely overwrite a file. Paths are relative to the project. An absolute path outside the project (for example another folder on this PC) also works; every change outside the project asks the user for approval first, and credential folders, secret files, programs/scripts (.exe .bat .ps1 ...) and the Startup folder are refused.",
   inputSchema: writeFileSchema,
   defaultConsent: "always",
   modifiesState: true,
@@ -49,6 +52,13 @@ export const writeFileTool: ToolDefinition<z.infer<typeof writeFileSchema>> = {
   },
 
   execute: async (args, ctx: AgentContext) => {
+    if (isHostPath(args.path, ctx.appPath)) {
+      return await hostWriteFile({
+        filePath: args.path,
+        content: args.content,
+        ctx,
+      });
+    }
     const operationPath = await assertMutationPathAllowed({
       appPath: ctx.appPath,
       relativePath: args.path,

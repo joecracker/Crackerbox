@@ -244,6 +244,7 @@ export interface AgentContext {
     inputPreview?: string | null;
     metadata?: SqlConsentMetadata | null;
     abortSignal?: AbortSignal;
+    forceAsk?: boolean;
     subagent?: {
       threadId: string;
       persona: Extract<SubagentPersona, "explorer" | "implementer">;

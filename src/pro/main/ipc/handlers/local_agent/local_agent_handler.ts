@@ -933,7 +933,6 @@ export async function handleLocalAgentStream(
   const pendingUserMessages: UserMessageContentPart[][] = [];
   // Store injected messages with their insertion index to re-inject at the same spot each step
   const allInjectedMessages: InjectedMessage[] = [];
-  let lastStepBudgetNote: string | undefined;
   const warningMessages: string[] = [];
   // Snapshot of todos persisted by a previous turn. Declared outside the try so
   // the cancellation handler in `catch` can roll back to this pre-turn state.
@@ -1566,17 +1565,6 @@ export async function handleLocalAgentStream(
                 };
               }
 
-              // Tell her how much of her step budget is left. The note only
-              // changes at a few fixed points, so it is added just a few
-              // times per turn and stays in place afterwards.
-              const budgetNote = stepBudgetNote(
-                options.stepNumber,
-                maxToolCallSteps,
-              );
-              if (budgetNote && budgetNote !== lastStepBudgetNote) {
-                lastStepBudgetNote = budgetNote;
-                pendingUserMessages.push([{ type: "text", text: budgetNote }]);
-              }
               const previousInjectionCount = allInjectedMessages.length;
               const preparedStep = prepareStepMessages(
                 stepOptions,
@@ -1629,6 +1617,26 @@ export async function handleLocalAgentStream(
                 };
               }
 
+              // Tell her how much of her step budget is left. The note goes
+              // at the very end of what she sees on this step only (it is not
+              // saved into the history), so it never splits earlier messages.
+              const budgetNote = stepBudgetNote(
+                options.stepNumber,
+                maxToolCallSteps,
+              );
+              if (budgetNote) {
+                const base = result ?? stepOptions;
+                result = {
+                  ...base,
+                  messages: [
+                    ...base.messages,
+                    {
+                      role: "user" as const,
+                      content: [{ type: "text" as const, text: budgetNote }],
+                    },
+                  ],
+                };
+              }
               return result;
             },
             onStepFinish: async (step) => {

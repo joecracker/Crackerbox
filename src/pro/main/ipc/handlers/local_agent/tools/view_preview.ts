@@ -62,42 +62,74 @@ async function captureEmbeddedPreview(appId: number): Promise<string | null> {
   return null;
 }
 
-export const viewPreviewTool: ToolDefinition<z.infer<typeof viewPreviewSchema>> =
-  {
-    name: "view_preview",
-    description:
-      "Look at the app's live preview: returns a picture of what it is showing right now. Use it after a visual change, or when the user says something looks wrong. It only works while this app's Preview tab is open and visible on the user's computer, and the model must be able to read images.",
-    inputSchema: viewPreviewSchema,
-    defaultConsent: "always",
-    modifiesState: false,
-    mutationTracking: "none",
-    requiresBlueprintApproval: false,
-    getConsentPreview: () => "Look at the live preview",
-    execute: async (_args, ctx) => {
-      // Test runs use a separate native preview window; check it first.
-      const info = runningApps.get(ctx.appId);
-      const appUrl = info?.proxyUrl ?? info?.cloudPreviewUrl;
-      const nativeShot = appUrl
-        ? getPreviewScreenshots().find(
-            (shot) => shot.url && sameOrigin(shot.url, appUrl),
-          )
-        : undefined;
-      const source =
-        nativeShot?.dataUrl ?? (await captureEmbeddedPreview(ctx.appId));
-      if (!source) {
-        return "I can't see this app's preview right now. Ask the user to open this app's Preview tab on their computer and keep that window visible (not minimized).";
+/**
+ * If the Preview side panel is closed, press its toggle button in the app
+ * window so she does not have to ask the user to open it. Does nothing when a
+ * preview frame is already on screen.
+ */
+async function openPreviewPanel(): Promise<boolean> {
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (win.isDestroyed() || win.isMinimized() || !win.isVisible()) continue;
+    try {
+      const clicked = (await win.webContents.executeJavaScript(`(() => {
+        if (document.querySelector('iframe[data-testid="preview-iframe-element"]')) return false;
+        const b = document.querySelector('[data-testid="toggle-preview-panel-button"]');
+        if (!b) return false;
+        b.click();
+        return true;
+      })()`)) as boolean;
+      if (clicked) return true;
+    } catch {
+      // Try the next window.
+    }
+  }
+  return false;
+}
+
+export const viewPreviewTool: ToolDefinition<
+  z.infer<typeof viewPreviewSchema>
+> = {
+  name: "view_preview",
+  description:
+    "Look at the app's live preview: returns a picture of what it is showing right now. Use it after a visual change, or when the user says something looks wrong. If the Preview panel is closed it opens it for you, so never ask the user to open it. The Crackerbox window must be visible (not minimized) and the app must be running, and the model must be able to read images.",
+  inputSchema: viewPreviewSchema,
+  defaultConsent: "always",
+  modifiesState: false,
+  mutationTracking: "none",
+  requiresBlueprintApproval: false,
+  getConsentPreview: () => "Look at the live preview",
+  execute: async (_args, ctx) => {
+    // Test runs use a separate native preview window; check it first.
+    const info = runningApps.get(ctx.appId);
+    const appUrl = info?.proxyUrl ?? info?.cloudPreviewUrl;
+    const nativeShot = appUrl
+      ? getPreviewScreenshots().find(
+          (shot) => shot.url && sameOrigin(shot.url, appUrl),
+        )
+      : undefined;
+    let source =
+      nativeShot?.dataUrl ?? (await captureEmbeddedPreview(ctx.appId));
+    if (!source && (await openPreviewPanel())) {
+      // Give the panel and the app time to load, then look again.
+      for (let i = 0; i < 6 && !source; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        source = await captureEmbeddedPreview(ctx.appId);
       }
-      const picture = shrinkToJpeg(source);
-      if (!picture) {
-        return "The preview picture couldn't be read. Try again in a moment.";
-      }
-      ctx.appendUserMessage([
-        {
-          type: "text",
-          text: "This is what the live preview is showing right now:",
-        },
-        { type: "image-url", url: picture },
-      ]);
-      return "Attached the current preview picture to the next message.";
-    },
-  };
+    }
+    if (!source) {
+      return "I can't see this app's preview right now. I tried opening the Preview panel myself. If the app isn't running yet, start it first (run_app / restart) and try again; otherwise ask the user to keep the Crackerbox window visible (not minimized).";
+    }
+    const picture = shrinkToJpeg(source);
+    if (!picture) {
+      return "The preview picture couldn't be read. Try again in a moment.";
+    }
+    ctx.appendUserMessage([
+      {
+        type: "text",
+        text: "This is what the live preview is showing right now:",
+      },
+      { type: "image-url", url: picture },
+    ]);
+    return "Attached the current preview picture to the next message.";
+  },
+};

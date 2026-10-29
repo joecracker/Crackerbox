@@ -63,6 +63,7 @@ import {
 } from "../../neon_admin/neon_prompt_context";
 import { NEON_DISCONNECTED_SYSTEM_PROMPT } from "../../prompts/neon_prompt";
 import { getDyadAppPath } from "../../paths/paths";
+import { agentNotesPromptBlock } from "@/pro/main/ipc/handlers/local_agent/agent_notes";
 import { buildDyadMediaUrl } from "../../lib/dyadMediaUrl";
 import type { ChatStreamParams } from "@/ipc/types";
 import type { ChatStreamInvocationRef } from "@/chat_stream/invocation";
@@ -2188,7 +2189,9 @@ ${componentSnippet}
           );
         }
 
-        const aiRules = await readAiRules(getDyadAppPath(updatedChat.app.path));
+        const aiRules =
+          (await readAiRules(getDyadAppPath(updatedChat.app.path))) +
+          agentNotesPromptBlock(updatedChat.app.id);
 
         // Get theme prompt for the app (null themeId means "no theme")
         const themePrompt = await getThemePromptById(updatedChat.app.themeId);

@@ -174,6 +174,7 @@ import {
   getPostCompactionMessages,
 } from "@/ipc/handlers/compaction/compaction_utils";
 import { DEFAULT_MAX_TOOL_CALL_STEPS } from "@/constants/settings_constants";
+import { stepBudgetNote } from "./step_budget";
 import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
 import {
   type RetryReplayEvent,
@@ -932,6 +933,7 @@ export async function handleLocalAgentStream(
   const pendingUserMessages: UserMessageContentPart[][] = [];
   // Store injected messages with their insertion index to re-inject at the same spot each step
   const allInjectedMessages: InjectedMessage[] = [];
+  let lastStepBudgetNote: string | undefined;
   const warningMessages: string[] = [];
   // Snapshot of todos persisted by a previous turn. Declared outside the try so
   // the cancellation handler in `catch` can roll back to this pre-turn state.
@@ -1564,6 +1566,17 @@ export async function handleLocalAgentStream(
                 };
               }
 
+              // Tell her how much of her step budget is left. The note only
+              // changes at a few fixed points, so it is added just a few
+              // times per turn and stays in place afterwards.
+              const budgetNote = stepBudgetNote(
+                options.stepNumber,
+                maxToolCallSteps,
+              );
+              if (budgetNote && budgetNote !== lastStepBudgetNote) {
+                lastStepBudgetNote = budgetNote;
+                pendingUserMessages.push([{ type: "text", text: budgetNote }]);
+              }
               const previousInjectionCount = allInjectedMessages.length;
               const preparedStep = prepareStepMessages(
                 stepOptions,

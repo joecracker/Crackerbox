@@ -32,6 +32,14 @@ export const MIN_CLOUD_LENGTH = 400;
 // How long to keep waiting for the hosted voice once the opening has finished
 // before carrying on with the built-in voice.
 export const CLOUD_WAIT_MS = 6_000;
+// Venice takes about 3 seconds for a sentence or two but 7 to 30 for a long
+// reply, so a long reply is cut into pieces (a short first one so speech
+// starts quickly) that are requested a couple at a time, ahead of playback.
+// Only if a piece takes longer than this does the built-in voice step in.
+export const VENICE_WAIT_MS = 25_000;
+export const VENICE_FIRST_PIECE_MAX_LENGTH = 130;
+export const VENICE_PIECE_MAX_LENGTH = 450;
+const VENICE_LOOKAHEAD = 2;
 
 function publish(next: SpeechPlaybackState) {
   state = next;
@@ -210,19 +218,33 @@ export async function playSpeech({
       (cloudFirst ? rest.trim().length > 0 : rest.length >= MIN_CLOUD_LENGTH)
     ) {
       const cloud = provider;
-      const cloudPieces =
-        rest.length <= CLOUD_CHUNK_MAX_LENGTH
+      const cloudPieces = cloudFirst
+        ? splitSpeechText(
+            rest,
+            VENICE_PIECE_MAX_LENGTH,
+            VENICE_FIRST_PIECE_MAX_LENGTH,
+          )
+        : rest.length <= CLOUD_CHUNK_MAX_LENGTH
           ? [rest]
           : splitSpeechText(
               rest,
               CLOUD_CHUNK_MAX_LENGTH,
               CLOUD_CHUNK_MAX_LENGTH,
             );
+      const lookahead = cloudFirst ? VENICE_LOOKAHEAD : 1;
+      const waitMs = cloudFirst ? VENICE_WAIT_MS : CLOUD_WAIT_MS;
 
-      // Ask the hosted voice for everything after the opening right now, so it
-      // is already working while the opening is spoken.
-      let pending = synthesize(cloudPieces[0], cloud);
-      pending.catch(() => {});
+      // Ask the hosted voice for the first piece(s) right now, so it is
+      // already working while the opening (if any) is spoken. Later pieces
+      // are requested while earlier ones play.
+      const requests: (ReturnType<typeof synthesize> | undefined)[] = [];
+      const request = (i: number) => {
+        if (i >= cloudPieces.length || requests[i]) return;
+        const piece = synthesize(cloudPieces[i], cloud);
+        piece.catch(() => {});
+        requests[i] = piece;
+      };
+      for (let j = 0; j < lookahead; j++) request(j);
 
       const spoken = { done: 0 };
       try {
@@ -252,7 +274,8 @@ export async function playSpeech({
       for (let i = 0; i < cloudPieces.length; i++) {
         let result: Awaited<ReturnType<typeof synthesize>>;
         try {
-          result = await waitUpTo(pending, CLOUD_WAIT_MS);
+          request(i);
+          result = await waitUpTo(requests[i]!, waitMs);
         } catch {
           if (version !== requestVersion) return;
           await playLocal(cloudPieces.slice(i).join(" "));
@@ -261,12 +284,10 @@ export async function playSpeech({
         }
         if (version !== requestVersion) return;
 
-        // Buffer the following hosted piece while this MP3 plays. This keeps
-        // long replies moving without replaying already heard text on fallback.
-        if (i + 1 < cloudPieces.length) {
-          pending = synthesize(cloudPieces[i + 1], cloud);
-          pending.catch(() => {});
-        }
+        // Buffer the following hosted piece(s) while this MP3 plays. This
+        // keeps long replies moving without replaying already heard text on
+        // fallback.
+        request(i + lookahead);
         try {
           publish({ messageId, status: "playing" });
           await playAudio(result.audioBase64, result.mimeType, version, speed);

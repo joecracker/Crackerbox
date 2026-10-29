@@ -12,6 +12,8 @@ vi.mock("@/ipc/types", () => ({
 import {
   CLOUD_CHUNK_MAX_LENGTH,
   CLOUD_WAIT_MS,
+  VENICE_FIRST_PIECE_MAX_LENGTH,
+  VENICE_PIECE_MAX_LENGTH,
   playSpeech,
   stopSpeechPlayback,
 } from "./speechPlayback";
@@ -109,7 +111,7 @@ describe("playSpeech", () => {
   it("reads a short reply as one hosted recording when the voice is Venice", async () => {
     const done = playSpeech({
       messageId: 1,
-      text: SHORT,
+      text: FIRST,
       voice: "af_heart",
       speed: 1,
       provider: "venice",
@@ -121,7 +123,71 @@ describe("playSpeech", () => {
 
     expect(callsFor("local")).toHaveLength(0);
     expect(callsFor("venice")).toHaveLength(1);
-    expect(callsFor("venice")[0].text).toBe(SHORT);
+    expect(callsFor("venice")[0].text).toBe(FIRST);
+  });
+
+  it("cuts a long Venice reply into a short first piece and asks for two pieces at once", async () => {
+    const done = playSpeech({
+      messageId: 1,
+      text: LONG,
+      voice: "af_heart",
+      speed: 1,
+      provider: "venice",
+    });
+
+    await vi.waitFor(() => expect(callsFor("venice")).toHaveLength(2));
+    const pieces = callsFor("venice").map((request) => request.text);
+    expect(pieces[0].length).toBeLessThanOrEqual(VENICE_FIRST_PIECE_MAX_LENGTH);
+    expect(pieces[1].length).toBeLessThanOrEqual(VENICE_PIECE_MAX_LENGTH);
+    expect(callsFor("local")).toHaveLength(0);
+
+    // Playing the first piece asks for the third while the second is ready.
+    await endAudio(0);
+    await vi.waitFor(() => expect(callsFor("venice")).toHaveLength(3));
+    let finished = false;
+    void done.then(() => {
+      finished = true;
+    });
+    for (let i = 1; i < 20 && !finished; i++) {
+      await vi.waitFor(() =>
+        expect(finished || FakeAudio.instances.length > i).toBe(true),
+      );
+      if (!finished) FakeAudio.instances[i].onended?.();
+    }
+    await done;
+
+    expect(callsFor("local")).toHaveLength(0);
+    expect(
+      callsFor("venice")
+        .map((request) => request.text)
+        .join(" "),
+    ).toBe(LONG);
+  });
+
+  it("keeps waiting for a slow Venice piece instead of switching to the built-in voice", async () => {
+    vi.useFakeTimers();
+    const slow = deferred<typeof CLOUD_AUDIO>();
+    synthesizeSpeech.mockImplementation((request: Request) =>
+      request.provider === "venice"
+        ? slow.promise
+        : Promise.resolve(LOCAL_AUDIO),
+    );
+    const done = playSpeech({
+      messageId: 1,
+      text: FIRST,
+      voice: "af_heart",
+      speed: 1,
+      provider: "venice",
+    });
+
+    await vi.advanceTimersByTimeAsync(CLOUD_WAIT_MS + 5_000);
+    expect(callsFor("local")).toHaveLength(0);
+
+    slow.resolve(CLOUD_AUDIO);
+    await vi.advanceTimersByTimeAsync(0);
+    FakeAudio.instances[0].onended?.();
+    await done;
+    expect(callsFor("local")).toHaveLength(0);
   });
 
   it("falls back to the built-in voice for the whole reply if Venice fails", async () => {
@@ -141,7 +207,7 @@ describe("playSpeech", () => {
     for (let i = 1; i < 6; i++) await endAudio(i).catch(() => {});
     await done;
 
-    expect(callsFor("venice")).toHaveLength(1);
+    expect(callsFor("venice")).toHaveLength(2);
     const spokenLocally = callsFor("local")
       .map((request) => request.text)
       .join(" ");

@@ -27,7 +27,6 @@ import {
   type SubagentThreadSummary,
 } from "@/ipc/types";
 import { queryKeys } from "@/lib/queryKeys";
-import { isDyadProEnabled } from "@/lib/schemas";
 import { showError } from "@/lib/toast";
 import { setPendingReviewContinuation } from "@/hooks/subagentReviewContinuation";
 
@@ -58,12 +57,10 @@ export function SubagentTeamCard({
     new Set(),
   );
   const [now, setNow] = useState(Date.now());
-  const isPro = settings ? isDyadProEnabled(settings) : false;
   const showReviewButton = showReviewAction && !!settings?.enableReviewButton;
   const query = useQuery({
     queryKey,
     queryFn: () => ipc.agent.listSubagents({ chatId }),
-    enabled: isPro,
   });
   const threads = query.data ?? [];
   const visibleThreads = useMemo(
@@ -228,7 +225,7 @@ export function SubagentTeamCard({
       queryKey: queryKeys.subagents.messages({ chatId, threadId: thread.id }),
       queryFn: () =>
         ipc.agent.getSubagentMessages({ chatId, threadId: thread.id }),
-      enabled: isPro && expandedThreadIds.has(thread.id),
+      enabled: expandedThreadIds.has(thread.id),
     })),
   });
   const transcriptQueriesByThreadId = new Map(
@@ -237,7 +234,6 @@ export function SubagentTeamCard({
       transcriptQueries[index],
     ]),
   );
-  if (!isPro) return null;
   if (query.isPending) {
     if (!showReviewButton) return null;
     return (

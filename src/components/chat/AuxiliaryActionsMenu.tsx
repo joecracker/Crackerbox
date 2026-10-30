@@ -11,6 +11,7 @@ import {
   ImageIcon,
   FolderOpen,
   Upload,
+  ArrowRight,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -29,6 +30,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { FileAttachmentDropdown } from "./FileAttachmentDropdown";
+import { HandoffDialog } from "./HandoffDialog";
+import { useHandoff } from "@/hooks/useHandoff";
 import { CustomThemeDialog } from "@/components/CustomThemeDialog";
 import { useThemes } from "@/hooks/useThemes";
 import { useAppTheme } from "@/hooks/useAppTheme";
@@ -49,6 +52,8 @@ interface AuxiliaryActionsMenuProps {
   onGenerateImage?: () => void;
   onSelectApp?: () => void;
   onImportApp?: () => void;
+  /** Offer "Write handoff" / "New chat from handoff" (only inside a chat). */
+  showHandoff?: boolean;
   compact?: boolean;
 }
 
@@ -60,9 +65,12 @@ export function AuxiliaryActionsMenu({
   onGenerateImage,
   onSelectApp,
   onImportApp,
+  showHandoff = false,
   compact = false,
 }: AuxiliaryActionsMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [handoffDialogOpen, setHandoffDialogOpen] = useState(false);
+  const handoff = useHandoff();
   const [customThemeDialogOpen, setCustomThemeDialogOpen] = useState(false);
   const [allThemesDialogOpen, setAllThemesDialogOpen] = useState(false);
   const { themes } = useThemes();
@@ -319,6 +327,23 @@ export function AuxiliaryActionsMenu({
             </DropdownMenuItem>
           )}
 
+          {/* Handoff: available in any chat, not only when it gets long */}
+          {showHandoff && handoff.chatId != null && (
+            <DropdownMenuItem
+              onClick={() => {
+                setIsOpen(false);
+                if (handoff.saved) void handoff.startNewChat();
+                else setHandoffDialogOpen(true);
+              }}
+              disabled={!handoff.saved && handoff.isStreaming}
+              className="py-2 px-3"
+              data-testid="handoff-menu-item"
+            >
+              <ArrowRight size={16} className="mr-2" />
+              {handoff.saved ? "New chat from handoff" : "Write handoff"}
+            </DropdownMenuItem>
+          )}
+
           {toggleShowTokenBar && (
             <>
               <DropdownMenuSeparator />
@@ -343,6 +368,13 @@ export function AuxiliaryActionsMenu({
           )}
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {showHandoff && (
+        <HandoffDialog
+          open={handoffDialogOpen}
+          onOpenChange={setHandoffDialogOpen}
+        />
+      )}
 
       {/* Custom Theme Dialog */}
       <CustomThemeDialog

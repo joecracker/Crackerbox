@@ -539,3 +539,54 @@ describe("spawn_agent schema", () => {
     ).toBe(false);
   });
 });
+
+describe("helper agents need no Dyad Pro key", () => {
+  const free = { isDyadPro: false } as const;
+
+  it("lets the model spawn a helper whenever a helper is allowed for the turn", () => {
+    expect(
+      spawnAgentTool.isEnabled?.({
+        ...free,
+        canUseExplorerSubagent: true,
+        canUseImplementerSubagent: false,
+      } as unknown as AgentContext),
+    ).toBe(true);
+  });
+
+  it("keeps the implementer off until its setting turns it on", () => {
+    expect(
+      spawnAgentTool.isEnabled?.({
+        ...free,
+        canUseExplorerSubagent: false,
+        canUseImplementerSubagent: false,
+      } as unknown as AgentContext),
+    ).toBe(false);
+  });
+
+  it("does not let a helper spawn helpers", () => {
+    expect(
+      spawnAgentTool.isEnabled?.({
+        ...free,
+        canUseExplorerSubagent: true,
+        subagentThreadId: "child",
+      } as unknown as AgentContext),
+    ).toBe(false);
+  });
+
+  it("turns the management tools on only with the advanced setting", () => {
+    const on = {
+      ...free,
+      canUseAdvancedSubagentTools: true,
+    } as unknown as AgentContext;
+    const off = {
+      ...free,
+      canUseAdvancedSubagentTools: false,
+    } as unknown as AgentContext;
+    expect(
+      advancedSubagentTools.every((tool) => tool.isEnabled?.(on) === true),
+    ).toBe(true);
+    expect(
+      advancedSubagentTools.every((tool) => tool.isEnabled?.(off) === false),
+    ).toBe(true);
+  });
+});

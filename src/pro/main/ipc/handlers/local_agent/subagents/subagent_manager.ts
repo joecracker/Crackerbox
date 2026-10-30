@@ -17,8 +17,6 @@ import { getModelClient } from "@/ipc/utils/get_model_client";
 import { getAiHeaders, getProviderOptions } from "@/ipc/utils/provider_options";
 import { withLock } from "@/ipc/utils/lock_utils";
 import { fastTextOutput } from "@/ipc/utils/stream_text_utils";
-import { getBuiltinLanguageModelCatalog } from "@/ipc/shared/remote_language_model_catalog";
-import { SMALL_MODEL_NAME } from "@/ipc/shared/language_model_constants";
 import {
   appOperationCoordinator,
   readAppResource,
@@ -30,8 +28,8 @@ import type {
   SubagentThreadSummary,
 } from "@/ipc/types";
 import { isSubagentAcceptingMessages, isSubagentActive } from "@/ipc/types";
-import { isDyadProEnabled, type UserSettings } from "@/lib/schemas";
-import { getChatInferenceSettings } from "@/ipc/services/chat_inference_settings";
+import type { UserSettings } from "@/lib/schemas";
+import { getHelperInference } from "./helper_model";
 import { readSettings } from "@/main/settings";
 import { getDyadAppPath } from "@/paths/paths";
 import { sanitizeStepMessages } from "../prepare_step_utils";
@@ -66,11 +64,6 @@ import type { ImplementerJoinSummary } from "./subagent_failure_reporting";
 
 export { SUBAGENT_NONTERMINAL_STATUSES } from "./state";
 
-const MODELS = {
-  explorer: { provider: "openai", name: SMALL_MODEL_NAME, effort: "high" },
-  reviewer: { provider: "openai", name: "gpt-5.6-sol", effort: "medium" },
-  implementer: { provider: "openai", name: SMALL_MODEL_NAME, effort: "high" },
-} as const;
 const MAX_DURABLE_REPORT_CHARS = 100_000;
 const MAX_ACTIVITY_XML_CHARS = 200_000;
 const MAX_ACTIVITY_OUTPUT_CHARS = 200_000;
@@ -335,7 +328,6 @@ export async function settleAllSubagentsForReset(): Promise<() => void> {
 export async function listSubagents(
   chatId: number,
 ): Promise<SubagentThreadSummary[]> {
-  assertPro();
   const rows = await db.query.agentThreads.findMany({
     where: eq(agentThreads.chatId, chatId),
     orderBy: [desc(agentThreads.createdAt)],
@@ -344,7 +336,6 @@ export async function listSubagents(
 }
 
 export async function getSubagentMessages(chatId: number, threadId: string) {
-  assertPro();
   await getOwnedThread(chatId, threadId);
   const rows = await db.query.agentMessages.findMany({
     where: eq(agentMessages.threadId, threadId),
@@ -368,7 +359,6 @@ export async function getSubagentActivities(
   chatId: number,
   threadId: string,
 ): Promise<SubagentActivity[]> {
-  assertPro();
   await getOwnedThread(chatId, threadId);
   const rows = await db.query.agentActivities.findMany({
     where: eq(agentActivities.threadId, threadId),
@@ -459,7 +449,6 @@ export async function spawnModelSubagent(params: {
     mutationActivityOwner?: MutationActivityOwner;
   }) => ToolSet;
 }): Promise<string> {
-  assertPro(params.persona);
   assertPersonaEnabled(
     params.persona,
     params.ctx.canUseImplementerSubagent === true,
@@ -470,11 +459,6 @@ export async function spawnModelSubagent(params: {
       DyadErrorKind.Validation,
     );
   }
-  await preflightPersonaModel(
-    params.persona,
-    params.ctx.chatId,
-    params.ctx.inferenceSettings,
-  );
 
   const normalizedScope =
     params.persona === "implementer"
@@ -570,8 +554,6 @@ export async function startReview(params: {
   invocationSource: "review_button" | "auto_review";
   allowWhenAutoReviewDisabled?: boolean;
 }): Promise<SubagentThreadSummary> {
-  assertPro("reviewer");
-  await preflightPersonaModel("reviewer", params.chatId);
   if (
     params.invocationSource === "auto_review" &&
     !params.allowWhenAutoReviewDisabled &&
@@ -676,7 +658,6 @@ export async function cancelSubagent(
   chatId: number,
   threadId: string,
 ): Promise<void> {
-  assertPro();
   const thread = await getOwnedThread(chatId, threadId);
   if (
     !SUBAGENT_NONTERMINAL_STATUSES.includes(
@@ -731,7 +712,6 @@ export async function skipReviewAutoFix(
   threadId: string,
   remediationFailed = false,
 ): Promise<void> {
-  assertPro("reviewer");
   const thread = await getOwnedThread(chatId, threadId);
   if (remediationFailed && thread.status === "fixing_findings") {
     const result = await applyThreadLifecycle(thread, {
@@ -772,7 +752,6 @@ export async function buildFixFindingsPrompt(
   threadId: string,
   remediationSource: "fix_button" | "auto_fix" | "queued_message_override",
 ): Promise<string> {
-  assertPro("reviewer");
   const thread = await getOwnedThread(chatId, threadId);
   if (
     thread.persona !== "reviewer" ||
@@ -900,8 +879,7 @@ export async function runAutoReviewBarrier(params: {
 }> {
   params.deadlineAt ??= Date.now() + AUTO_REVIEW_BARRIER_MAX_WAIT_MS;
   const settings = readSettings();
-  const isPro = isDyadProEnabled(settings);
-  if ((!settings.enableAutoReview && !params.verification) || !isPro) {
+  if (!settings.enableAutoReview && !params.verification) {
     return { outcome: "skipped" };
   }
   const latest = await db.query.messages.findFirst({
@@ -1106,7 +1084,6 @@ export async function sendSubagentMessage(
   content: string,
   abortSignal?: AbortSignal,
 ): Promise<void> {
-  assertPro();
   return subagentDisposalRegistry.withAdmission(chatId, () =>
     sendSubagentMessageAdmitted(chatId, threadId, content, abortSignal),
   );
@@ -1156,7 +1133,6 @@ export async function followupSubagent(
     }) => ToolSet;
   },
 ): Promise<SubagentPersona> {
-  assertPro();
   return subagentDisposalRegistry.withAdmission(chatId, () =>
     followupSubagentAdmitted(chatId, threadId, assignment, currentTurn),
   );
@@ -1299,7 +1275,6 @@ export async function waitForSubagents(
   abortSignal?: AbortSignal,
   timeoutMs = ROOT_FINALIZATION_MAX_WAIT_MS,
 ): Promise<SubagentThreadSummary[]> {
-  assertPro();
   const deadlineAt = Date.now() + timeoutMs;
   const uniqueIds = [...new Set(threadIds)];
   await Promise.all(uniqueIds.map((id) => getOwnedThread(chatId, id)));
@@ -1560,7 +1535,6 @@ async function runThread(
     controller,
     actorRunId: mutationOwner?.actorRunId,
   });
-  const entitlementWatcher = watchEntitlement(threadId, controller);
   const claimedExplorerMessageIds = new Set<number>();
   try {
     assertPersonaEnabled(
@@ -1659,14 +1633,8 @@ async function runThread(
     shouldContinue = true;
   } catch (error) {
     if (controller.signal.aborted) return;
-    await finishThread(
-      threadId,
-      isDyadProEnabled(readSettings()) ? "failed" : "entitlement_revoked",
-      null,
-      errorMessage(error),
-    );
+    await finishThread(threadId, "failed", null, errorMessage(error));
   } finally {
-    clearInterval(entitlementWatcher);
     abortControllers.delete(threadId);
     cancelledThreadIds.delete(threadId);
     try {
@@ -1709,7 +1677,6 @@ async function runReview(
   const controller = new AbortController();
   let shouldContinue = false;
   abortControllers.set(threadId, { controller });
-  const entitlementWatcher = watchEntitlement(threadId, controller);
   try {
     if (!(await updateStatus(threadId, "running"))) return;
     const reviewResult = await runModel({
@@ -1749,14 +1716,8 @@ async function runReview(
     shouldContinue = true;
   } catch (error) {
     if (controller.signal.aborted) return;
-    await finishThread(
-      threadId,
-      isDyadProEnabled(readSettings()) ? "failed" : "entitlement_revoked",
-      null,
-      errorMessage(error),
-    );
+    await finishThread(threadId, "failed", null, errorMessage(error));
   } finally {
-    clearInterval(entitlementWatcher);
     abortControllers.delete(threadId);
     if (shouldContinue) await schedulePendingFollowup(threadId);
   }
@@ -1777,10 +1738,9 @@ type RunModelParams = {
 async function runModel(
   params: RunModelParams,
 ): Promise<{ text: string; hitStepLimit: boolean }> {
-  assertPro(params.persona);
   const claimedRootMessageIds = new Set<number>();
-  const settings = await personaModelSettings(
-    params.persona,
+  // Helper agents work on the model the chat is already using.
+  const { settings } = await getHelperInference(
     params.chatId,
     params.inferenceSettings,
   );
@@ -1810,7 +1770,6 @@ async function runModel(
     messages: history,
     tools: params.tools,
     prepareStep: async ({ messages: stepMessages }) => {
-      assertPro(params.persona);
       const pending = await db.query.agentMessages.findMany({
         where: and(
           eq(agentMessages.threadId, params.threadId),
@@ -1900,55 +1859,6 @@ async function recordModelUsage(
     })
     .where(eq(agentThreads.id, threadId));
   emit(thread.chatId, threadId);
-}
-
-async function personaModelSettings(
-  persona: SubagentPersona,
-  chatId: number,
-  acceptedSettings?: UserSettings,
-) {
-  const defaults = MODELS[persona];
-  return {
-    ...(await getChatInferenceSettings(chatId, acceptedSettings)),
-    selectedModel: {
-      provider: defaults.provider,
-      name: defaults.name,
-      effortLevel: defaults.effort,
-    },
-    thinkingBudget: defaults.effort,
-  };
-}
-
-async function preflightPersonaModel(
-  persona: SubagentPersona,
-  chatId: number,
-  acceptedSettings?: UserSettings,
-): Promise<void> {
-  const defaults = MODELS[persona];
-  const catalog = await getBuiltinLanguageModelCatalog();
-  const available = catalog.modelsByProvider[defaults.provider]?.some(
-    (model) => model.apiName === defaults.name,
-  );
-  if (!available) {
-    throw new DyadError(
-      `${persona} requires ${defaults.name}, which is not currently available. Check your Dyad Pro model access and try again.`,
-      DyadErrorKind.Precondition,
-    );
-  }
-  try {
-    const settings = await personaModelSettings(
-      persona,
-      chatId,
-      acceptedSettings,
-    );
-    await getModelClient(settings.selectedModel, settings);
-  } catch (error) {
-    throw new DyadError(
-      `${persona} could not start because ${defaults.name} is not configured. Check your Dyad Pro model access and try again.`,
-      DyadErrorKind.Precondition,
-      { cause: error },
-    );
-  }
 }
 
 async function buildModelHistory(
@@ -2052,7 +1962,8 @@ async function createThread(params: {
   contextJson: Record<string, unknown>;
   review?: ReviewTarget;
 }) {
-  const defaults = MODELS[params.persona];
+  // Helper agents work on the model the chat is already using.
+  const { selectedModel } = await getHelperInference(params.chatId);
   const [row] = await db
     .insert(agentThreads)
     .values({
@@ -2062,9 +1973,9 @@ async function createThread(params: {
       taskName: params.taskName,
       assignment: params.assignment,
       status: "queued",
-      provider: defaults.provider,
-      model: defaults.name,
-      reasoningEffort: defaults.effort,
+      provider: selectedModel.provider,
+      model: selectedModel.name,
+      reasoningEffort: selectedModel.effortLevel,
       invocationSource: params.invocationSource,
       contextJson: params.contextJson,
       reviewBaseCommit: params.review?.baseCommit,
@@ -2315,17 +2226,6 @@ function assertPersonaEnabled(
     throw new DyadError(
       "Implementer is disabled in Settings.",
       DyadErrorKind.Precondition,
-    );
-  }
-}
-
-function assertPro(persona?: SubagentPersona): void {
-  if (!isDyadProEnabled(readSettings())) {
-    throw new DyadError(
-      persona
-        ? `${persona} sub-agents require Dyad Pro.`
-        : "Sub-agents require Dyad Pro.",
-      DyadErrorKind.Auth,
     );
   }
 }
@@ -2687,27 +2587,4 @@ async function cleanupFollowupRunnerIfIdle(threadId: string): Promise<void> {
     ),
   });
   if (!pendingMessage) followupRunners.delete(threadId);
-}
-
-function watchEntitlement(
-  threadId: string,
-  controller: AbortController,
-): ReturnType<typeof setInterval> {
-  const timer = setInterval(() => {
-    if (isDyadProEnabled(readSettings())) return;
-    clearInterval(timer);
-    controller.abort();
-    void finishThread(
-      threadId,
-      "entitlement_revoked",
-      null,
-      "Dyad Pro entitlement was revoked while this sub-agent was running.",
-    ).catch((error) =>
-      logger.error(
-        `Failed to persist entitlement revocation for ${threadId}`,
-        error,
-      ),
-    );
-  }, 500);
-  return timer;
 }

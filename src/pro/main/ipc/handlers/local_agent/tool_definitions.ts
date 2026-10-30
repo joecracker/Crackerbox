@@ -785,9 +785,6 @@ export function shouldIncludeTool(
   if (options.freeModelMode && tool.usesEngineEndpoint) {
     return false;
   }
-  if (tool.subagentOnly && !ctx.isDyadPro) {
-    return false;
-  }
   // search_chats is superseded by the explore_chat_history sub-agent wherever
   // the explorer is present (Pro): broad recall routes through the explorer
   // and targeted drill-down through read_chat. When the explorer is filtered

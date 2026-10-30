@@ -2,10 +2,7 @@ import { withReferencedAppRead } from "./referenced_app_read";
 import { streamText, stepCountIs, type ModelMessage, type ToolSet } from "ai";
 import log from "electron-log";
 
-import { getChatInferenceSettings } from "@/ipc/services/chat_inference_settings";
-import { SMALL_MODEL_NAME } from "@/ipc/shared/language_model_constants";
-import { resolveModelSelection } from "@/ipc/utils/model_effort";
-import { getModelPreferenceKey } from "@/lib/modelEffort";
+import { getHelperInference } from "../subagents/helper_model";
 import { cleanMessage } from "@/ipc/utils/ai_messages_utils";
 import { getModelClient } from "@/ipc/utils/get_model_client";
 import { getAiHeaders, getProviderOptions } from "@/ipc/utils/provider_options";
@@ -14,8 +11,6 @@ import {
   fastTextOutput,
 } from "@/ipc/utils/stream_text_utils";
 import { getMaxTokens, getTemperature } from "@/ipc/utils/token_utils";
-import type { UserSettings } from "@/lib/schemas";
-import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
 import { grepTool } from "./grep";
 import { listFilesTool } from "./list_files";
 import { readFileTool } from "./read_file";
@@ -66,7 +61,6 @@ import { formatExploreProgressLog } from "./explore_code_subagent_progress";
 
 const logger = log.scope("explore_code_subagent");
 
-const SUBAGENT_MODEL = { provider: "openai", name: SMALL_MODEL_NAME } as const;
 // Max model turns in the agent loop. Each step may issue several parallel tool
 // calls, so this is distinct from the read-only tool-call budget below.
 const SUBAGENT_MAX_STEPS = 12;
@@ -112,30 +106,22 @@ export async function runExploreCodeSubagent({
     observationCount: number;
   }) => void;
 }): Promise<string> {
-  const storedSettings = await getChatInferenceSettings(
+  // The explorer works on the model the chat is already using.
+  const { settings, selectedModel } = await getHelperInference(
     ctx.chatId,
     ctx.inferenceSettings,
   );
-  assertDyadValueAvailable(storedSettings);
-  const selectedModel = await resolveModelSelection({
-    model: SUBAGENT_MODEL,
-    preferredEffortLevel:
-      storedSettings.modelEffortPreferences?.[
-        getModelPreferenceKey(SUBAGENT_MODEL)
-      ],
-  });
-  const settings = { ...storedSettings, selectedModel };
 
   const modelInfo = await getModelClient(
-    SUBAGENT_MODEL,
+    selectedModel,
     settings,
     selectedModel,
   );
   const maxOutputTokens = Math.min(
-    (await getMaxTokens(SUBAGENT_MODEL)) ?? SUBAGENT_MAX_OUTPUT_TOKENS,
+    (await getMaxTokens(selectedModel)) ?? SUBAGENT_MAX_OUTPUT_TOKENS,
     SUBAGENT_MAX_OUTPUT_TOKENS,
   );
-  const temperature = await getTemperature(SUBAGENT_MODEL);
+  const temperature = await getTemperature(selectedModel);
   const intent: ExploreIntent = args.intent ?? "locate";
   const observations: SubagentObservation[] = [];
   const candidateRegistry = createCandidateRegistry();
@@ -371,15 +357,6 @@ function renderFinalReport({
     observations,
     warnings,
   });
-}
-
-function assertDyadValueAvailable(settings: UserSettings): void {
-  if (!settings.enableDyadPro || !settings.providerSettings?.auto?.apiKey) {
-    throw new DyadError(
-      "explore_code sub-agent requires Dyad Pro with an auto provider API key",
-      DyadErrorKind.Precondition,
-    );
-  }
 }
 
 function createReadOnlyToolBudget(): ReadOnlyToolBudget {

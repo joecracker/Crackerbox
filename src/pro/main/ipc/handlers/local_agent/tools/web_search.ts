@@ -8,19 +8,10 @@ import {
 } from "./types";
 import { readSettings } from "@/main/settings";
 
-const VENICE_CHAT_URL = "https://api.venice.ai/api/v1/chat/completions";
-
-function findVeniceApiKey(
-  providerSettings: Record<string, any> | undefined,
-): string | undefined {
-  for (const [id, value] of Object.entries(providerSettings ?? {})) {
-    if (/venice/i.test(id) && value?.apiKey?.value) {
-      return value.apiKey.value as string;
-    }
-  }
-  return undefined;
-}
+import { findVeniceApiKey, VENICE_API_BASE } from "./venice_api";
 import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
+
+const VENICE_CHAT_URL = `${VENICE_API_BASE}/chat/completions`;
 
 const logger = log.scope("web_search");
 

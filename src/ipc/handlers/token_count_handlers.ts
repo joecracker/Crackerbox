@@ -123,7 +123,6 @@ export function registerTokenCountHandlers() {
         hasSupabaseProject: !!chat.app?.supabaseProjectId,
         implementerAvailable:
           selectedChatMode === "local-agent" &&
-          isDyadProEnabled(settings) &&
           isImplementerSubagentEnabled(settings),
         testingEnabled: !!chat.app?.testingEnabled,
         enableAppBlueprint,

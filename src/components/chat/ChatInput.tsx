@@ -1190,6 +1190,7 @@ export function ChatInput({ chatId }: { chatId?: number }) {
               showTokenBar={showTokenBar}
               toggleShowTokenBar={toggleShowTokenBar}
               appId={appId ?? undefined}
+              showHandoff
               onGenerateImage={
                 DYAD_CLOUD_FEATURES_ENABLED
                   ? handleOpenImageGenerator

@@ -4,7 +4,6 @@ import type { ModelMessage } from "ai";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { SMALL_MODEL_NAME } from "@/ipc/shared/language_model_constants";
 
 import { appOperationCoordinator } from "@/ipc/services/app_operation_coordinator";
 import { runExploreCodeSubagent } from "./explore_code_subagent";
@@ -108,12 +107,8 @@ describe("runExploreCodeSubagent", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.readSettings.mockReturnValue({
-      enableDyadPro: true,
-      providerSettings: {
-        auto: {
-          apiKey: { value: "dyad-pro-key" },
-        },
-      },
+      selectedModel: { provider: "custom::Venice AI", name: "venice-test" },
+      providerSettings: { venice: { apiKey: { value: "test-key" } } },
     });
     mocks.getModelClient.mockResolvedValue({
       modelClient: {
@@ -234,20 +229,16 @@ describe("runExploreCodeSubagent", () => {
       ctx: createMockContext(),
     });
 
+    // The explorer works on the chat's own model.
+    const chatModel = {
+      provider: "custom::Venice AI",
+      name: "venice-test",
+      effortLevel: "medium",
+    };
     expect(mocks.getModelClient).toHaveBeenCalledWith(
-      { provider: "openai", name: SMALL_MODEL_NAME },
-      expect.objectContaining({
-        selectedModel: {
-          provider: "openai",
-          name: SMALL_MODEL_NAME,
-          effortLevel: "medium",
-        },
-      }),
-      {
-        provider: "openai",
-        name: SMALL_MODEL_NAME,
-        effortLevel: "medium",
-      },
+      chatModel,
+      expect.objectContaining({ selectedModel: chatModel }),
+      chatModel,
     );
     const options = vi.mocked(streamText).mock.calls[0][0] as any;
     expect(Object.keys(options.tools).sort()).toEqual([
@@ -1119,14 +1110,22 @@ describe("runExploreCodeSubagent", () => {
     );
   });
 
-  it("fails clearly when Dyad Pro is unavailable", async () => {
-    mocks.readSettings.mockReturnValue({ enableDyadPro: false });
+  it("needs no Dyad Pro key: it runs on the chat's own model", async () => {
+    mocks.readSettings.mockReturnValue({
+      enableDyadPro: false,
+      selectedModel: { provider: "custom::Venice AI", name: "venice-test" },
+    });
     await expect(
       runExploreCodeSubagent({
         args: { query: "widget save flow", intent: "locate" },
         ctx: createMockContext(),
       }),
-    ).rejects.toThrow(/Dyad Pro/);
+    ).resolves.toEqual(expect.any(String));
+    expect(mocks.getModelClient).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "venice-test" }),
+      expect.anything(),
+      expect.anything(),
+    );
   });
 
   it("keeps benchmark-derived domain literals out of production explorer code", async () => {

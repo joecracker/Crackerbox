@@ -50,6 +50,7 @@ import type { SqlConsentMetadata } from "@/shared/sqlConsentMetadata";
 import { isFreeProModel } from "@/lib/freeProModel";
 import { readSettings } from "@/main/settings";
 import { getDyadAppPath } from "@/paths/paths";
+import { markAppBusy, clearAppBusy } from "@/ipc/utils/process_manager";
 import { detectFrameworkType } from "@/ipc/utils/framework_utils";
 import { getModelClient } from "@/ipc/utils/get_model_client";
 import { safeSend } from "@/ipc/utils/safe_sender";
@@ -946,6 +947,7 @@ export async function handleLocalAgentStream(
   let rootMutationOwner: MutationActivityOwner | undefined;
   let claudeRuntime: ClaudeCodeModel | undefined;
 
+  markAppBusy(chat.app.id);
   try {
     // Get model client
     const { modelClient, runtimeModel, isEngineEnabled } = await getModelClient(
@@ -2546,6 +2548,7 @@ export async function handleLocalAgentStream(
     });
     return false; // Error - don't consume quota
   } finally {
+    clearAppBusy(chat.app.id);
     await claudeRuntime
       ?.close()
       .catch((error) => logger.error("Claude admission cleanup failed", error));

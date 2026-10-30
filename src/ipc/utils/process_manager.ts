@@ -377,6 +377,21 @@ const GC_CHECK_INTERVAL_MS = 60 * 1000;
 // Time in milliseconds after which an idle app is eligible for garbage collection (10 minutes)
 const IDLE_TIMEOUT_MS = 10 * 60 * 1000;
 
+// Apps with an agent turn in progress are never garbage collected
+const busyApps = new Map<number, number>();
+
+export function markAppBusy(appId: number): void {
+  busyApps.set(appId, (busyApps.get(appId) ?? 0) + 1);
+  updateAppLastViewed(appId);
+}
+
+export function clearAppBusy(appId: number): void {
+  const n = (busyApps.get(appId) ?? 0) - 1;
+  if (n <= 0) busyApps.delete(appId);
+  else busyApps.set(appId, n);
+  updateAppLastViewed(appId);
+}
+
 // Track the currently selected app ID to avoid garbage collecting it
 let currentlySelectedAppId: number | null = null;
 
@@ -417,7 +432,7 @@ export async function garbageCollectIdleApps(): Promise<void> {
 
   for (const [appId, appInfo] of runningApps.entries()) {
     // Never garbage collect the currently selected app
-    if (appId === currentlySelectedAppId) {
+    if (appId === currentlySelectedAppId || busyApps.has(appId)) {
       continue;
     }
 
@@ -442,7 +457,7 @@ export async function garbageCollectIdleApps(): Promise<void> {
         },
         async () => {
           // Re-check: the user may have selected this app while we were stopping others
-          if (appId === currentlySelectedAppId) {
+          if (appId === currentlySelectedAppId || busyApps.has(appId)) {
             logger.info(
               `Skipping GC for app ${appId}: it became the selected app during this GC cycle`,
             );

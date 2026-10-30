@@ -1064,7 +1064,16 @@ export const PreviewIframe = ({
   }
 
   const onRestart = () => {
-    runAppLifecycleInBackground("restart", restartApp());
+    if (selectedAppId === null) {
+      showError(
+        "No app is selected, so there is nothing to restart. Open the app's chat first.",
+      );
+      return;
+    }
+    runAppLifecycleInBackground(
+      "restart",
+      restartApp({ appId: selectedAppId }),
+    );
   };
 
   const openPreviewInBrowser = async () => {

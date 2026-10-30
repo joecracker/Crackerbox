@@ -93,7 +93,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   speechVoice: "af_bella",
   speechRate: 1,
   enablePnpmMinimumReleaseAgeWarning: true,
-  previewIdleTimeoutPolicy: "default",
+  previewIdleTimeoutPolicy: "never",
   nodeRuntimePreference: "system",
   disablePreviewNodeAutoInstall: false,
   cbMemory: "",

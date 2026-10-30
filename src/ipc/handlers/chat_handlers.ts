@@ -46,6 +46,7 @@ import {
   waitForChatActorIdle,
 } from "@/ipc/services/chat_actor_service";
 import { appOperationCoordinator } from "@/ipc/services/app_operation_coordinator";
+import { handoffStatus } from "@/pro/main/ipc/handlers/local_agent/agent_handoff";
 import { withChatQueueLock } from "@/chat_stream/queue_lock";
 import {
   blockSubagentAdmissionsForChat,
@@ -208,6 +209,24 @@ export function registerChatHandlers() {
       referencedApps: await getReferencedAppsForDisplay(chat.referencedAppIds),
       messages: toRendererMessages(chat.messages),
     };
+  });
+
+  createTypedHandler(chatContracts.getHandoffStatus, async (_, chatId) => {
+    const chat = await db.query.chats.findFirst({
+      where: eq(chats.id, chatId),
+      columns: { appId: true },
+    });
+    if (!chat) return { saved: false, savedAt: null };
+    const lastUserMessage = await db.query.messages.findFirst({
+      where: and(eq(messages.chatId, chatId), eq(messages.role, "user")),
+      orderBy: [desc(messages.createdAt), desc(messages.id)],
+      columns: { createdAt: true },
+    });
+    return handoffStatus(
+      chat.appId,
+      chatId,
+      lastUserMessage?.createdAt?.getTime() ?? 0,
+    );
   });
 
   createTypedHandler(

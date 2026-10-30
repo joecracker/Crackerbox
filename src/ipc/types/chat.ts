@@ -396,6 +396,17 @@ export const chatContracts = {
     output: ChatSchema,
   }),
 
+  // Whether this chat has written a handoff that is still up to date (no newer
+  // message from the user since), so the "New chat" button can be offered.
+  getHandoffStatus: defineContract({
+    channel: "get-handoff-status",
+    input: z.number(), // chatId
+    output: z.object({
+      saved: z.boolean(),
+      savedAt: z.number().nullable(),
+    }),
+  }),
+
   getChats: defineContract({
     channel: "get-chats",
     input: z.number().optional(), // appId (optional)

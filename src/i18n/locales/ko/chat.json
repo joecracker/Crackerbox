@@ -88,8 +88,6 @@
   "errorLoadingProposal": "제안 불러오기 오류: {{message}}",
   "visualEditor": "비주얼 에디터 (Pro)",
   "visualEditorDescription": "비주얼 편집을 사용하면 AI 없이 UI를 변경할 수 있으며, 이는 Pro 전용 기능입니다",
-  "summarizeNewChatTip": "새 채팅을 만들면 AI가 더 집중적이고 효율적으로 작동합니다",
-  "summarizeToNewChat": "새 채팅으로 요약",
   "refactorFile": "{{path}} 리팩터링하여 더 모듈화하기",
   "refactorDescription": "유지보수성을 개선하기 위해 파일 리팩터링하기",
   "writeCodeProperly": "코드를 제대로 작성하기",

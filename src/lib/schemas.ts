@@ -863,7 +863,7 @@ export interface CodeProposal {
 
 export type SuggestedAction =
   | RestartAppAction
-  | SummarizeInNewChatAction
+  | WriteHandoffAction
   | RefactorFileAction
   | WriteCodeProperlyAction
   | RebuildAction
@@ -876,8 +876,8 @@ export interface RestartAppAction {
   id: "restart-app";
 }
 
-export interface SummarizeInNewChatAction {
-  id: "summarize-in-new-chat";
+export interface WriteHandoffAction {
+  id: "write-handoff";
 }
 
 export interface WriteCodeProperlyAction {

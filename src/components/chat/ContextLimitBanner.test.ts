@@ -1,12 +1,52 @@
 import { describe, expect, it } from "vitest";
-import { getSummarizeRequestAction } from "./ContextLimitBanner";
+import { shouldShowContextLimitBanner } from "./ContextLimitBanner";
 
-describe("context limit summarize action", () => {
-  it("runs immediately while the chat is idle", () => {
-    expect(getSummarizeRequestAction(false)).toBe("run");
+describe("shouldShowContextLimitBanner", () => {
+  it("stays hidden until the token count is known", () => {
+    expect(
+      shouldShowContextLimitBanner({
+        totalTokens: null,
+        contextWindow: 128_000,
+      }),
+    ).toBe(false);
+    expect(
+      shouldShowContextLimitBanner({
+        totalTokens: 90_000,
+        contextWindow: undefined,
+      }),
+    ).toBe(false);
   });
 
-  it("waits (does nothing) while the current response is still running", () => {
-    expect(getSummarizeRequestAction(true)).toBe("wait");
+  it("stays hidden for a short chat in a roomy window", () => {
+    expect(
+      shouldShowContextLimitBanner({
+        totalTokens: 20_000,
+        contextWindow: 200_000,
+      }),
+    ).toBe(false);
+  });
+
+  it("shows once the chat is long, whatever the window", () => {
+    expect(
+      shouldShowContextLimitBanner({
+        totalTokens: 80_001,
+        contextWindow: 1_000_000,
+      }),
+    ).toBe(true);
+  });
+
+  it("shows when within 40k tokens of the window", () => {
+    expect(
+      shouldShowContextLimitBanner({
+        totalTokens: 90_000,
+        contextWindow: 128_000,
+      }),
+    ).toBe(true);
+    expect(
+      shouldShowContextLimitBanner({
+        totalTokens: 60_000,
+        contextWindow: 128_000,
+      }),
+    ).toBe(false);
   });
 });

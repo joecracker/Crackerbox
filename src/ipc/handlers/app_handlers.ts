@@ -1,4 +1,5 @@
 import { deleteChatJournals } from "@/ipc/services/chat_journal_cleanup";
+import { deleteAgentMemory } from "@/pro/main/ipc/handlers/local_agent/agent_memory";
 import { initialChatExecution } from "@/ipc/utils/chat_execution_selection";
 import { app, dialog } from "electron";
 import { closeDatabase, db, getDatabaseFilePaths } from "../../db";
@@ -768,6 +769,8 @@ async function deleteAppByIdExclusive(
       },
     );
     deletedRow = doomedRow;
+    // The app and its chats are gone, so its memory cabinet goes with them.
+    deleteAgentMemory(appId);
 
     const actorCleanup = await Promise.allSettled([
       versionPreviewActorService.disposeApp(appId),

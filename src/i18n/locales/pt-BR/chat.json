@@ -88,8 +88,6 @@
   "errorLoadingProposal": "Erro ao carregar proposta: {{message}}",
   "visualEditor": "Editor visual (Pro)",
   "visualEditorDescription": "A edição visual permite fazer alterações na interface sem IA e é um recurso exclusivo do Pro",
-  "summarizeNewChatTip": "Criar um novo chat torna a IA mais focada e eficiente",
-  "summarizeToNewChat": "Resumir em novo chat",
   "refactorFile": "Refatorar {{path}} e torná-lo mais modular",
   "refactorDescription": "Refatorar o arquivo para melhorar a manutenibilidade",
   "writeCodeProperly": "Escrever código corretamente",

@@ -1,45 +1,44 @@
 import { describe, expect, it } from "vitest";
 import {
-  SUMMARY_REQUEST_FOOTER,
-  buildSummaryRequestMessage,
-  handoffNoteForSummaryRequest,
+  HANDOFF_START_LINE,
+  buildHandoffRequest,
+  handoffOpeningNote,
 } from "./handoff_prompts";
 
-describe("handoffNoteForSummaryRequest", () => {
-  it("replaces the machinery line with a note that asks for no recap", () => {
-    const note = handoffNoteForSummaryRequest("Summarize from chat-id=46");
-    expect(note).toContain("Chat 46");
-    expect(note).toContain("NOT asked for a recap");
-    expect(note).not.toContain("Summarize from chat-id");
+describe("handoffOpeningNote", () => {
+  it("replaces the start line with an instruction to open with just the question", () => {
+    const note = handoffOpeningNote(HANDOFF_START_LINE);
+    expect(note).toContain("[Handoff]");
+    expect(note).toContain("Open with only the question");
+    expect(note).toContain("no recap");
+    expect(note).not.toContain(HANDOFF_START_LINE);
   });
 
-  it("leaves a real user message alone", () => {
-    expect(
-      handoffNoteForSummaryRequest("Summarize this file for me"),
-    ).toBeNull();
-    expect(
-      handoffNoteForSummaryRequest("Please Summarize from chat-id=46 now"),
-    ).toBeNull();
-    expect(handoffNoteForSummaryRequest("")).toBeNull();
-    expect(handoffNoteForSummaryRequest(undefined)).toBeNull();
+  it("tolerates surrounding whitespace", () => {
+    expect(handoffOpeningNote(`  ${HANDOFF_START_LINE}\n`)).not.toBeNull();
   });
 
-  it("tolerates trailing whitespace from the stored message", () => {
+  it("leaves ordinary messages alone", () => {
     expect(
-      handoffNoteForSummaryRequest("Summarize from chat-id=7\n"),
-    ).toContain("Chat 7");
+      handoffOpeningNote("Continue from the handoff, then add a button"),
+    ).toBeNull();
+    expect(handoffOpeningNote("Please summarize this file")).toBeNull();
+    expect(handoffOpeningNote(undefined)).toBeNull();
   });
 });
 
-describe("buildSummaryRequestMessage", () => {
-  it("puts the stop-and-summarize instruction after the transcript", () => {
-    const message = buildSummaryRequestMessage(
-      '<message role="user">hi</message>',
-    );
-    expect(message.startsWith("Summarize the following chat: ")).toBe(true);
-    expect(message.endsWith(SUMMARY_REQUEST_FOOTER)).toBe(true);
-    expect(message.indexOf("hi</message>")).toBeLessThan(
-      message.indexOf("Do not continue it"),
-    );
+describe("buildHandoffRequest", () => {
+  it("asks for the handoff and nothing else", () => {
+    expect(buildHandoffRequest()).toMatch(/Write the handoff/);
+    expect(buildHandoffRequest()).not.toMatch(/carry this over/);
+  });
+
+  it("passes along what the user wants carried over", () => {
+    const request = buildHandoffRequest("  keep the proof sheet ");
+    expect(request).toContain("Please carry this over: keep the proof sheet");
+  });
+
+  it("ignores a blank note", () => {
+    expect(buildHandoffRequest("   ")).toBe(buildHandoffRequest());
   });
 });

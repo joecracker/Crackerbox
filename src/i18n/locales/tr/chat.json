@@ -86,8 +86,6 @@
   "errorLoadingProposal": "Öneri yüklenirken hata: {{message}}",
   "visualEditor": "Görsel düzenleyici (Pro)",
   "visualEditorDescription": "Görsel düzenleme, AI olmadan arayüz değişiklikleri yapmanızı sağlar ve yalnızca Pro özelliğidir",
-  "summarizeNewChatTip": "Yeni bir sohbet oluşturmak AI'yı daha odaklı ve verimli kılar",
-  "summarizeToNewChat": "Yeni sohbete özetle",
   "refactorFile": "{{path}} dosyasını yeniden düzenle ve daha modüler hale getir",
   "refactorDescription": "Dosyayı bakımı kolaylaştırmak için yeniden düzenle",
   "writeCodeProperly": "Kodu düzgün yaz",

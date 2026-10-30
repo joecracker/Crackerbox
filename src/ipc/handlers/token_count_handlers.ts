@@ -278,19 +278,12 @@ export function registerTokenCountHandlers() {
         mentionedAppsTokens;
 
       // Find the last assistant message since totalTokens is only set on assistant messages
-      const lastAssistantIdx = chat.messages.map((m) => m.role).lastIndexOf("assistant");
+      const lastAssistantIdx = chat.messages
+        .map((m) => m.role)
+        .lastIndexOf("assistant");
       const lastAssistantMessage =
         lastAssistantIdx >= 0 ? chat.messages[lastAssistantIdx] : undefined;
-      const precedingMessage =
-        lastAssistantIdx > 0 ? chat.messages[lastAssistantIdx - 1] : undefined;
-      // A summary reply records the size of the chat it summarized, not this
-      // chat, so ignore it (otherwise the new chat looks full right away).
-      const isSummaryReply =
-        precedingMessage?.role === "user" &&
-        precedingMessage.content.startsWith("Summarize from chat-id=");
-      const actualMaxTokens = isSummaryReply
-        ? null
-        : (lastAssistantMessage?.maxTokensUsed ?? null);
+      const actualMaxTokens = lastAssistantMessage?.maxTokensUsed ?? null;
 
       return {
         estimatedTotalTokens: totalTokens,

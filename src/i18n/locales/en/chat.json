@@ -88,8 +88,6 @@
   "errorLoadingProposal": "Error loading proposal: {{message}}",
   "visualEditor": "Visual editor (Pro)",
   "visualEditorDescription": "Visual editing lets you make UI changes without AI and is a Pro-only feature",
-  "summarizeNewChatTip": "Creating a new chat makes the AI more focused and efficient",
-  "summarizeToNewChat": "Summarize to new chat",
   "refactorFile": "Refactor {{path}} and make it more modular",
   "refactorDescription": "Refactor the file to improve maintainability",
   "writeCodeProperly": "Write code properly",

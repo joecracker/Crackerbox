@@ -1,11 +1,5 @@
-import { AlertTriangle, ArrowRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { useSummarizeInNewChat } from "./SummarizeInNewChatButton";
+import { AlertTriangle } from "lucide-react";
+import { HandoffButton } from "./HandoffButton";
 
 const CONTEXT_LIMIT_THRESHOLD = 40_000;
 const LONG_CONTEXT_THRESHOLD = 80_000;
@@ -13,13 +7,6 @@ const LONG_CONTEXT_THRESHOLD = 80_000;
 interface ContextLimitBannerProps {
   totalTokens?: number | null;
   contextWindow?: number;
-  isStreaming?: boolean;
-}
-
-export function getSummarizeRequestAction(
-  isStreaming: boolean,
-): "wait" | "run" {
-  return isStreaming ? "wait" : "run";
 }
 
 /** Check if the context limit banner should be shown */
@@ -42,16 +29,7 @@ export function shouldShowContextLimitBanner({
 export function ContextLimitBanner({
   totalTokens,
   contextWindow,
-  isStreaming = false,
 }: ContextLimitBannerProps) {
-  const { handleSummarize } = useSummarizeInNewChat();
-  const requestSummarize = () => {
-    // Never run while a reply is streaming: the wrap-up at the end of the
-    // reply must be seen before leaving this chat.
-    if (getSummarizeRequestAction(isStreaming) === "wait") return;
-    void handleSummarize();
-  };
-
   if (!shouldShowContextLimitBanner({ totalTokens, contextWindow })) {
     return null;
   }
@@ -71,27 +49,7 @@ export function ContextLimitBanner({
         <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
         <span>{message}</span>
       </span>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button
-              onClick={requestSummarize}
-              disabled={isStreaming}
-              variant="outline"
-              size="sm"
-              className="h-6 px-2 text-xs border-amber-500/40 bg-amber-500/5 text-amber-600 dark:text-amber-500 hover:bg-amber-500/20 hover:border-amber-500/60"
-            />
-          }
-        >
-          Summarize
-          <ArrowRight className="h-3 w-3 ml-1" />
-        </TooltipTrigger>
-        <TooltipContent>
-          {isStreaming
-            ? "Available when the current response finishes"
-            : "Summarize to new chat"}
-        </TooltipContent>
-      </Tooltip>
+      <HandoffButton />
     </div>
   );
 }

@@ -35,7 +35,9 @@ import {
 import { listFilesTool } from "./tools/list_files";
 import { getSupabaseProjectInfoTool } from "./tools/get_supabase_project_info";
 import { setChatSummaryTool } from "./tools/set_chat_summary";
-import { updateNotesTool } from "./tools/update_notes";
+import { updateMemoryTool } from "./tools/update_memory";
+import { readMemoryTool } from "./tools/read_memory";
+import { writeHandoffTool } from "./tools/write_handoff";
 import { addIntegrationTool } from "./tools/add_integration";
 import { enableNitroTool } from "./tools/enable_nitro";
 import { readLogsTool } from "./tools/read_logs";
@@ -202,7 +204,9 @@ export const TOOL_DEFINITIONS: readonly ToolDefinition[] = [
   getNeonProjectInfoTool,
   getDatabaseTableSchemaTool,
   setChatSummaryTool,
-  updateNotesTool,
+  updateMemoryTool,
+  readMemoryTool,
+  writeHandoffTool,
   addIntegrationTool,
   enableNitroTool,
   readLogsTool,

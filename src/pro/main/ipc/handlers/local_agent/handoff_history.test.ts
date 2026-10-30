@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildChatMessageHistory } from "./local_agent_handler";
+import { HANDOFF_START_LINE } from "@/prompts/handoff_prompts";
 
 function row(
   id: number,
@@ -20,50 +21,35 @@ function row(
   } as unknown as Parameters<typeof buildChatMessageHistory>[0][number];
 }
 
-const SUMMARY = `## What was done
-- Built the how-to slideshow
-
-## Current state
-- It runs and fits one screen
-
-## Open problems
-- None
-
-## Parked ideas (NOT started)
-- A bigger picture
-
-## Relevant files
-- \`tools/howto.mjs\` - the builder`;
-
 function textOf(message: { content: unknown }): string {
   return typeof message.content === "string"
     ? message.content
     : JSON.stringify(message.content);
 }
 
-describe("buildChatMessageHistory for a handoff chat", () => {
-  it("shows the model a background note instead of a request to summarize", () => {
+describe("buildChatMessageHistory for a chat started from a handoff", () => {
+  it("shows the model an opening instruction instead of the start line", () => {
     const history = buildChatMessageHistory([
-      row(1, "user", "Summarize from chat-id=46"),
-      row(2, "assistant", SUMMARY),
-      row(3, "user", "It is way too tall on my phone."),
+      row(1, "user", HANDOFF_START_LINE),
+      row(2, "assistant", "Here is the plan."),
+      row(3, "user", "Do the first one."),
     ]);
 
     expect(history).toHaveLength(3);
     expect(history[0].role).toBe("user");
-    expect(textOf(history[0])).toContain("[Handoff] Chat 46");
-    expect(textOf(history[0])).toContain("NOT asked for a recap");
-    expect(textOf(history[0])).not.toContain("Summarize from chat-id");
+    expect(textOf(history[0])).toContain("[Handoff]");
+    expect(textOf(history[0])).toContain("no recap");
+    expect(textOf(history[0])).not.toContain(HANDOFF_START_LINE);
   });
 
-  it("keeps the summary and the user's real message exactly as written", () => {
+  it("keeps the replies and the user's real messages exactly as written", () => {
     const history = buildChatMessageHistory([
-      row(1, "user", "Summarize from chat-id=46"),
-      row(2, "assistant", SUMMARY),
+      row(1, "user", HANDOFF_START_LINE),
+      row(2, "assistant", "Here is the plan."),
       row(3, "user", "It is way too tall on my phone."),
     ]);
 
-    expect(textOf(history[1])).toContain("## What was done");
+    expect(textOf(history[1])).toContain("Here is the plan.");
     expect(textOf(history[2])).toBe("It is way too tall on my phone.");
   });
 

@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { cleanup, screen, waitFor } from "@testing-library/react";
 import { eq } from "drizzle-orm";
 
 import { apps, chats, messages, language_models } from "@/db/schema";
@@ -70,7 +70,7 @@ describe("context limit banner (integration)", () => {
     await harness?.dispose();
   });
 
-  it("shows the near-limit warning and summarizes into a new chat", async () => {
+  it("shows the near-limit warning with a Write handoff button", async () => {
     await setContextWindow(harness, 128_000);
     const originalChatId = await harness.createChat();
     harness.mount({ chatId: originalChatId });
@@ -89,38 +89,8 @@ describe("context limit banner (integration)", () => {
       { timeout: 15_000 },
     );
     expect(banner.textContent).toContain("This chat context is running out");
-
-    fireEvent.click(screen.getByRole("button", { name: /Summarize/ }));
-
-    await waitFor(
-      () => {
-        const newChatId = harness.currentLocation().search.id;
-        expect(newChatId).toBeTruthy();
-        expect(String(newChatId)).not.toBe(String(originalChatId));
-      },
-      { timeout: 15_000 },
-    );
-    await screen.findByText(`Summarize from chat-id=${originalChatId}`, {
-      exact: false,
-    });
-
-    const newChatId = Number(harness.currentLocation().search.id);
-    await harness.waitForStreamEnd(newChatId);
-
-    const newChatMessages = await harness.db.query.messages.findMany({
-      where: eq(messages.chatId, newChatId),
-      orderBy: (messages, { asc }) => [asc(messages.id)],
-    });
-    expect(newChatMessages.map((message) => message.role)).toEqual([
-      "user",
-      "assistant",
-    ]);
-    expect(newChatMessages[0].content).toBe(
-      `Summarize from chat-id=${originalChatId}`,
-    );
-    expect(newChatMessages[1].content.replace(/\s+/g, " ")).toContain(
-      "More EOM",
-    );
+    expect(screen.getByTestId("write-handoff")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Summarize/ })).toBeNull();
   }, 60_000);
 
   it("shows the long-context cost warning for large context models", async () => {

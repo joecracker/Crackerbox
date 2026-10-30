@@ -84,6 +84,8 @@ export const queryKeys = {
       ["chats", "detail", chatId] as const,
     search: ({ appId, query }: { appId: number | null; query: string }) =>
       ["chats", "search", appId, query] as const,
+    handoff: ({ chatId }: { chatId: number | null }) =>
+      ["chats", "handoff", chatId] as const,
   },
 
   // ─────────────────────────────────────────────────────────────────────────────

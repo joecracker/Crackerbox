@@ -184,7 +184,7 @@ import {
   maybeAppendRetryReplayForRetry,
 } from "./retry_replay_utils";
 import { setChatSummaryTool } from "./tools/set_chat_summary";
-import { handoffNoteForSummaryRequest } from "@/prompts/handoff_prompts";
+import { handoffOpeningNote } from "@/prompts/handoff_prompts";
 import { computeStreamingPatch } from "@/ipc/utils/stream_text_utils";
 import { userInputRegistry } from "@/user_input/main";
 import {
@@ -418,11 +418,11 @@ export function buildChatMessageHistory(
       (msg.model?.startsWith("ChatGPT subscription (") ? "subscription" : null);
     // Parsing can clean provider metadata in place. Never mutate stored history.
     let parsed = parseAiMessagesJson(structuredClone(msg));
-    // The line that starts a handoff chat is machinery, not something the user
-    // said. Left as-is it reads like "please recap chat N", and the model then
-    // recaps the old chat in its first real answer.
+    // The line that starts a chat from a handoff is machinery, not something
+    // the user said. Left as-is it reads like "please resume", and the model
+    // then recaps instead of opening with the game plan and a question.
     if (msg.role === "user") {
-      const handoffNote = handoffNoteForSummaryRequest(msg.content);
+      const handoffNote = handoffOpeningNote(msg.content);
       if (handoffNote) {
         parsed = [{ role: "user", content: handoffNote }];
       }

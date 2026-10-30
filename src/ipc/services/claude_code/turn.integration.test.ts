@@ -175,25 +175,14 @@ it("disabling the experiment preserves existing chat history and blocks CLI disp
     writeSettings({ enableClaudeCodeSubscription: true });
   }
 });
-it("creates Claude chats from defaults, expands summaries, and persists attribution/title", async () => {
-  const source = await ipc.chat.createChat({ appId: harness.appId });
-  await harness.db.insert(messages).values({
-    chatId: source,
-    role: "user",
-    content: "violet lighthouse source context",
-  });
+it("creates Claude chats from defaults and persists attribution/title", async () => {
   const target = await ipc.chat.createChat({ appId: harness.appId });
-  await harness.streamChat(`Summarize from chat-id=${source}`, {
-    chatId: target,
-  });
+  await harness.streamChat("Hello", { chatId: target });
   expect(calls.run).toHaveBeenCalledOnce();
   expect(calls.run.mock.calls[0][0]).toMatchObject({
     model: "sonnet",
     resume: false,
   });
-  expect(calls.run.mock.calls[0][0].prompt).toContain(
-    "violet lighthouse source context",
-  );
   const chat = await harness.db.query.chats.findFirst({
     where: eq(chats.id, target),
     with: { messages: true },

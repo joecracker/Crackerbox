@@ -327,7 +327,7 @@ const getProposalHandler = async (
             `Token usage is high (${totalTokens}/${contextWindow}) OR long chat history (${chat.messages.length} messages), suggesting summarize action`,
           );
           actions.push({
-            id: "summarize-in-new-chat",
+            id: "write-handoff",
           });
         }
       }

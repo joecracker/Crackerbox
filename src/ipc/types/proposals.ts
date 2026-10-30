@@ -36,8 +36,8 @@ export const CodeProposalSchema = z.object({
 export const RestartAppActionSchema = z.object({
   id: z.literal("restart-app"),
 });
-export const SummarizeInNewChatActionSchema = z.object({
-  id: z.literal("summarize-in-new-chat"),
+export const WriteHandoffActionSchema = z.object({
+  id: z.literal("write-handoff"),
 });
 export const WriteCodeProperlyActionSchema = z.object({
   id: z.literal("write-code-properly"),
@@ -53,7 +53,7 @@ export const KeepGoingActionSchema = z.object({ id: z.literal("keep-going") });
 
 export const SuggestedActionSchema = z.union([
   RestartAppActionSchema,
-  SummarizeInNewChatActionSchema,
+  WriteHandoffActionSchema,
   RefactorFileActionSchema,
   WriteCodeProperlyActionSchema,
   RebuildActionSchema,

@@ -16,7 +16,6 @@ import {
   ChevronsUpDown,
   ChevronsDownUp,
   SendHorizontalIcon,
-  Hammer,
   Lock,
   Mic,
   MicOff,
@@ -34,8 +33,6 @@ import {
   chatMessagesByIdAtom,
   selectedChatIdAtom,
   agentTodosByChatIdAtom,
-  summarizeQueuedChatIdsAtom,
-  summarizeSuggestedChatIdsAtom,
 } from "@/atoms/chatAtoms";
 import { chatAnnotationsAtom } from "@/atoms/chatAnnotationAtoms";
 import { atom, useAtom, useSetAtom, useAtomValue, useStore } from "jotai";
@@ -66,13 +63,11 @@ import { AttachmentsList } from "./AttachmentsList";
 import { DragDropOverlay } from "./DragDropOverlay";
 import { FileAttachmentTypeDialog } from "./FileAttachmentTypeDialog";
 import { showExtraFilesToast, showWarning } from "@/lib/toast";
-import { useSummarizeInNewChat } from "./SummarizeInNewChatButton";
-import { useChatAlreadySummarized } from "@/hooks/useChatAlreadySummarized";
+import { HandoffButton } from "./HandoffButton";
+import { useHandoffStatus } from "@/hooks/useHandoff";
 import { ChatInputControls } from "../ChatInputControls";
 import { ChatErrorBox } from "./ChatErrorBox";
 import { AgentConsentBanner } from "./AgentConsentBanner";
-import { BuildItChip } from "./BuildItChip";
-import { BUILD_IT_PROMPT, shouldOfferBuild } from "@/lib/buildOffer";
 import { CancellationBanner } from "./CancellationBanner";
 import { useCancellationRequestLatch } from "./useCancellationRequestLatch";
 import { TodoList } from "./TodoList";
@@ -302,24 +297,12 @@ export function ChatInput({ chatId }: { chatId?: number }) {
     refreshProposal,
   } = useProposal(chatId, { isStreaming });
   const { proposal, messageId } = proposalResult ?? {};
-  const [summarizeSuggestedChatIds, setSummarizeSuggestedChatIds] = useAtom(
-    summarizeSuggestedChatIdsAtom,
-  );
-  const proposalOffersSummarize =
+  const proposalOffersHandoff =
     proposal?.type === "action-proposal" &&
-    proposal.actions.some((action) => action.id === "summarize-in-new-chat");
-  const alreadySummarized = useChatAlreadySummarized({
-    appId,
-    chatId: chatId ?? null,
-    enabled: chatId != null && summarizeSuggestedChatIds.includes(chatId),
-  });
-
-  useEffect(() => {
-    if (!chatId || !proposalOffersSummarize) return;
-    setSummarizeSuggestedChatIds((current) =>
-      current.includes(chatId) ? current : [...current, chatId],
-    );
-  }, [chatId, proposalOffersSummarize, setSummarizeSuggestedChatIds]);
+    proposal.actions.some((action) => action.id === "write-handoff");
+  // Once the chat has written its handoff, the "New chat" button stays up even
+  // after the suggestion that offered it is gone.
+  const handoffSaved = useHandoffStatus(chatId ?? null).data?.saved === true;
   const lastMessage = messages.at(-1);
   const disableSendButton =
     lastMessage?.role === "assistant" &&
@@ -542,9 +525,10 @@ export function ChatInput({ chatId }: { chatId?: number }) {
     [editingQueuedMessageId, removeQueuedMessage, resetEditingState],
   );
 
-  const handleSubmit = async (
-    requestedChatMode: "ask" | "local-agent" = "ask",
-  ) => {
+  // Every message goes to the Agent. It looks around freely and asks before it
+  // changes anything (see the "Looking is free, changing needs a nod" rule).
+  const requestedChatMode = "local-agent" as const;
+  const handleSubmit = async () => {
     if (
       !hasComposerPayload ||
       !chatId ||
@@ -877,47 +861,6 @@ export function ChatInput({ chatId }: { chatId?: number }) {
     return null; // Or loading state
   }
 
-  const showBuildItChip =
-    !!chatId &&
-    shouldOfferBuild({
-      lastMessage,
-      isStreaming,
-      hasComposerPayload,
-      hasPendingConsent: !!pendingToolConsent,
-      hasProposal: !!proposal,
-      hasQueuedMessages: queuedMessages.length > 0,
-      isEditingQueuedMessage: !!editingQueuedMessageId,
-    });
-
-  // One explicit tap sends a plain message in Build mode, so the transcript
-  // shows what happened and the plan above it stays on screen.
-  const handleBuildIt = async () => {
-    if (!chatId || isStreaming || isAwaitingTurnAcceptanceRef.current) return;
-    isAwaitingTurnAcceptanceRef.current = true;
-    void openPreviewIfSetupRequired(appId);
-    await streamMessage({
-      prompt: BUILD_IT_PROMPT,
-      chatId,
-      redo: false,
-      showOptimisticMessage: true,
-      optimisticDisplayContent: BUILD_IT_PROMPT,
-      requestedChatMode: "local-agent",
-      onAccepted: () => {
-        isAwaitingTurnAcceptanceRef.current = false;
-      },
-      onAcceptanceRejected: () => {
-        isAwaitingTurnAcceptanceRef.current = false;
-      },
-      onSettled: () => {
-        isAwaitingTurnAcceptanceRef.current = false;
-      },
-    });
-    posthog.capture("chat:submit", {
-      chatMode: "local-agent",
-      source: "build-it",
-    });
-  };
-
   return (
     <>
       {error && showError && (
@@ -949,15 +892,11 @@ export function ChatInput({ chatId }: { chatId?: number }) {
         </div>
       )}
       <div className="p-2 pt-0" data-testid="chat-input-container">
-        {showBuildItChip && (
-          <BuildItChip onBuild={() => void handleBuildIt()} />
-        )}
         {/* Show context limit banner above chat input for visibility */}
         {showBanner && tokenCountResult && (
           <ContextLimitBanner
             totalTokens={tokenCountResult.actualMaxTokens}
             contextWindow={tokenCountResult.contextWindow}
-            isStreaming={isStreaming}
           />
         )}
         {/* Cancelling a turn can take a minute when the agent is mid-tool (a
@@ -1049,12 +988,11 @@ export function ChatInput({ chatId }: { chatId?: number }) {
             )}
           {!pendingToolConsent &&
             chatId &&
-            summarizeSuggestedChatIds.includes(chatId) &&
-            !alreadySummarized &&
-            !proposalOffersSummarize && (
+            handoffSaved &&
+            !proposalOffersHandoff && (
               <div className="border-b border-border p-2 pb-0 flex items-center">
                 <div className="flex items-center gap-2 overflow-x-auto pb-2">
-                  <SummarizeInNewChatButton />
+                  <HandoffButton />
                 </div>
               </div>
             )}
@@ -1229,23 +1167,7 @@ export function ChatInput({ chatId }: { chatId?: number }) {
                   <TooltipTrigger
                     render={
                       <button
-                        onClick={() => handleSubmit("local-agent")}
-                        disabled={!hasComposerPayload || disableSendButton}
-                        aria-label="Build this"
-                        className="flex items-center gap-1.5 px-2 py-2 text-muted-foreground hover:text-[var(--brand-pinstripe)] rounded-lg transition-colors duration-150 disabled:opacity-30 disabled:hover:text-muted-foreground cursor-pointer disabled:cursor-default"
-                      />
-                    }
-                  >
-                    <Hammer size={16} />
-                    <span className="text-xs font-medium">Build</span>
-                  </TooltipTrigger>
-                  <TooltipContent>Build this</TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <button
-                        onClick={() => handleSubmit("ask")}
+                        onClick={() => handleSubmit()}
                         disabled={!hasComposerPayload || disableSendButton}
                         aria-label={t("sendMessage")}
                         className="flex items-center gap-1.5 px-2 py-2 text-muted-foreground hover:text-primary rounded-lg transition-colors duration-150 disabled:opacity-30 disabled:hover:text-muted-foreground cursor-pointer disabled:cursor-default"
@@ -1253,9 +1175,9 @@ export function ChatInput({ chatId }: { chatId?: number }) {
                     }
                   >
                     <SendHorizontalIcon size={18} />
-                    <span className="text-xs font-medium">Chat</span>
+                    <span className="text-xs font-medium">Send</span>
                   </TooltipTrigger>
-                  <TooltipContent>Send without changing files</TooltipContent>
+                  <TooltipContent>Send</TooltipContent>
                 </Tooltip>
               </div>
             )}
@@ -1325,52 +1247,6 @@ function SuggestionButton({
           : tooltipText}
       </TooltipContent>
     </Tooltip>
-  );
-}
-
-function SummarizeInNewChatButton() {
-  const { t } = useTranslation("chat");
-  const { handleSummarize } = useSummarizeInNewChat();
-  const chatId = useAtomValue(selectedChatIdAtom);
-  const { isStreaming } = useStreamChat();
-  const [queuedChatIds, setQueuedChatIds] = useAtom(summarizeQueuedChatIdsAtom);
-  const setSuggestedChatIds = useSetAtom(summarizeSuggestedChatIdsAtom);
-  const isQueued = chatId ? queuedChatIds.includes(chatId) : false;
-
-  const clearRequest = useCallback(() => {
-    if (!chatId) return;
-    setQueuedChatIds((current) => current.filter((id) => id !== chatId));
-    setSuggestedChatIds((current) => current.filter((id) => id !== chatId));
-  }, [chatId, setQueuedChatIds, setSuggestedChatIds]);
-
-  const runSummarize = useCallback(() => {
-    clearRequest();
-    void handleSummarize();
-  }, [clearRequest, handleSummarize]);
-
-  useEffect(() => {
-    if (isQueued && !isStreaming) runSummarize();
-  }, [isQueued, isStreaming, runSummarize]);
-
-  const onClick = () => {
-    if (!chatId) return;
-    if (isStreaming) {
-      setQueuedChatIds((current) =>
-        current.includes(chatId) ? current : [...current, chatId],
-      );
-      return;
-    }
-    runSummarize();
-  };
-
-  return (
-    <SuggestionButton
-      onClick={onClick}
-      tooltipText={t("summarizeNewChatTip")}
-      disabledWhileStreaming={false}
-    >
-      {isQueued ? "Summarize queued" : t("summarizeToNewChat")}
-    </SuggestionButton>
   );
 }
 
@@ -1512,8 +1388,8 @@ function AddTypeScriptButton() {
 
 export function mapActionToButton(action: SuggestedAction) {
   switch (action.id) {
-    case "summarize-in-new-chat":
-      return <SummarizeInNewChatButton />;
+    case "write-handoff":
+      return <HandoffButton />;
     case "refactor-file":
       return <RefactorFileButton path={action.path} />;
     case "rebuild":

@@ -63,7 +63,7 @@ import {
 } from "../../neon_admin/neon_prompt_context";
 import { NEON_DISCONNECTED_SYSTEM_PROMPT } from "../../prompts/neon_prompt";
 import { getDyadAppPath } from "../../paths/paths";
-import { agentNotesPromptBlock } from "@/pro/main/ipc/handlers/local_agent/agent_notes";
+import { agentMemoryPromptBlock } from "@/pro/main/ipc/handlers/local_agent/agent_memory";
 import { buildDyadMediaUrl } from "../../lib/dyadMediaUrl";
 import type { ChatStreamParams } from "@/ipc/types";
 import type { ChatStreamInvocationRef } from "@/chat_stream/invocation";
@@ -104,8 +104,6 @@ import {
   getSupabaseContext,
   getSupabaseClientCode,
 } from "../../supabase_admin/supabase_context";
-import { SUMMARIZE_CHAT_SYSTEM_PROMPT } from "../../prompts/summarize_chat_system_prompt";
-import { buildSummaryRequestMessage } from "../../prompts/handoff_prompts";
 import { SECURITY_REVIEW_SYSTEM_PROMPT } from "../../prompts/security_review_prompt";
 import fs from "node:fs";
 import * as path from "path";
@@ -1166,25 +1164,13 @@ export function registerChatStreamHandlers() {
       // value is cleared on clean exit.
       setSentinelActiveChat(req.chatId);
 
-      const isSummarizeRequest = req.prompt.startsWith(
-        "Summarize from chat-id=",
-      );
-      const summaryModelSelection = {
-        provider: "openrouter",
-        name: "deepseek/deepseek-v4.1-flash",
-        effortLevel: "low",
-      } as const;
       let baseSettings = readSettings();
-      // Chat summaries always run on a fixed cheap model with low thinking,
-      // whatever model the chat itself uses.
-      let selectedModel = isSummarizeRequest
-        ? await normalizeModelSelection(summaryModelSelection)
-        : chat.modelSelection
-          ? await normalizeModelSelection(chat.modelSelection)
-          : await resolveDefaultModelSelection({
-              ...baseSettings,
-              selectedModel: modelForChatBackend(chat, baseSettings),
-            });
+      let selectedModel = chat.modelSelection
+        ? await normalizeModelSelection(chat.modelSelection)
+        : await resolveDefaultModelSelection({
+            ...baseSettings,
+            selectedModel: modelForChatBackend(chat, baseSettings),
+          });
       let { settings: storedSettings, mode: selectedChatMode } =
         await resolveChatModeForTurn({
           storedChatMode: chat.chatMode,
@@ -1639,14 +1625,12 @@ ${componentSnippet}
           const candidates: AutoModelCandidates = new Map();
           const prepared = await awaitTurnPreflight(
             (async () => {
-              const model = isSummarizeRequest
-                ? await normalizeModelSelection(summaryModelSelection)
-                : snapshot.modelSelection
-                  ? await normalizeModelSelection(snapshot.modelSelection)
-                  : await resolveDefaultModelSelection({
-                      ...attemptSettings,
-                      selectedModel: modelForChatBackend(chat, attemptSettings),
-                    });
+              const model = snapshot.modelSelection
+                ? await normalizeModelSelection(snapshot.modelSelection)
+                : await resolveDefaultModelSelection({
+                    ...attemptSettings,
+                    selectedModel: modelForChatBackend(chat, attemptSettings),
+                  });
               const { mode } = await resolveChatModeForTurn({
                 storedChatMode: snapshot.chatMode,
                 requestedChatMode:
@@ -1804,7 +1788,7 @@ ${componentSnippet}
         return req.chatId;
       }
 
-      if (acceptedTurn.authoritativeModel && !isSummarizeRequest) {
+      if (acceptedTurn.authoritativeModel) {
         const connection = selectedModel.connection;
         selectedModel = {
           ...(await normalizeModelSelection(acceptedTurn.authoritativeModel)),
@@ -2191,7 +2175,7 @@ ${componentSnippet}
 
         const aiRules =
           (await readAiRules(getDyadAppPath(updatedChat.app.path))) +
-          agentNotesPromptBlock(updatedChat.app.id);
+          agentMemoryPromptBlock(updatedChat.app.id);
 
         // Get theme prompt for the app (null themeId means "no theme")
         const themePrompt = await getThemePromptById(updatedChat.app.themeId);
@@ -2441,11 +2425,6 @@ ${componentSnippet}
         ) {
           systemPrompt += "\n\n" + SUPABASE_NOT_AVAILABLE_SYSTEM_PROMPT;
         }
-        const isSummarizeIntent = isSummarizeRequest;
-        if (isSummarizeIntent) {
-          systemPrompt = SUMMARIZE_CHAT_SYSTEM_PROMPT;
-        }
-
         if (attachmentDeliveryConfig.addSystemCopyInstructions) {
           systemPrompt += `
 
@@ -2565,27 +2544,6 @@ This conversation includes one or more image attachments. When the user uploads 
           );
         }
 
-        if (isSummarizeIntent) {
-          const previousChat = await db.query.chats.findFirst({
-            where: eq(chats.id, parseInt(req.prompt.split("=")[1])),
-            with: {
-              messages: {
-                orderBy: (messages, { asc }) => [
-                  asc(messages.createdAt),
-                  asc(messages.id),
-                ],
-              },
-            },
-          });
-          chatMessages = [
-            {
-              role: "user",
-              content: buildSummaryRequestMessage(
-                formatMessagesForSummary(previousChat?.messages ?? []),
-              ),
-            } satisfies ModelMessage,
-          ];
-        }
         const simpleStreamText = async ({
           chatMessages,
           modelClient,
@@ -2774,32 +2732,6 @@ This conversation includes one or more image attachments. When the user uploads 
           } satisfies ChatStreamChunkPayload);
           return fullResponse;
         };
-
-        if (isSummarizeIntent) {
-          finishedNaturally = await handleLocalAgentStream(
-            event,
-            req,
-            abortController,
-            {
-              placeholderMessageId: placeholderAssistantMessage.id,
-              systemPrompt: SUMMARIZE_CHAT_SYSTEM_PROMPT,
-              dyadRequestId: dyadRequestId ?? "[no-request-id]",
-              readOnly: true,
-              allowedToolNames: ["set_chat_summary"],
-              messageOverride: chatMessages,
-              settingsOverride: settings,
-              modelSelectionOverride: selectedModel,
-              autoModelCandidates,
-              externalModelAdmission,
-              freeModelMode,
-              referencedApps: [],
-              currentTurnHasOnDiskAttachment: false,
-              supabaseProviderToolsAvailable: false,
-              neonProviderToolsAvailable: false,
-            },
-          );
-          return;
-        }
 
         // Handle ask mode: use local-agent in read-only mode
         // This gives users access to code reading tools while in ask mode
@@ -3392,64 +3324,6 @@ This conversation includes one or more image attachments. When the user uploads 
 
     return true;
   });
-}
-
-// A summary only needs to know what happened, not the full text of every tool
-// result. Without a cap, one long chat (255k characters, one message of 165k)
-// buries the summary instructions and a cheap model just carries on the
-// conversation instead of summarizing it.
-const MAX_SUMMARY_MESSAGE_CHARS = 6_000;
-
-function shortenForSummary(content: string | undefined): string | undefined {
-  if (typeof content !== "string") return content;
-  // Code the assistant wrote lives in the files; the summary only needs to
-  // know which files changed.
-  const withoutCode = content.replace(
-    /<(dyad-write|dyad-search-replace|dyad-edit)\b([^>]*)>[\s\S]*?<\/\1>/g,
-    (_match, tag: string, attrs: string) => {
-      const path = /path="([^"]*)"/.exec(attrs)?.[1];
-      return `<${tag}${path ? ` path="${path}"` : ""}>[code omitted]</${tag}>`;
-    },
-  );
-  if (withoutCode.length <= MAX_SUMMARY_MESSAGE_CHARS) return withoutCode;
-  const half = MAX_SUMMARY_MESSAGE_CHARS / 2;
-  return (
-    withoutCode.slice(0, half) +
-    `\n[... ${withoutCode.length - MAX_SUMMARY_MESSAGE_CHARS} characters omitted ...]\n` +
-    withoutCode.slice(-half)
-  );
-}
-
-function formatSummaryMessage(m: {
-  role: string;
-  content: string | undefined;
-}) {
-  return `<message role="${m.role}">${shortenForSummary(m.content)}</message>`;
-}
-
-export function formatMessagesForSummary(
-  messages: { role: string; content: string | undefined }[],
-) {
-  if (messages.length <= 8) {
-    // If we have 8 or fewer messages, include all of them
-    return messages.map(formatSummaryMessage).join("\n");
-  }
-
-  // Take first 2 messages and last 6 messages
-  const firstMessages = messages.slice(0, 2);
-  const lastMessages = messages.slice(-6);
-
-  // Combine them with an indicator of skipped messages
-  const combinedMessages = [
-    ...firstMessages,
-    {
-      role: "system",
-      content: `[... ${messages.length - 8} messages omitted ...]`,
-    },
-    ...lastMessages,
-  ];
-
-  return combinedMessages.map(formatSummaryMessage).join("\n");
 }
 
 // Helper function to replace text attachment placeholders with full content

@@ -82,7 +82,7 @@ import {
 } from "@/atoms/previewAtoms";
 import { SelectedComponentsDisplay } from "./SelectedComponentDisplay";
 import { LexicalChatInput } from "./LexicalChatInput";
-import { AuxiliaryActionsMenu } from "./AuxiliaryActionsMenu";
+import { ChatAuxiliaryActionsMenu } from "./ChatAuxiliaryActionsMenu";
 import {
   doesSqlDeleteData,
   doesSqlMutateSchema,
@@ -1185,12 +1185,11 @@ export function ChatInput({ chatId }: { chatId?: number }) {
           <div className="px-2 flex items-center flex-wrap gap-1.5 pb-1 pt-0.5">
             <ChatInputControls />
 
-            <AuxiliaryActionsMenu
+            <ChatAuxiliaryActionsMenu
               onFileSelect={handleFileSelect}
               showTokenBar={showTokenBar}
               toggleShowTokenBar={toggleShowTokenBar}
               appId={appId ?? undefined}
-              showHandoff
               onGenerateImage={
                 DYAD_CLOUD_FEATURES_ENABLED
                   ? handleOpenImageGenerator

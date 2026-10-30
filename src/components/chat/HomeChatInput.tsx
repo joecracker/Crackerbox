@@ -3,7 +3,6 @@ import {
   StopCircleIcon,
   FolderOpenIcon,
   XIcon,
-  Hammer,
 } from "lucide-react";
 import {
   Tooltip,
@@ -84,9 +83,9 @@ export function HomeChatInput({
   };
 
   // Custom submit function that wraps the provided onSubmit
-  const handleCustomSubmit = async (
-    requestedChatMode?: "ask" | "local-agent",
-  ) => {
+  const handleCustomSubmit = async () => {
+    // One Send: every message goes to the agent, which asks before big changes.
+    const requestedChatMode = "local-agent" as const;
     if (
       (!inputValue.trim() && attachments.length === 0) ||
       isStreaming ||
@@ -183,25 +182,6 @@ export function HomeChatInput({
                   <TooltipTrigger
                     render={
                       <button
-                        onClick={() => handleCustomSubmit("local-agent")}
-                        disabled={
-                          disabled ||
-                          (!inputValue.trim() && attachments.length === 0)
-                        }
-                        aria-label="Build this"
-                        className="flex items-center gap-1.5 px-2 py-2 text-muted-foreground hover:text-[var(--brand-pinstripe)] rounded-lg transition-colors duration-150 disabled:opacity-30 disabled:hover:text-muted-foreground cursor-pointer disabled:cursor-default"
-                      />
-                    }
-                  >
-                    <Hammer size={16} />
-                    <span className="text-xs font-medium">Build</span>
-                  </TooltipTrigger>
-                  <TooltipContent>Build this</TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <button
                         onClick={() => handleCustomSubmit()}
                         disabled={
                           disabled ||
@@ -213,7 +193,7 @@ export function HomeChatInput({
                     }
                   >
                     <SendHorizontalIcon size={18} />
-                    <span className="text-xs font-medium">Chat</span>
+                    <span className="text-xs font-medium">Send</span>
                   </TooltipTrigger>
                   <TooltipContent>Send message</TooltipContent>
                 </Tooltip>

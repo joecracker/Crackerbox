@@ -266,6 +266,7 @@ export function ChatHeader({
           </TooltipProvider>
           <button
             data-testid="toggle-preview-panel-button"
+            aria-pressed={isPreviewOpen}
             onClick={onTogglePreview}
             className="cursor-pointer p-2 hover:bg-(--background-lightest) rounded-md"
           >

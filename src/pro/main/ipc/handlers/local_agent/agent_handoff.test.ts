@@ -6,7 +6,7 @@ import path from "node:path";
 const h = vi.hoisted(() => ({ userData: "" }));
 vi.mock("@/paths/paths", () => ({ getUserDataPath: () => h.userData }));
 
-import { handoffStatus, writeHandoff } from "./agent_handoff";
+import { MAX_ITEM_CHARS, handoffStatus, writeHandoff } from "./agent_handoff";
 import {
   MEMORY_LIMITS,
   readHandoffRecord,
@@ -149,8 +149,11 @@ describe("writeHandoff", () => {
 
   it("rejects an over-long item", () => {
     expect(() =>
-      writeHandoff(APP, CHAT, { ...base, gamePlan: ["x".repeat(301)] }),
-    ).toThrow(/under 300/);
+      writeHandoff(APP, CHAT, {
+        ...base,
+        gamePlan: ["x".repeat(MAX_ITEM_CHARS + 1)],
+      }),
+    ).toThrow(/under 500/);
   });
 });
 

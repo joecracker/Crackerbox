@@ -301,7 +301,8 @@ export function ChatInput({ chatId }: { chatId?: number }) {
     proposal?.type === "action-proposal" &&
     proposal.actions.some((action) => action.id === "write-handoff");
   // Once the chat has written its handoff, the "New chat" button stays up even
-  // after the suggestion that offered it is gone.
+  // after the suggestion that offered it is gone. When the long-chat banner is
+  // showing it already carries that button, so the strip below stays hidden.
   const handoffSaved = useHandoffStatus(chatId ?? null).data?.saved === true;
   const lastMessage = messages.at(-1);
   const disableSendButton =
@@ -989,7 +990,8 @@ export function ChatInput({ chatId }: { chatId?: number }) {
           {!pendingToolConsent &&
             chatId &&
             handoffSaved &&
-            !proposalOffersHandoff && (
+            !proposalOffersHandoff &&
+            !(showBanner && tokenCountResult) && (
               <div className="border-b border-border p-2 pb-0 flex items-center">
                 <div className="flex items-center gap-2 overflow-x-auto pb-2">
                   <HandoffButton />

@@ -27,7 +27,7 @@ export interface HandoffInput {
 
 export const MAX_GAME_PLAN_ITEMS = 6;
 export const MAX_QUESTIONS = 3;
-const MAX_ITEM_CHARS = 300;
+export const MAX_ITEM_CHARS = 500;
 
 function cleanList(label: string, items: string[] | undefined): string[] {
   const out: string[] = [];

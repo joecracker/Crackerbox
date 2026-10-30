@@ -2,6 +2,7 @@ import { z } from "zod";
 import { ToolDefinition, AgentContext } from "./types";
 import {
   MAX_GAME_PLAN_ITEMS,
+  MAX_ITEM_CHARS,
   MAX_QUESTIONS,
   writeHandoff,
 } from "../agent_handoff";
@@ -16,24 +17,24 @@ const writeHandoffSchema = z.object({
   game_plan: z
     .array(z.string())
     .describe(
-      `${MAX_GAME_PLAN_ITEMS} items at most: short bullets of what you propose to do next, in the order you would do them. You work from these once the user answers the opening question.`,
+      `${MAX_GAME_PLAN_ITEMS} items at most, each under ${MAX_ITEM_CHARS} characters: short bullets of what you propose to do next, in the order you would do them. You work from these once the user answers the opening question.`,
     ),
   questions: z
     .array(z.string())
     .describe(
-      `${MAX_QUESTIONS} at most: plain questions to put to the user to open the new chat, for example "Do you want to do X, or Y first?".`,
+      `${MAX_QUESTIONS} at most, each under ${MAX_ITEM_CHARS} characters: plain questions to put to the user to open the new chat, for example "Do you want to do X, or Y first?".`,
     ),
   new_decisions: z
     .array(z.string())
     .optional()
     .describe(
-      "Approaches that failed or that the user ruled out, and rules the user stated, that are not in your decisions memory yet. One line each: what is out and why.",
+      `Approaches that failed or that the user ruled out, and rules the user stated, that are not in your decisions memory yet. One line each (under ${MAX_ITEM_CHARS} characters): what is out and why.`,
     ),
   new_facts: z
     .array(z.string())
     .optional()
     .describe(
-      "New things you learned that are not in your facts memory yet: where things live, how things start or restart, what a setting really does.",
+      `New things you learned that are not in your facts memory yet: where things live, how things start or restart, what a setting really does. One line each, under ${MAX_ITEM_CHARS} characters; split a long fact into two.`,
     ),
   carry_over: z
     .string()

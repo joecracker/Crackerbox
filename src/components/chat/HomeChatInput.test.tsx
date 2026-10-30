@@ -179,7 +179,7 @@ describe("HomeChatInput", () => {
     ).toBe(true);
   });
 
-  it("keeps the phone model beside the plus and exposes the one-turn build action", () => {
+  it("keeps the phone model beside the plus with one Send button", () => {
     mocks.isMobile = true;
     render(
       <HomeChatInput
@@ -200,9 +200,7 @@ describe("HomeChatInput", () => {
     expect(
       composer.contains(screen.getByRole("button", { name: "More actions" })),
     ).toBe(true);
-    expect(
-      composer.contains(screen.getByRole("button", { name: "Build this" })),
-    ).toBe(true);
+    expect(screen.queryByRole("button", { name: "Build this" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Basic Agent" })).toBeNull();
     expect(
       composer.contains(
@@ -239,23 +237,19 @@ describe("HomeChatInput", () => {
     expect(screen.queryByTestId("home-app-selector")).toBeNull();
   });
 
-  it("uses the home default for send and keeps build as an explicit one-turn capability", async () => {
+  it("has one Send button and it always asks the agent", async () => {
     mocks.selectedApp = { id: 1, name: "Existing" };
     const onSubmit = vi.fn().mockResolvedValue(true);
     render(<HomeChatInput onSubmit={onSubmit} />);
 
+    expect(screen.queryByRole("button", { name: "Build this" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Send message" }));
-    expect(onSubmit).toHaveBeenLastCalledWith(
-      expect.objectContaining({ requestedChatMode: undefined }),
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Build this" }));
     expect(onSubmit).toHaveBeenLastCalledWith(
       expect.objectContaining({ requestedChatMode: "local-agent" }),
     );
   });
 
-  it("uses the home default when Enter submits the editor", () => {
+  it("sends to the agent when Enter submits the editor", () => {
     const onSubmit = vi.fn().mockResolvedValue(true);
     render(<HomeChatInput onSubmit={onSubmit} />);
 
@@ -264,7 +258,7 @@ describe("HomeChatInput", () => {
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
         selectedApp: undefined,
-        requestedChatMode: undefined,
+        requestedChatMode: "local-agent",
       }),
     );
   });

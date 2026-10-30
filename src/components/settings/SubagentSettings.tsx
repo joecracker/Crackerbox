@@ -80,8 +80,8 @@ export function SubagentSettings() {
       <div>
         <h3 className="font-medium">Sub-agents</h3>
         <p className="text-sm text-muted-foreground">
-          Delegate research, review, and scoped implementation to visible Pro
-          agents.
+          Helper agents that research and review for her, on the same model she
+          is chatting with.
         </p>
       </div>
       <SettingRow

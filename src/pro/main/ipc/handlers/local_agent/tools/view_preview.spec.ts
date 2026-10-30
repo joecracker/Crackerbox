@@ -25,19 +25,65 @@ vi.mock("@/main/preview_web_contents_view", () => ({
 }));
 vi.mock("@/ipc/utils/process_manager", () => ({ runningApps: apps }));
 
-import { viewPreviewTool } from "./view_preview";
+import { timing, viewPreviewTool } from "./view_preview";
+
+const RECT = { x: 400.4, y: 80.6, width: 800.2, height: 600.1 };
 
 function makeCtx() {
   return { appId: 1, appendUserMessage: vi.fn() } as any;
 }
 
-function makeWindow(rect: object | null, opts: { visible?: boolean } = {}) {
+interface FakeState {
+  rect: object | null;
+  tabPressed: boolean | null;
+  togglePressed: boolean | null;
+}
+
+/**
+ * A window whose Preview panel state can change when a control is clicked.
+ * `onTabClick` / `onToggleClick` return the state the panel ends up in.
+ */
+function makeWindow(
+  initial: FakeState,
+  opts: {
+    visible?: boolean;
+    minimized?: boolean;
+    onTabClick?: (s: FakeState) => FakeState;
+    onToggleClick?: (s: FakeState) => FakeState;
+    frames?: any[];
+  } = {},
+) {
+  let state = { ...initial };
+  const clicks: string[] = [];
+  const executeJavaScript = vi.fn(async (script: string) => {
+    if (script.includes("/*panel-state*/")) return { ...state };
+    if (script.includes("/*click-control:preview-mode-button*/")) {
+      clicks.push("tab");
+      if (state.tabPressed === null) return false;
+      if (opts.onTabClick) state = opts.onTabClick(state);
+      return true;
+    }
+    if (script.includes("/*click-control:toggle-preview-panel-button*/")) {
+      clicks.push("toggle");
+      if (state.togglePressed === null) return false;
+      if (opts.onToggleClick) state = opts.onToggleClick(state);
+      return true;
+    }
+    return undefined;
+  });
+  const main = {
+    url: "app://renderer/index.html",
+    framesInSubtree: [] as any[],
+  };
+  main.framesInSubtree = [main, ...(opts.frames ?? [])];
   return {
+    clicks,
     isDestroyed: () => false,
-    isMinimized: () => false,
+    isMinimized: () => opts.minimized ?? false,
     isVisible: () => opts.visible ?? true,
     webContents: {
-      executeJavaScript: vi.fn().mockResolvedValue(rect),
+      executeJavaScript,
+      mainFrame: main,
       getZoomFactor: () => 1,
       capturePage: vi.fn().mockResolvedValue({
         isEmpty: () => false,
@@ -47,42 +93,60 @@ function makeWindow(rect: object | null, opts: { visible?: boolean } = {}) {
   };
 }
 
+const showing: FakeState = {
+  rect: RECT,
+  tabPressed: true,
+  togglePressed: true,
+};
+const closed: FakeState = {
+  rect: null,
+  tabPressed: false,
+  togglePressed: false,
+};
+const otherTab: FakeState = {
+  rect: null,
+  tabPressed: false,
+  togglePressed: true,
+};
+const openNoApp: FakeState = {
+  rect: null,
+  tabPressed: true,
+  togglePressed: true,
+};
+
 describe("view_preview", () => {
   beforeEach(() => {
     shots.length = 0;
     apps.clear();
     windows.length = 0;
+    timing.pollMs = 0;
+    timing.polls = 3;
+    timing.settleMs = 0;
   });
 
-  it("says so when no preview is visible", async () => {
+  it("says the window is hidden when there is no visible window", async () => {
+    windows.push(makeWindow(showing, { visible: false }));
     const ctx = makeCtx();
     const result = await viewPreviewTool.execute({}, ctx);
-    expect(result).toContain("can't see this app's preview");
+    expect(result).toContain("minimized or hidden");
     expect(ctx.appendUserMessage).not.toHaveBeenCalled();
   });
 
-  it("ignores a window whose preview is a different app", async () => {
-    windows.push(makeWindow(null));
-    const ctx = makeCtx();
-    const result = await viewPreviewTool.execute({}, ctx);
-    expect(result).toContain("can't see this app's preview");
-    expect(ctx.appendUserMessage).not.toHaveBeenCalled();
-  });
-
-  it("skips hidden windows", async () => {
-    const hidden = makeWindow({ x: 0, y: 0, width: 800, height: 600 }, { visible: false });
-    windows.push(hidden);
+  it("says so when the window has no preview controls", async () => {
+    windows.push(
+      makeWindow({ rect: null, tabPressed: null, togglePressed: null }),
+    );
     const result = await viewPreviewTool.execute({}, makeCtx());
-    expect(result).toContain("can't see this app's preview");
-    expect(hidden.webContents.capturePage).not.toHaveBeenCalled();
+    expect(result).toContain("can't find the Preview controls");
   });
 
-  it("photographs the embedded preview frame", async () => {
-    const win = makeWindow({ x: 400.4, y: 80.6, width: 800.2, height: 600.1 });
+  it("photographs the embedded preview frame without pressing anything", async () => {
+    const win = makeWindow(showing);
     windows.push(win);
     const ctx = makeCtx();
     const result = await viewPreviewTool.execute({}, ctx);
     expect(result).toContain("Attached");
+    expect(win.clicks).toEqual([]);
     expect(win.webContents.capturePage).toHaveBeenCalledWith({
       x: 400,
       y: 81,
@@ -94,13 +158,168 @@ describe("view_preview", () => {
     expect(parts[1].url).toMatch(/^data:image\/jpeg;base64,/);
   });
 
+  it("opens a closed panel by pressing the Preview tab once", async () => {
+    const win = makeWindow(closed, {
+      onTabClick: () => showing,
+    });
+    windows.push(win);
+    const result = await viewPreviewTool.execute({}, makeCtx());
+    expect(result).toContain("Attached");
+    expect(win.clicks).toEqual(["tab"]);
+  });
+
+  it("switches a panel that is open on another tab to Preview instead of closing it", async () => {
+    const win = makeWindow(otherTab, {
+      onTabClick: () => showing,
+    });
+    windows.push(win);
+    const result = await viewPreviewTool.execute({}, makeCtx());
+    expect(result).toContain("Attached");
+    expect(win.clicks).toEqual(["tab"]);
+    expect(win.clicks).not.toContain("toggle");
+  });
+
+  it("never presses anything when Preview is already open but the app is not showing", async () => {
+    const win = makeWindow(openNoApp);
+    windows.push(win);
+    const ctx = makeCtx();
+    const result = await viewPreviewTool.execute({}, ctx);
+    expect(win.clicks).toEqual([]);
+    expect(result).toContain("not showing");
+    expect(result).toContain("Do not tell the user the preview is open");
+    expect(ctx.appendUserMessage).not.toHaveBeenCalled();
+  });
+
+  it("reports honestly when the tab was pressed but the app still does not show", async () => {
+    const win = makeWindow(closed, {
+      onTabClick: () => openNoApp,
+    });
+    windows.push(win);
+    const result = await viewPreviewTool.execute({}, makeCtx());
+    expect(win.clicks).toEqual(["tab"]);
+    expect(result).toContain("I switched to the Preview tab");
+  });
+
+  it("falls back to the header button only when there are no tab buttons and the panel is closed", async () => {
+    const win = makeWindow(
+      { rect: null, tabPressed: null, togglePressed: false },
+      { onToggleClick: () => showing },
+    );
+    windows.push(win);
+    const result = await viewPreviewTool.execute({}, makeCtx());
+    expect(win.clicks).toEqual(["toggle"]);
+    expect(result).toContain("Attached");
+  });
+
   it("prefers the native test-run preview when it matches", async () => {
-    shots.push({ url: "http://localhost:6000/x", dataUrl: "data:image/png;base64,AA" });
+    shots.push({
+      url: "http://localhost:6000/x",
+      dataUrl: "data:image/png;base64,AA",
+    });
     apps.set(1, { proxyUrl: "http://localhost:6000" });
-    const win = makeWindow({ x: 0, y: 0, width: 800, height: 600 });
+    const win = makeWindow(showing);
     windows.push(win);
     const result = await viewPreviewTool.execute({}, makeCtx());
     expect(result).toContain("Attached");
     expect(win.webContents.capturePage).not.toHaveBeenCalled();
+  });
+
+  describe("scrolling", () => {
+    function appFrame(measure: object) {
+      return {
+        url: "http://localhost:6000/",
+        executeJavaScript: vi.fn().mockResolvedValue(measure),
+      };
+    }
+
+    it("scrolls the app's own page and says where it is", async () => {
+      apps.set(1, { proxyUrl: "http://localhost:6000" });
+      const frame = appFrame({
+        top: 900,
+        viewport: 900,
+        total: 3200,
+        ready: true,
+      });
+      windows.push(makeWindow(showing, { frames: [frame] }));
+      const result = await viewPreviewTool.execute(
+        { scroll: "down" },
+        makeCtx(),
+      );
+      const script = frame.executeJavaScript.mock.calls[0][0] as string;
+      expect(script).toContain('const mode = "down"');
+      expect(result).toContain("Showing 900-1800px of a 3200px tall page");
+      expect(result).toContain("More above and below");
+    });
+
+    it("passes a pixel offset through when scroll is not given", async () => {
+      apps.set(1, { proxyUrl: "http://localhost:6000" });
+      const frame = appFrame({
+        top: 1500,
+        viewport: 900,
+        total: 3200,
+        ready: true,
+      });
+      windows.push(makeWindow(showing, { frames: [frame] }));
+      await viewPreviewTool.execute({ scroll_to: 1500 }, makeCtx());
+      const script = frame.executeJavaScript.mock.calls[0][0] as string;
+      expect(script).toContain("const mode = null");
+      expect(script).toContain("const to = 1500");
+    });
+
+    it("says when this is the bottom or the whole page fits", async () => {
+      apps.set(1, { proxyUrl: "http://localhost:6000" });
+      const bottom = appFrame({
+        top: 2300,
+        viewport: 900,
+        total: 3200,
+        ready: true,
+      });
+      windows.push(makeWindow(showing, { frames: [bottom] }));
+      expect(
+        await viewPreviewTool.execute({ scroll: "bottom" }, makeCtx()),
+      ).toContain("This is the bottom.");
+
+      windows.length = 0;
+      const fits = appFrame({ top: 0, viewport: 900, total: 700, ready: true });
+      windows.push(makeWindow(showing, { frames: [fits] }));
+      expect(await viewPreviewTool.execute({}, makeCtx())).toContain(
+        "The whole page fits on screen.",
+      );
+    });
+
+    it("still looks when the app's frame cannot be found", async () => {
+      windows.push(makeWindow(showing));
+      const result = await viewPreviewTool.execute(
+        { scroll: "down" },
+        makeCtx(),
+      );
+      expect(result).toContain("Attached");
+      expect(result).not.toContain("tall page");
+    });
+
+    it("waits for a page that is still loading", async () => {
+      apps.set(1, { proxyUrl: "http://localhost:6000" });
+      const frame = {
+        url: "http://localhost:6000/",
+        executeJavaScript: vi
+          .fn()
+          .mockResolvedValueOnce({
+            top: 0,
+            viewport: 900,
+            total: 900,
+            ready: false,
+          })
+          .mockResolvedValue({
+            top: 0,
+            viewport: 900,
+            total: 2000,
+            ready: true,
+          }),
+      };
+      windows.push(makeWindow(showing, { frames: [frame] }));
+      const result = await viewPreviewTool.execute({}, makeCtx());
+      expect(frame.executeJavaScript).toHaveBeenCalledTimes(2);
+      expect(result).toContain("of a 2000px tall page");
+    });
   });
 });

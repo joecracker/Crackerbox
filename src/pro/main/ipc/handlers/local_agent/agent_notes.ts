@@ -5,7 +5,7 @@ import { getUserDataPath } from "@/paths/paths";
 // CB's own working notes, one file per app. She writes them herself (see the
 // update_notes tool) and they are shown to her at the start of every chat in
 // that app. They live in Crackerbox's data folder, not inside the project.
-export const MAX_AGENT_NOTES_CHARS = 6000;
+export const MAX_AGENT_NOTES_CHARS = 12000;
 
 export function agentNotesPath(appId: number): string {
   return path.join(getUserDataPath(), "agent-notes", `app-${appId}.md`);

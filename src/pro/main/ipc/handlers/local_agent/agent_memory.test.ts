@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+﻿import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -132,6 +132,44 @@ describe("limits and safety", () => {
       }),
     ).toThrow(/limit/);
     expect(readMemoryFile(APP, "state")).toBe("keep me");
+  });
+  it("append past the limit moves the oldest decision lines to an archive topic", () => {
+    const lines = Array.from(
+      { length: 40 },
+      (_, i) => `- [2026-10-01] ruling ${i} ${"d".repeat(90)}`,
+    );
+    updateMemory(APP, {
+      file: "decisions",
+      mode: "replace_file",
+      text: lines.join("\n"),
+    });
+    const result = updateMemory(
+      APP,
+      {
+        file: "decisions",
+        mode: "append",
+        text: "newest ruling " + "n".repeat(500),
+      },
+      DAY,
+    );
+    expect(result).toMatch(
+      /Moved the \d+ oldest line\(s\) to topics\/decisions-archive/,
+    );
+    const kept = readMemoryFile(APP, "decisions");
+    expect(kept.length).toBeLessThanOrEqual(MEMORY_LIMITS.decisions);
+    expect(kept).toContain("newest ruling");
+    expect(kept).not.toContain(lines[0]);
+    expect(readMemoryFile(APP, "decisions-archive")).toContain(lines[0]);
+    expect(listTopicFiles(APP)).toContain("decisions-archive");
+  });
+  it("replace_file past the limit is still refused (she asked for that exact text)", () => {
+    expect(() =>
+      updateMemory(APP, {
+        file: "facts",
+        mode: "replace_file",
+        text: "x".repeat(MEMORY_LIMITS.facts + 1),
+      }),
+    ).toThrow(/limit/);
   });
   it("caps the number of topic files", () => {
     for (let i = 0; i < MAX_TOPICS; i++)

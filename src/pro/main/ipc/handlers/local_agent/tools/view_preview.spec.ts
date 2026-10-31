@@ -16,10 +16,47 @@ const fakeImage = () => ({
   toJPEG: () => Buffer.from("jpeg-bytes"),
 });
 
-vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: () => windows },
-  nativeImage: { createFromDataURL: () => fakeImage() },
+const hidden = vi.hoisted(() => ({
+  created: [] as any[],
+  loadError: null as Error | null,
+  empty: false,
+  measure: { top: 0, viewport: 800, total: 2400, ready: true } as object,
 }));
+
+vi.mock("electron", () => {
+  class FakeBrowserWindow {
+    static getAllWindows() {
+      return windows;
+    }
+    opts: any;
+    destroyed = false;
+    webContents = {
+      setWindowOpenHandler: vi.fn(),
+      executeJavaScript: vi.fn(async () => hidden.measure),
+      capturePage: vi.fn(async () => ({
+        isEmpty: () => hidden.empty,
+        toDataURL: () => "data:image/png;base64,HIDDEN",
+      })),
+    };
+    loadURL = vi.fn(async () => {
+      if (hidden.loadError) throw hidden.loadError;
+    });
+    constructor(opts: any) {
+      this.opts = opts;
+      hidden.created.push(this);
+    }
+    isDestroyed() {
+      return this.destroyed;
+    }
+    destroy() {
+      this.destroyed = true;
+    }
+  }
+  return {
+    BrowserWindow: FakeBrowserWindow,
+    nativeImage: { createFromDataURL: () => fakeImage() },
+  };
+});
 vi.mock("@/main/preview_web_contents_view", () => ({
   getPreviewScreenshots: () => shots,
 }));
@@ -122,22 +159,90 @@ describe("view_preview", () => {
     timing.pollMs = 0;
     timing.polls = 3;
     timing.settleMs = 0;
+    hidden.created.length = 0;
+    hidden.loadError = null;
+    hidden.empty = false;
+    hidden.measure = { top: 0, viewport: 800, total: 2400, ready: true };
   });
 
-  it("says the window is hidden when there is no visible window", async () => {
+  it("says the app is not running when the window is hidden and there is no app address", async () => {
     windows.push(makeWindow(showing, { visible: false }));
     const ctx = makeCtx();
     const result = await viewPreviewTool.execute({}, ctx);
-    expect(result).toContain("minimized or hidden");
+    expect(result).toContain("minimized or not on this app's chat");
+    expect(result).toContain("not running");
     expect(ctx.appendUserMessage).not.toHaveBeenCalled();
+    expect(hidden.created).toHaveLength(0);
   });
 
-  it("says so when the window has no preview controls", async () => {
-    windows.push(
-      makeWindow({ rect: null, tabPressed: null, togglePressed: null }),
-    );
-    const result = await viewPreviewTool.execute({}, makeCtx());
-    expect(result).toContain("can't find the Preview controls");
+  describe("when Crackerbox's own window can't show it", () => {
+    it("looks at the running app from a hidden window when the window is minimized", async () => {
+      apps.set(1, { proxyUrl: "http://localhost:6000" });
+      windows.push(makeWindow(showing, { minimized: true }));
+      const ctx = makeCtx();
+      const result = await viewPreviewTool.execute({}, ctx);
+      expect(hidden.created).toHaveLength(1);
+      const win = hidden.created[0];
+      expect(win.opts.show).toBe(false);
+      expect(win.opts.webPreferences.sandbox).toBe(true);
+      expect(win.opts.webPreferences.nodeIntegration).toBe(false);
+      expect(win.loadURL).toHaveBeenCalledWith("http://localhost:6000");
+      expect(win.destroyed).toBe(true);
+      expect(result).toContain("taken from a hidden window");
+      expect(result).toContain("Showing 0-800px of a 2400px tall page");
+      const parts = ctx.appendUserMessage.mock.calls[0][0];
+      expect(parts[1].type).toBe("image-url");
+    });
+
+    it("does the same when the window has no preview controls (another page)", async () => {
+      apps.set(1, { proxyUrl: "http://localhost:6000" });
+      windows.push(
+        makeWindow({ rect: null, tabPressed: null, togglePressed: null }),
+      );
+      const result = await viewPreviewTool.execute({}, makeCtx());
+      expect(result).toContain("taken from a hidden window");
+      expect(hidden.created[0].destroyed).toBe(true);
+    });
+
+    it("scrolls the hidden copy too", async () => {
+      apps.set(1, { proxyUrl: "http://localhost:6000" });
+      hidden.measure = { top: 680, viewport: 800, total: 2400, ready: true };
+      windows.push(makeWindow(showing, { minimized: true }));
+      const result = await viewPreviewTool.execute(
+        { scroll: "down" },
+        makeCtx(),
+      );
+      const script = hidden.created[0].webContents.executeJavaScript.mock
+        .calls[0][0] as string;
+      expect(script).toContain('const mode = "down"');
+      expect(result).toContain("Showing 680-1480px");
+    });
+
+    it("reports a failed load plainly and still closes the hidden window", async () => {
+      apps.set(1, { proxyUrl: "http://localhost:6000" });
+      hidden.loadError = new Error("ERR_CONNECTION_REFUSED");
+      windows.push(makeWindow(showing, { minimized: true }));
+      const ctx = makeCtx();
+      const result = await viewPreviewTool.execute({}, ctx);
+      expect(result).toContain("ERR_CONNECTION_REFUSED");
+      expect(ctx.appendUserMessage).not.toHaveBeenCalled();
+      expect(hidden.created[0].destroyed).toBe(true);
+    });
+
+    it("reports an empty picture", async () => {
+      apps.set(1, { proxyUrl: "http://localhost:6000" });
+      hidden.empty = true;
+      windows.push(makeWindow(showing, { minimized: true }));
+      const result = await viewPreviewTool.execute({}, makeCtx());
+      expect(result).toContain("came back empty");
+    });
+
+    it("does not use a hidden window when the real one shows the preview", async () => {
+      apps.set(1, { proxyUrl: "http://localhost:6000" });
+      windows.push(makeWindow(showing));
+      await viewPreviewTool.execute({}, makeCtx());
+      expect(hidden.created).toHaveLength(0);
+    });
   });
 
   it("photographs the embedded preview frame without pressing anything", async () => {

@@ -1,7 +1,9 @@
 import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
 import {
   MEMORY_LIMITS,
+  appendToArchive,
   formatAppend,
+  planFit,
   readHandoffRecord,
   readMemoryFile,
   writeHandoffRecord,
@@ -150,12 +152,9 @@ export function writeHandoff(
         .filter(Boolean)
         .join("\n")
     : decisionsBefore;
-  if (decisionsAfter.length > MEMORY_LIMITS.decisions) {
-    throw new DyadError(
-      `The decisions file would be ${decisionsAfter.length} characters; the limit is ${MEMORY_LIMITS.decisions}. Condense it first with update_memory (merge lines, drop stale ones), then call write_handoff again. Nothing was saved.`,
-      DyadErrorKind.Validation,
-    );
-  }
+  // A file that would overflow sets its oldest lines aside in an archive topic
+  // instead of refusing the handoff.
+  const decisionsFit = planFit("decisions", decisionsAfter);
 
   const factsBefore = readMemoryFile(appId, "facts");
   const newFacts = cleanList("fact", input.newFacts).filter(
@@ -166,17 +165,27 @@ export function writeHandoff(
         .filter(Boolean)
         .join("\n")
     : factsBefore;
-  if (factsAfter.length > MEMORY_LIMITS.facts) {
-    throw new DyadError(
-      `The facts file would be ${factsAfter.length} characters; the limit is ${MEMORY_LIMITS.facts}. Condense it first with update_memory, then call write_handoff again. Nothing was saved.`,
-      DyadErrorKind.Validation,
+  const factsFit = planFit("facts", factsAfter);
+
+  // Everything fits. The archives are written first (a failure there saves
+  // nothing), then the files, and the record goes last, so "handoff saved" is
+  // only ever true when all three files are written.
+  const archived: string[] = [];
+  if (decisionsFit.removed.length) {
+    const topic = appendToArchive(appId, "decisions", decisionsFit.removed);
+    archived.push(
+      `${decisionsFit.removed.length} older decision line(s) moved to topics/${topic}`,
     );
   }
-
-  // Everything fits. The record goes last, so "handoff saved" is only ever
-  // true when all three files are written.
-  if (newDecisions.length) writeMemoryFile(appId, "decisions", decisionsAfter);
-  if (newFacts.length) writeMemoryFile(appId, "facts", factsAfter);
+  if (factsFit.removed.length) {
+    const topic = appendToArchive(appId, "facts", factsFit.removed);
+    archived.push(
+      `${factsFit.removed.length} older fact line(s) moved to topics/${topic}`,
+    );
+  }
+  if (newDecisions.length)
+    writeMemoryFile(appId, "decisions", decisionsFit.text);
+  if (newFacts.length) writeMemoryFile(appId, "facts", factsFit.text);
   writeMemoryFile(appId, "state", state);
   writeHandoffRecord(appId, { chatId, savedAt: now.getTime() });
 
@@ -184,6 +193,7 @@ export function writeHandoff(
     "state replaced",
     newDecisions.length ? `${newDecisions.length} decision(s) added` : null,
     newFacts.length ? `${newFacts.length} fact(s) added` : null,
+    ...archived,
   ].filter(Boolean);
   return `Handoff saved (${bits.join(", ")}). Reply to the user with one short line saying the handoff is saved, and do nothing else this turn.`;
 }

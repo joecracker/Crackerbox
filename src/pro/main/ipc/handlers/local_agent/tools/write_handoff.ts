@@ -48,7 +48,7 @@ export const writeHandoffTool: ToolDefinition<
   name: "write_handoff",
   description: `Write the handoff for a new chat. Use it only when the user asks you to write the handoff. Call it once, as your only action that turn, then reply with one short line saying it is saved.
 
-The new chat starts with your memory in front of it and nothing else from this chat, so write for a fresh you who remembers nothing. It saves into your memory: the state (max ${MEMORY_LIMITS.state} characters in total) is replaced with doing_now, game_plan, questions and carry_over; new_decisions and new_facts are added to your decisions and facts files. Do not repeat what those files already say. If a line in them is wrong or stale, fix it first with update_memory.
+The new chat starts with your memory in front of it and nothing else from this chat, so write for a fresh you who remembers nothing. It saves into your memory: the state (max ${MEMORY_LIMITS.state} characters in total) is replaced with doing_now, game_plan, questions and carry_over; new_decisions and new_facts are added to your decisions and facts files. Do not repeat what those files already say. If a line in them is wrong or stale, fix it first with update_memory. If decisions or facts are full, the oldest lines are moved to an archive topic for you (topics/decisions-archive, topics/facts-archive), so never condense them just to make room.
 
 The new chat opens by asking the user the questions, with no list and no recap, so make them specific and worth answering, and name the real options inside them. The game plan is what you will work from once the user answers. Do not summarize what was done.`,
   inputSchema: writeHandoffSchema,

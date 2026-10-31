@@ -144,3 +144,25 @@ describe("phone address rewriting", () => {
     expect(rewrite(42)).toBe(42);
   });
 });
+
+describe("catching up after a dropped line", () => {
+  it("remembers the last event number and reports it only when reconnecting", () => {
+    expect(PHONE_SHIM_SCRIPT).toContain("var lastSeq = 0;");
+    expect(PHONE_SHIM_SCRIPT).toContain(
+      'if (typeof msg.seq === "number" && msg.seq > lastSeq) lastSeq = msg.seq;',
+    );
+    expect(PHONE_SHIM_SCRIPT).toContain(
+      '(hadConnection ? "&seq=" + lastSeq : "")',
+    );
+  });
+
+  it("starts over when the laptop says too much was missed", () => {
+    expect(PHONE_SHIM_SCRIPT).toContain(
+      "handleHello(msg.resumed === true, msg.gap === true);",
+    );
+    const start = PHONE_SHIM_SCRIPT.indexOf("function handleHello(");
+    const body = PHONE_SHIM_SCRIPT.slice(start, start + 260);
+    expect(body).toContain("if (!resumed || gap) {");
+    expect(body).toContain("startOver();");
+  });
+});

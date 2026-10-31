@@ -50,6 +50,11 @@ import {
   parsePageId,
   ResumableSessions,
 } from "./phone_bridge_sessions";
+import {
+  PhoneEventLog,
+  parseLastSeq,
+  type LoggedEvent,
+} from "./phone_bridge_event_log";
 
 const logger = log.scope("phone_bridge_server");
 
@@ -104,6 +109,8 @@ class PhoneConnection {
   };
 
   private readonly emitter = new EventEmitter();
+  // Everything sent to this page, numbered, so a reconnect can catch up.
+  private readonly eventLog = new PhoneEventLog();
 
   constructor(ws: WebSocket) {
     this.ws = ws;
@@ -115,9 +122,12 @@ class PhoneConnection {
       isDestroyed: () => this.closedForGood,
       isCrashed: () => false,
       send: (channel: string, ...args: unknown[]) => {
-        if (this.ws.readyState !== WebSocket.OPEN) return;
         try {
-          this.ws.send(JSON.stringify({ type: "event", channel, args }));
+          // Kept even while the line is down: the page asks for what it missed
+          // when it reconnects.
+          const event = this.eventLog.record(channel, args);
+          if (this.ws.readyState !== WebSocket.OPEN) return;
+          this.ws.send(event.json);
         } catch (error) {
           logger.debug(
             `failed to push event on channel "${channel}": ${(error as Error).message}`,
@@ -161,7 +171,25 @@ class PhoneConnection {
     return this.ws === ws;
   }
 
+  /** What a page that last saw event number `lastSeq` missed. */
+  eventsSince(lastSeq: number): { gap: boolean; events: LoggedEvent[] } {
+    return this.eventLog.since(lastSeq);
+  }
+
+  /** Sends missed events again, in order, on the page's new socket. */
+  replay(ws: WebSocket, events: LoggedEvent[]): void {
+    for (const event of events) {
+      if (ws.readyState !== WebSocket.OPEN) return;
+      try {
+        ws.send(event.json);
+      } catch {
+        return;
+      }
+    }
+  }
+
   notifyClosed(): void {
+    this.eventLog.clear();
     this.closedForGood = true;
     this.emitter.emit("destroyed");
     this.emitter.emit("render-process-gone");
@@ -325,6 +353,7 @@ export const PHONE_SHIM_SCRIPT = `(function () {
   var visibleSince = 0;
   var linkLost = false;
   var hadConnection = false;
+  var lastSeq = 0;
   var awaitingHello = false;
   var reconnectTimer = null;
   var reconnectDelay = 1500;
@@ -409,10 +438,10 @@ export const PHONE_SHIM_SCRIPT = `(function () {
     queue.length = 0;
   }
 
-  function handleHello(resumed) {
+  function handleHello(resumed, gap) {
     if (!awaitingHello) return;
     awaitingHello = false;
-    if (!resumed) {
+    if (!resumed || gap) {
       startOver();
       return;
     }
@@ -510,7 +539,7 @@ export const PHONE_SHIM_SCRIPT = `(function () {
   }
 
   function connectSocket() {
-    socket = new WebSocket(wsProtocol + "//" + location.host + "${WS_PATH}?pid=" + pageId);
+    socket = new WebSocket(wsProtocol + "//" + location.host + "${WS_PATH}?pid=" + pageId + (hadConnection ? "&seq=" + lastSeq : ""));
     socket.addEventListener("open", function () {
       lastHeard = Date.now();
       var reconnecting = hadConnection;
@@ -536,7 +565,7 @@ export const PHONE_SHIM_SCRIPT = `(function () {
         return;
       }
       if (msg.type === "hello") {
-        handleHello(msg.resumed === true);
+        handleHello(msg.resumed === true, msg.gap === true);
         return;
       }
       if (msg.type === "invoke-result") {
@@ -546,6 +575,7 @@ export const PHONE_SHIM_SCRIPT = `(function () {
         if (msg.ok) entry.resolve(msg.result);
         else entry.reject(new Error(msg.error));
       } else if (msg.type === "event") {
+        if (typeof msg.seq === "number" && msg.seq > lastSeq) lastSeq = msg.seq;
         var set = listeners.get(msg.channel);
         if (set) {
           Array.from(set).forEach(function (fn) {
@@ -1174,8 +1204,25 @@ export function startPhoneBridgeServer(devServerUrl: string | undefined) {
         ? "Phone client connected (same page, session kept)"
         : "Phone client connected",
     );
-    // Lets the page know whether its session is still good.
-    ws.send(JSON.stringify({ type: "hello", resumed }));
+    // Lets the page know whether its session is still good, and sends it
+    // anything it missed while the line was down (or half-dead).
+    const lastSeq = resumed ? parseLastSeq(req.url) : null;
+    const missed = lastSeq === null ? null : conn.eventsSince(lastSeq);
+    ws.send(
+      JSON.stringify({
+        type: "hello",
+        resumed,
+        gap: missed?.gap === true,
+      }),
+    );
+    if (missed && !missed.gap && missed.events.length) {
+      conn.replay(ws, missed.events);
+      logger.info(
+        `Replayed ${missed.events.length} missed event(s) to the phone`,
+      );
+    } else if (missed?.gap) {
+      logger.info("Phone missed more than could be kept; it will refresh");
+    }
     ws.on("message", (raw) => onSocketMessage(conn, ws, raw));
     ws.on("close", () => {
       logger.info("Phone client disconnected");

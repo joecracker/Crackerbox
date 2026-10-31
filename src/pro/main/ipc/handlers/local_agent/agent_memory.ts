@@ -192,6 +192,84 @@ export function formatAppend(name: string, text: string, now: Date): string {
     .join("\n");
 }
 
+export type ArchivableFile = "decisions" | "facts";
+
+export function isArchivableFile(name: string): name is ArchivableFile {
+  return name === "decisions" || name === "facts";
+}
+
+/**
+ * When decisions or facts would grow past their limit, the OLDEST lines are
+ * set aside (they go to an archive topic) so the file fits again. Headings and
+ * blank lines stay. Nothing is thrown away: see appendToArchive.
+ */
+export function planFit(
+  name: ArchivableFile,
+  text: string,
+): { text: string; removed: string[] } {
+  const limit = MEMORY_LIMITS[name];
+  const clean = text.trim();
+  if (clean.length <= limit) return { text: clean, removed: [] };
+  const lines = clean.split("\n");
+  const keep = lines.map(() => true);
+  const removed: string[] = [];
+  const render = () =>
+    lines
+      .filter((_, i) => keep[i])
+      .join("\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+  let current = render();
+  for (let i = 0; i < lines.length && current.length > limit; i++) {
+    if (!lines[i].trim() || headingLevel(lines[i])) continue;
+    keep[i] = false;
+    removed.push(lines[i]);
+    current = render();
+  }
+  if (current.length > limit) {
+    throw new DyadError(
+      `That would make ${name} ${current.length} characters even after moving its older lines out; the limit is ${limit}. Shorten what you are adding. Nothing was saved.`,
+      DyadErrorKind.Validation,
+    );
+  }
+  return { text: current, removed };
+}
+
+function archiveName(base: string, n: number): string {
+  return n === 1 ? base : `${base}-${n}`;
+}
+
+/**
+ * Appends lines to the archive topic for `name` (decisions-archive,
+ * decisions-archive-2, ...), starting a new numbered file when one is full.
+ * Returns the topic file the lines ended up in.
+ */
+export function appendToArchive(
+  appId: number,
+  name: ArchivableFile,
+  lines: string[],
+): string {
+  const base = `${name}-archive`;
+  const addition = lines.join("\n");
+  const existing = new Set(listTopicFiles(appId));
+  let n = 1;
+  while (existing.has(archiveName(base, n + 1))) n++;
+  let target = archiveName(base, n);
+  let current = readMemoryFile(appId, target);
+  if (current && current.length + 1 + addition.length > TOPIC_LIMIT) {
+    n++;
+    target = archiveName(base, n);
+    current = "";
+  }
+  const header = `# Older ${name} (moved here, oldest first, when ${name} filled up)`;
+  writeMemoryFile(
+    appId,
+    target,
+    [current || header, addition].filter(Boolean).join("\n"),
+  );
+  return target;
+}
+
 export interface UpdateMemoryArgs {
   file: string;
   mode: MemoryMode;
@@ -225,10 +303,19 @@ export function updateMemory(
   } else {
     next = args.text.trim();
   }
+  let moved = "";
+  if (args.mode === "append" && isArchivableFile(name)) {
+    const fit = planFit(name, next);
+    if (fit.removed.length) {
+      const topic = appendToArchive(appId, name, fit.removed);
+      next = fit.text;
+      moved = ` Moved the ${fit.removed.length} oldest line(s) to topics/${topic} (read_memory opens it) to make room.`;
+    }
+  }
   writeMemoryFile(appId, name, next);
   const size = next.trim().length;
   return size
-    ? `Saved ${name} (${size} of ${limitFor(name)} characters used).`
+    ? `Saved ${name} (${size} of ${limitFor(name)} characters used).${moved}`
     : `Cleared ${name}.`;
 }
 

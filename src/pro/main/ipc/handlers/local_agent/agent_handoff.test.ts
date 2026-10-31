@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+﻿import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -108,21 +108,77 @@ describe("writeHandoff", () => {
     expect(readHandoffRecord(APP)).toBeNull();
   });
 
-  it("saves nothing when the decisions file would overflow", () => {
-    updateMemory(APP, {
-      file: "decisions",
-      mode: "replace_file",
-      text: "- " + "d".repeat(MEMORY_LIMITS.decisions - 10),
+  function fillDecisions(lines: number) {
+    const text = Array.from(
+      { length: lines },
+      (_, i) => `- [2026-10-01] ruling number ${i} ${"d".repeat(90)}`,
+    ).join("\n");
+    updateMemory(APP, { file: "decisions", mode: "replace_file", text });
+    return text.split("\n");
+  }
+
+  it("moves the oldest decision lines to an archive instead of refusing", () => {
+    const old = fillDecisions(40); // just under the 5000 limit
+    const result = writeHandoff(APP, CHAT, {
+      ...base,
+      newDecisions: ["a fresh ruling " + "n".repeat(300)],
     });
-    updateMemory(APP, { file: "state", mode: "replace_file", text: "keep" });
+    expect(result).toMatch(
+      /older decision line\(s\) moved to topics\/decisions-archive/,
+    );
+    const kept = readMemoryFile(APP, "decisions");
+    expect(kept.length).toBeLessThanOrEqual(MEMORY_LIMITS.decisions);
+    expect(kept).toContain("a fresh ruling");
+    expect(kept).not.toContain(old[0]); // the oldest went
+    expect(kept).toContain(old[old.length - 1]); // the newest stayed
+    const archive = readMemoryFile(APP, "decisions-archive");
+    expect(archive.split("\n")[0]).toMatch(/^# Older decisions/);
+    expect(archive).toContain(old[0]);
+    expect(readHandoffRecord(APP)?.chatId).toBe(CHAT);
+  });
+
+  it("moves old facts out the same way", () => {
+    const text = Array.from(
+      { length: 36 },
+      (_, i) => `- fact ${i} ${"f".repeat(120)}`,
+    ).join("\n");
+    updateMemory(APP, { file: "facts", mode: "replace_file", text });
+    writeHandoff(APP, CHAT, { ...base, newFacts: ["x".repeat(480)] });
+    expect(readMemoryFile(APP, "facts").length).toBeLessThanOrEqual(
+      MEMORY_LIMITS.facts,
+    );
+    expect(readMemoryFile(APP, "facts-archive")).toContain("- fact 0 ");
+  });
+
+  it("starts a second archive file when the first is full", () => {
+    fillDecisions(40);
+    for (let i = 0; i < 26; i++) {
+      writeHandoff(APP, CHAT + i, {
+        ...base,
+        newDecisions: [`round ${i} ` + "r".repeat(480)],
+      });
+    }
+    expect(readMemoryFile(APP, "decisions-archive").length).toBeLessThanOrEqual(
+      8000,
+    );
+    expect(readMemoryFile(APP, "decisions-archive-2")).not.toBe("");
+    expect(readMemoryFile(APP, "decisions").length).toBeLessThanOrEqual(
+      MEMORY_LIMITS.decisions,
+    );
+  });
+
+  it("keeps decisions as they were when a state error stops the handoff", () => {
+    fillDecisions(40);
+    const before = readMemoryFile(APP, "decisions");
     expect(() =>
       writeHandoff(APP, CHAT, {
         ...base,
-        newDecisions: ["a fresh ruling that will not fit"],
+        newDecisions: ["a fresh ruling " + "n".repeat(300)],
+        carryOver: "x".repeat(MEMORY_LIMITS.state),
       }),
-    ).toThrow(/Condense it first/);
-    expect(readMemoryFile(APP, "state")).toBe("keep");
-    expect(readHandoffRecord(APP)).toBeNull();
+    ).toThrow(/Nothing was saved/);
+    expect(readMemoryFile(APP, "decisions")).toBe(before);
+    expect(readMemoryFile(APP, "decisions-archive")).toBe("");
   });
 
   it("insists on a real description, a plan and a question", () => {

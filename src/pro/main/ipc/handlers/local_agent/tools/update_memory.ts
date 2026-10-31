@@ -39,7 +39,7 @@ Files:
 - facts (max ${MEMORY_LIMITS.facts}): where things live, how things are started or restarted, what a setting really does, what worked. Short plain bullets.
 - any topic name (max ${TOPIC_LIMIT} each, up to ${MAX_TOPICS} topics): longer detail on one subject. The first line must say what the file is. Topics are listed in your memory index and opened with read_memory.
 
-Prefer append or replace_section so you never drop what you did not mean to touch. Fix or delete lines that turned out wrong.`,
+Prefer append or replace_section so you never drop what you did not mean to touch. Fix or delete lines that turned out wrong. When an append would overflow decisions or facts, their oldest lines move to an archive topic automatically (topics/decisions-archive, topics/facts-archive); you do not need to make room.`,
   inputSchema: updateMemorySchema,
   defaultConsent: "always",
   modifiesState: false,

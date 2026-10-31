@@ -24,7 +24,12 @@ type ViewPreviewArgs = z.infer<typeof viewPreviewSchema>;
 const MAX_WIDTH = 1100;
 
 /** Waits are fields so tests can run them instantly. */
-export const timing = { pollMs: 1000, polls: 8, settleMs: 500 };
+export const timing = {
+  pollMs: 1000,
+  polls: 8,
+  settleMs: 500,
+  hiddenLoadMs: 15000,
+};
 
 const sleep = (ms: number) =>
   ms > 0
@@ -187,13 +192,16 @@ function findAppFrame(win: BrowserWindow, appUrl: string | undefined) {
   }
 }
 
+/** Anything that can run a script inside the app's page. */
+interface PageTarget {
+  executeJavaScript(code: string): Promise<unknown>;
+}
+
 /** Scrolls the app's page (when asked) and reports where it is now. */
 export async function scrollAndMeasure(
-  win: BrowserWindow,
-  appUrl: string | undefined,
+  frame: PageTarget | null,
   args: ViewPreviewArgs,
 ): Promise<PageMeasure | null> {
-  const frame = findAppFrame(win, appUrl);
   if (!frame) return null;
   const mode = args.scroll ? JSON.stringify(args.scroll) : "null";
   const to =
@@ -242,6 +250,62 @@ function describePosition(m: PageMeasure): string {
   return `Showing ${m.top}-${bottom}px of a ${m.total}px tall page. ${more}`;
 }
 
+/**
+ * Photographs the app from a hidden window of its own, for when Crackerbox's
+ * own window is minimized or not on the app's chat page (for example when the
+ * user is on a phone). It is a separate copy of the page, so it shows the app
+ * as a fresh visitor would see it.
+ */
+async function captureHidden(
+  appUrl: string,
+  args: ViewPreviewArgs,
+): Promise<{ dataUrl: string; position: string } | { error: string }> {
+  let win: BrowserWindow | null = null;
+  try {
+    win = new BrowserWindow({
+      show: false,
+      width: 1100,
+      height: 800,
+      webPreferences: {
+        offscreen: true,
+        backgroundThrottling: false,
+        sandbox: true,
+        contextIsolation: true,
+        nodeIntegration: false,
+        partition: "cb-hidden-preview",
+      },
+    });
+    win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+    await Promise.race([
+      win.loadURL(appUrl),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("timed out")), timing.hiddenLoadMs),
+      ),
+    ]);
+    await sleep(timing.settleMs);
+    let measure = await scrollAndMeasure(win.webContents, args);
+    for (let i = 0; measure && !measure.ready && i < 3; i++) {
+      await sleep(timing.pollMs);
+      measure = await scrollAndMeasure(win.webContents, {});
+    }
+    await sleep(timing.settleMs);
+    const image = await win.webContents.capturePage();
+    if (image.isEmpty()) return { error: "the picture came back empty" };
+    return {
+      dataUrl: image.toDataURL(),
+      position: measure ? describePosition(measure) : "",
+    };
+  } catch (error) {
+    return { error: (error as Error).message };
+  } finally {
+    try {
+      if (win && !win.isDestroyed()) win.destroy();
+    } catch {
+      // Already gone.
+    }
+  }
+}
+
 async function capture(win: BrowserWindow, rect: Rect): Promise<string | null> {
   try {
     // Let the page finish painting; a shot taken straight after an edit can
@@ -270,7 +334,7 @@ async function capture(win: BrowserWindow, rect: Rect): Promise<string | null> {
 export const viewPreviewTool: ToolDefinition<ViewPreviewArgs> = {
   name: "view_preview",
   description:
-    'Look at the app\'s live preview: returns a picture of what it is showing right now, and says how tall the page is and which part you are seeing. Use it after a visual change, or when the user says something looks wrong. To see more of a long page, call it again with scroll ("down", "up", "top", "bottom") or scroll_to (pixels). It opens the Preview panel and switches to the Preview tab itself, so never ask the user to open it. The Crackerbox window must not be minimized, the app must be running, and the model must be able to read images.',
+    'Look at the app\'s live preview: returns a picture of what it is showing right now, and says how tall the page is and which part you are seeing. Use it after a visual change, or when the user says something looks wrong. To see more of a long page, call it again with scroll ("down", "up", "top", "bottom") or scroll_to (pixels). It opens the Preview panel and switches to the Preview tab itself, so never ask the user to open it. If the Crackerbox window is minimized or not on the app chat, it looks at the running app from a hidden window instead (a fresh copy of the page). The app must be running and the model must be able to read images.',
   inputSchema: viewPreviewSchema,
   defaultConsent: "always",
   modifiesState: false,
@@ -293,22 +357,40 @@ export const viewPreviewTool: ToolDefinition<ViewPreviewArgs> = {
 
     if (!source) {
       const outcome = await showPreview(ctx.appId);
-      if (outcome.kind === "no-window") {
-        return "I can't see the Crackerbox window: it is minimized or hidden. Ask the user to bring it back up, then look again.";
-      }
-      if (outcome.kind === "no-controls") {
-        return "I can't find the Preview controls: the Crackerbox window is not showing this app's chat page. Ask the user to open the app's chat, then look again.";
+      if (outcome.kind === "no-window" || outcome.kind === "no-controls") {
+        // Crackerbox's own window can't show it (minimized, or on another
+        // page): look at the running app from a hidden window instead.
+        if (!appUrl) {
+          return "Crackerbox's window can't show the preview right now (it is minimized or not on this app's chat), and the app is not running, so there is nothing to look at. Start it (run_app / restart_app), wait for it to load, then look again.";
+        }
+        const hidden = await captureHidden(appUrl, args);
+        if ("error" in hidden) {
+          return `Crackerbox's window can't show the preview right now, and looking at the app from a hidden window failed (${hidden.error}). The app may still be starting: wait a moment and look again, or ask the user to bring Crackerbox up.`;
+        }
+        const picture = shrinkToJpeg(hidden.dataUrl);
+        if (!picture) {
+          return "The preview picture couldn't be read. Try again in a moment.";
+        }
+        ctx.appendUserMessage([
+          {
+            type: "text",
+            text: "This is what the running app shows, taken from a hidden window (Crackerbox itself is not showing it):",
+          },
+          { type: "image-url", url: picture },
+        ]);
+        return `Attached a picture of the running app taken from a hidden window, because Crackerbox's own window is minimized or not on this app's chat. It is a fresh copy of the page, so it will not show what the user has typed or clicked.${hidden.position ? ` ${hidden.position}` : ""}`;
       }
       if (outcome.kind === "not-showing") {
         return outcome.acted
           ? "I switched to the Preview tab, but the app is not showing there. It is probably still starting or not running: start it (run_app / restart_app), wait for it to load, then look again. Do not tell the user the preview is open."
           : "The Preview tab is open, but the app is not showing in it. It is probably still starting or not running: start it (run_app / restart_app), wait for it to load, then look again. Do not tell the user the preview is open.";
       }
-      let measure = await scrollAndMeasure(outcome.win, appUrl, args);
+      const appFrame = findAppFrame(outcome.win, appUrl);
+      let measure = await scrollAndMeasure(appFrame, args);
       // A page that is still loading gets a few more seconds.
       for (let i = 0; measure && !measure.ready && i < 3; i++) {
         await sleep(timing.pollMs);
-        measure = await scrollAndMeasure(outcome.win, appUrl, {});
+        measure = await scrollAndMeasure(appFrame, {});
       }
       if (measure) position = describePosition(measure);
       source = await capture(outcome.win, outcome.rect);

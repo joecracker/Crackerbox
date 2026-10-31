@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+﻿import { describe, expect, it } from "vitest";
 import { shouldShowContextLimitBanner } from "./ContextLimitBanner";
 
 describe("shouldShowContextLimitBanner", () => {
@@ -29,16 +29,16 @@ describe("shouldShowContextLimitBanner", () => {
   it("shows once the chat is long, whatever the window", () => {
     expect(
       shouldShowContextLimitBanner({
-        totalTokens: 100_001,
+        totalTokens: 160_001,
         contextWindow: 1_000_000,
       }),
     ).toBe(true);
   });
 
-  it("does not nag at 90k in a roomy window", () => {
+  it("does not nag at 150k in a roomy window", () => {
     expect(
       shouldShowContextLimitBanner({
-        totalTokens: 90_000,
+        totalTokens: 150_000,
         contextWindow: 1_000_000,
       }),
     ).toBe(false);

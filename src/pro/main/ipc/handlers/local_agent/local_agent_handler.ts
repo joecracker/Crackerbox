@@ -1105,6 +1105,7 @@ export async function handleLocalAgentStream(
         metadata?: SqlConsentMetadata | null;
         abortSignal?: AbortSignal;
         forceAsk?: boolean;
+        onAcceptAlways?: () => void;
         subagent?: {
           threadId: string;
           persona: "explorer" | "implementer";
@@ -1113,6 +1114,7 @@ export async function handleLocalAgentStream(
       }) => {
         return requireAgentToolConsent(event, {
           forceAsk: params.forceAsk,
+          onAcceptAlways: params.onAcceptAlways,
           chatId: chat.id,
           toolName: params.toolName as AgentToolName,
           toolDescription: params.toolDescription,

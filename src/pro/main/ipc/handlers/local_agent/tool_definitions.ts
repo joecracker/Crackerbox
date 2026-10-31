@@ -338,6 +338,8 @@ export async function requireAgentToolConsent(
     abortSignal?: AbortSignal;
     /** Ask every time, even when this tool is set to always allow. */
     forceAsk?: boolean;
+    /** Runs when the user answers "Always allow" to this question. */
+    onAcceptAlways?: () => void;
     subagent?: {
       threadId: string;
       persona: "explorer" | "implementer";
@@ -376,6 +378,16 @@ export async function requireAgentToolConsent(
     classifier: "none",
   });
   const response = await userInputRegistry.park(requestId, params.abortSignal);
+  if (
+    response?.kind === "agent-consent" &&
+    response.decision === "accept-always"
+  ) {
+    try {
+      params.onAcceptAlways?.();
+    } catch {
+      // Remembering the answer is a convenience; the change itself goes ahead.
+    }
+  }
   return response?.kind === "agent-consent" && response.decision !== "decline";
 }
 

@@ -627,6 +627,8 @@ const BaseUserSettingsFields = {
   enableAutoUpdate: z.boolean(),
   /** Open the main window minimized (on unless set to false). */
   startMinimized: z.boolean().optional(),
+  /** Folders outside a project where she may change files without asking. */
+  trustedHostFolders: z.array(z.string()).optional(),
   releaseChannel: ReleaseChannelSchema,
   runtimeMode2: RuntimeMode2Schema.optional(),
   customNodePath: z.string().optional().nullable(),

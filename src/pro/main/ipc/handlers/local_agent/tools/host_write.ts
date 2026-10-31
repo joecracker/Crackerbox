@@ -5,6 +5,7 @@ import { applySearchReplace } from "@/pro/main/ipc/processors/search_replace_pro
 import { escapeSearchReplaceMarkers } from "@/pro/shared/search_replace_markers";
 import { withLock, getFileWriteKey } from "@/ipc/utils/lock_utils";
 import { assertHostPathAllowed } from "./host_read";
+import { isTrustedHostPath, trustHostFolder } from "./host_trust";
 import type { AgentContext } from "./types";
 
 // Files that could run by themselves or start with Windows are never written
@@ -65,11 +66,16 @@ async function askToChangeOutsideProject(
   target: string,
   action: string,
 ): Promise<void> {
+  // A folder the user already said "Always allow" for needs no question.
+  if (isTrustedHostPath(target)) return;
   const ok = await ctx.requireConsent({
     toolName,
-    toolDescription: `Change a file outside the project`,
+    toolDescription: `Change a file outside the project. "Always allow" trusts this folder (${path.dirname(target)}) from now on.`,
     inputPreview: `${action}: ${target}`,
     forceAsk: true,
+    onAcceptAlways: () => {
+      trustHostFolder(path.dirname(target));
+    },
   });
   if (!ok) {
     throw new DyadError(

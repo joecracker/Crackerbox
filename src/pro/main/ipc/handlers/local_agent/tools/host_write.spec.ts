@@ -14,6 +14,15 @@ vi.mock("./host_read", () => ({
   },
 }));
 
+const trust = vi.hoisted(() => ({
+  trusted: [] as string[],
+  trustHostFolder: vi.fn(),
+}));
+vi.mock("./host_trust", () => ({
+  isTrustedHostPath: (p: string) => trust.trusted.some((f) => p.startsWith(f)),
+  trustHostFolder: trust.trustHostFolder,
+}));
+
 import { hostWriteFile, hostSearchReplace } from "./host_write";
 
 let dir: string;
@@ -22,6 +31,8 @@ const ctx = (answer: boolean) =>
 
 beforeEach(() => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), "hostwrite-"));
+  trust.trusted = [];
+  trust.trustHostFolder.mockClear();
 });
 afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
 
@@ -34,6 +45,37 @@ describe("host_write", () => {
     expect(c.requireConsent).toHaveBeenCalledWith(
       expect.objectContaining({ forceAsk: true }),
     );
+  });
+
+  it("does not ask for a folder the user already trusted", async () => {
+    trust.trusted = [dir];
+    const c = ctx(true);
+    const f = path.join(dir, "b.txt");
+    await hostWriteFile({ filePath: f, content: "quiet", ctx: c });
+    expect(fs.readFileSync(f, "utf8")).toBe("quiet");
+    expect(c.requireConsent).not.toHaveBeenCalled();
+  });
+
+  it("trusts the file's folder when the answer is Always allow", async () => {
+    const c = {
+      requireConsent: vi.fn(async (p: any) => {
+        p.onAcceptAlways?.();
+        return true;
+      }),
+    } as any;
+    const f = path.join(dir, "c.txt");
+    await hostWriteFile({ filePath: f, content: "x", ctx: c });
+    expect(trust.trustHostFolder).toHaveBeenCalledWith(dir);
+  });
+
+  it("does not trust anything when the answer is Allow once", async () => {
+    const c = ctx(true); // never calls onAcceptAlways
+    await hostWriteFile({
+      filePath: path.join(dir, "d.txt"),
+      content: "x",
+      ctx: c,
+    });
+    expect(trust.trustHostFolder).not.toHaveBeenCalled();
   });
 
   it("does not write when declined", async () => {

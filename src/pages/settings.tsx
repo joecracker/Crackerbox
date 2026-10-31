@@ -26,6 +26,7 @@ import { KeepPreviewsRunningSwitch } from "@/components/KeepPreviewsRunningSwitc
 import { ChatEventNotificationSwitch } from "@/components/ChatEventNotificationSwitch";
 import { AutoUpdateSwitch } from "@/components/AutoUpdateSwitch";
 import { StartMinimizedSwitch } from "@/components/StartMinimizedSwitch";
+import { TrustedFoldersSetting } from "@/components/TrustedFoldersSetting";
 import { ReleaseChannelSelector } from "@/components/ReleaseChannelSelector";
 import { NeonIntegration } from "@/components/NeonIntegration";
 import { HomeAssistantSettings } from "@/components/HomeAssistantSettings";
@@ -555,6 +556,8 @@ export function GeneralSettings({ appVersion }: { appVersion: string | null }) {
           Click its icon (or the tray icon) to bring it up.
         </p>
       </div>
+
+      <TrustedFoldersSetting />
 
       <div id={SETTING_IDS.autoUpdate} className="space-y-1.5">
         <AutoUpdateSwitch />

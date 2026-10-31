@@ -67,6 +67,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   // GitHub releases instead -- until then this would silently try to
   // overwrite Crackerbox with stock Dyad.
   enableAutoUpdate: true,
+  startMinimized: true,
   releaseChannel: "stable",
   selectedTemplateId: DEFAULT_TEMPLATE_ID,
   selectedThemeId: DEFAULT_THEME_ID,

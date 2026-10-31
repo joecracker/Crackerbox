@@ -136,7 +136,7 @@ describe("readSettings", () => {
           "isRunning": false,
           "lastKnownPerformance": undefined,
           "nodeRuntimePreference": "system",
-          "previewIdleTimeoutPolicy": "default",
+          "previewIdleTimeoutPolicy": "never",
           "providerSettings": {},
           "releaseChannel": "stable",
           "runTypeScriptForWholeProject": false,
@@ -150,6 +150,7 @@ describe("readSettings", () => {
           "speechProvider": "openrouter",
           "speechRate": 1,
           "speechVoice": "af_bella",
+          "startMinimized": true,
           "telemetryConsent": "opted_out",
           "telemetryUserId": "[scrubbed]",
         }
@@ -585,7 +586,7 @@ describe("readSettings", () => {
           "isRunning": false,
           "lastKnownPerformance": undefined,
           "nodeRuntimePreference": "system",
-          "previewIdleTimeoutPolicy": "default",
+          "previewIdleTimeoutPolicy": "never",
           "providerSettings": {},
           "releaseChannel": "stable",
           "runTypeScriptForWholeProject": false,
@@ -599,6 +600,7 @@ describe("readSettings", () => {
           "speechProvider": "openrouter",
           "speechRate": 1,
           "speechVoice": "af_bella",
+          "startMinimized": true,
           "telemetryConsent": "opted_out",
           "telemetryUserId": "[scrubbed]",
         }

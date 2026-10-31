@@ -20,7 +20,7 @@ export const CORE_MEMORY_FILES = ["state", "decisions", "facts"] as const;
 export type CoreMemoryFile = (typeof CORE_MEMORY_FILES)[number];
 
 export const MEMORY_LIMITS: Record<CoreMemoryFile, number> = {
-  state: 3000,
+  state: 6000,
   decisions: 5000,
   facts: 5000,
 };

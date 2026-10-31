@@ -625,6 +625,8 @@ const BaseUserSettingsFields = {
   enableCloudflareDeployment: z.boolean().optional(),
   enableTestRunInPreview: z.boolean().optional(),
   enableAutoUpdate: z.boolean(),
+  /** Open the main window minimized (on unless set to false). */
+  startMinimized: z.boolean().optional(),
   releaseChannel: ReleaseChannelSchema,
   runtimeMode2: RuntimeMode2Schema.optional(),
   customNodePath: z.string().optional().nullable(),

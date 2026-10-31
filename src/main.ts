@@ -928,8 +928,15 @@ const createWindow = ({
     );
   }
 
+  // The main window can open minimized (the Start minimized setting, on unless
+  // turned off) so Crackerbox runs in the background without taking the screen.
+  const openMinimized =
+    windowSessionId === PRIMARY_WINDOW_SESSION_ID &&
+    readSettings().startMinimized !== false;
+
   // Create the browser window.
   const browserWindow = new BrowserWindow({
+    show: !openMinimized,
     width: process.env.NODE_ENV === "development" ? 1280 : 960,
     minWidth: 800,
     height: 700,
@@ -959,7 +966,16 @@ const createWindow = ({
     // backgroundColor: "#00000001",
     // frame: false,
   });
-  if (windowSessionId === PRIMARY_WINDOW_SESSION_ID) {
+  if (openMinimized) {
+    // Appears only in the taskbar. When it is brought back up it opens
+    // maximized, like a window that was never minimized.
+    browserWindow.once("ready-to-show", () => {
+      browserWindow.minimize();
+    });
+    browserWindow.once("restore", () => {
+      if (!browserWindow.isDestroyed()) browserWindow.maximize();
+    });
+  } else if (windowSessionId === PRIMARY_WINDOW_SESSION_ID) {
     browserWindow.maximize();
   }
   mainWindow = browserWindow;

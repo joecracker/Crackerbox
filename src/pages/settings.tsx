@@ -25,6 +25,7 @@ import { AutoExpandPreviewSwitch } from "@/components/AutoExpandPreviewSwitch";
 import { KeepPreviewsRunningSwitch } from "@/components/KeepPreviewsRunningSwitch";
 import { ChatEventNotificationSwitch } from "@/components/ChatEventNotificationSwitch";
 import { AutoUpdateSwitch } from "@/components/AutoUpdateSwitch";
+import { StartMinimizedSwitch } from "@/components/StartMinimizedSwitch";
 import { ReleaseChannelSelector } from "@/components/ReleaseChannelSelector";
 import { NeonIntegration } from "@/components/NeonIntegration";
 import { HomeAssistantSettings } from "@/components/HomeAssistantSettings";
@@ -545,6 +546,14 @@ export function GeneralSettings({ appVersion }: { appVersion: string | null }) {
 
       <div id={SETTING_IDS.zoom}>
         <ZoomSelector />
+      </div>
+
+      <div className="space-y-1.5">
+        <StartMinimizedSwitch />
+        <p className={hint}>
+          Crackerbox starts in the taskbar instead of taking over the screen.
+          Click its icon (or the tray icon) to bring it up.
+        </p>
       </div>
 
       <div id={SETTING_IDS.autoUpdate} className="space-y-1.5">

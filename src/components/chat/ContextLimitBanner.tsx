@@ -2,7 +2,7 @@ import { AlertTriangle } from "lucide-react";
 import { HandoffButton } from "./HandoffButton";
 
 const CONTEXT_LIMIT_THRESHOLD = 40_000;
-const LONG_CONTEXT_THRESHOLD = 80_000;
+const LONG_CONTEXT_THRESHOLD = 100_000;
 
 interface ContextLimitBannerProps {
   totalTokens?: number | null;

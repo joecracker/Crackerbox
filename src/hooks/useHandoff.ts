@@ -36,12 +36,17 @@ export function useHandoff() {
   const { streamMessage, isStreaming } = useStreamChat();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const busyRef = useRef(false);
+  // Writing the handoff and opening the new chat each have their own lock, so
+  // one can never leave the other stuck (a missed "settled" signal used to
+  // leave New chat dead, with no message).
+  const writingRef = useRef(false);
+  const openingRef = useRef(false);
   const statusQuery = useHandoffStatus(chatId ?? null);
 
   // The handoff is saved while a reply is running, so look again when it ends.
   useEffect(() => {
     if (!isStreaming && chatId != null) {
+      writingRef.current = false;
       void queryClient.invalidateQueries({
         queryKey: queryKeys.chats.handoff({ chatId }),
       });
@@ -50,8 +55,8 @@ export function useHandoff() {
 
   const writeHandoff = useCallback(
     async (carryOver?: string) => {
-      if (chatId == null || isStreaming || busyRef.current) return;
-      busyRef.current = true;
+      if (chatId == null || isStreaming || writingRef.current) return;
+      writingRef.current = true;
       const prompt = buildHandoffRequest(carryOver);
       try {
         const started = await streamMessage({
@@ -62,15 +67,15 @@ export function useHandoff() {
           showOptimisticMessage: true,
           optimisticDisplayContent: prompt,
           onSettled: () => {
-            busyRef.current = false;
+            writingRef.current = false;
             void queryClient.invalidateQueries({
               queryKey: queryKeys.chats.handoff({ chatId }),
             });
           },
         });
-        if (!started) busyRef.current = false;
+        if (!started) writingRef.current = false;
       } catch (err) {
-        busyRef.current = false;
+        writingRef.current = false;
         showError(err);
       }
     },
@@ -78,11 +83,21 @@ export function useHandoff() {
   );
 
   const startNewChat = useCallback(async () => {
-    if (appId == null || busyRef.current) return;
-    busyRef.current = true;
+    if (openingRef.current) return;
+    openingRef.current = true;
     try {
+      // The app comes from this chat itself when the page has not remembered
+      // which app is open (for example after a refresh).
+      let targetAppId = appId;
+      if (targetAppId == null && chatId != null) {
+        targetAppId = (await ipc.chat.getChat(chatId)).appId;
+      }
+      if (targetAppId == null) {
+        showError("Couldn't tell which app this chat belongs to.");
+        return;
+      }
       const newChatId = await ipc.chat.createChat({
-        appId,
+        appId: targetAppId,
         initialChatMode: "local-agent",
       });
       await queryClient.invalidateQueries({ queryKey: queryKeys.chats.all });
@@ -98,9 +113,9 @@ export function useHandoff() {
     } catch (err) {
       showError(err);
     } finally {
-      busyRef.current = false;
+      openingRef.current = false;
     }
-  }, [appId, navigate, queryClient, streamMessage]);
+  }, [appId, chatId, navigate, queryClient, streamMessage]);
 
   return {
     chatId,

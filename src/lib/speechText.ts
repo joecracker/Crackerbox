@@ -3,10 +3,35 @@
  * activity and fenced code stay visible in the message, but are intentionally
  * left out of speech.
  */
+// Han, kana, hangul and their punctuation. The voice reads these out letter by
+// letter ("Chinese letter, Chinese letter, ..."), which is never what she meant.
+const CJK_CHARACTERS =
+  /[\u2e80-\u2fdf\u3000-\u303f\u3040-\u30ff\u3100-\u312f\u3190-\u31ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af\uf900-\ufaff\uff00-\uffef]/gu;
+const LATIN_LETTERS = /[A-Za-z\u00c0-\u024f]/g;
+
+/**
+ * A stray run of Chinese/Japanese/Korean characters in an English reply is a
+ * model glitch, so it is left out of speech. A reply that really is mostly in
+ * one of those languages is left alone.
+ */
+export function dropStrayCjk(text: string): string {
+  const cjk = text.match(CJK_CHARACTERS)?.length ?? 0;
+  if (cjk === 0) return text;
+  const latin = text.match(LATIN_LETTERS)?.length ?? 0;
+  if (cjk > (cjk + latin) * 0.6) return text;
+  return text.replace(CJK_CHARACTERS, " ");
+}
+
 export function speechTextFromAssistantResponse(markdown: string): string {
-  return markdown
-    .replace(/```[\s\S]*?```/g, " ")
-    .replace(/<think\b[^>]*>[\s\S]*?<\/think\s*>/gi, " ")
+  return dropStrayCjk(
+    markdown
+      .replace(/```[\s\S]*?```/g, " ")
+      .replace(/<think\b[^>]*>[\s\S]*?<\/think\s*>/gi, " ")
+      // Thinking that was cut off before it closed, or whose opening was lost:
+      // never read it out.
+      .replace(/<think\b[^>]*>[\s\S]*$/i, " ")
+      .replace(/^[\s\S]*?<\/think\s*>/i, " "),
+  )
     .replace(/<dyad-[^>]*>[\s\S]*?<\/dyad-[^>]*>/g, " ")
     .replace(/<dyad-[^>]*\/>/g, " ")
     .replace(/<[^>]+>/g, " ")

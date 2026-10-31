@@ -14,6 +14,50 @@ describe("speechTextFromAssistantResponse", () => {
     ).toBe("Done I fixed the button. Open the preview");
   });
 
+  it("never reads thinking that was cut off before it closed", () => {
+    expect(
+      speechTextFromAssistantResponse(
+        "Sure thing. <think>Let me work out the plan and then decide what to say about the button",
+      ),
+    ).toBe("Sure thing.");
+  });
+
+  it("never reads thinking whose opening tag was lost", () => {
+    expect(
+      speechTextFromAssistantResponse(
+        "The user wants the button fixed, so I should look at the file.</think>\n\nI fixed the button.",
+      ),
+    ).toBe("I fixed the button.");
+  });
+
+  it("still removes ordinary closed thinking before cut-off thinking", () => {
+    expect(
+      speechTextFromAssistantResponse(
+        "<think>one</think>First part. <think>two never closes",
+      ),
+    ).toBe("First part.");
+  });
+
+  it("leaves out a stray run of Chinese characters in an English reply", () => {
+    expect(
+      speechTextFromAssistantResponse(
+        "I fixed the picker. 我们需要修复这个问题 It works now.",
+      ),
+    ).toBe("I fixed the picker. It works now.");
+  });
+
+  it("leaves out stray Japanese and Korean too", () => {
+    expect(
+      speechTextFromAssistantResponse("Done. こんにちは 안녕하세요 All good."),
+    ).toBe("Done. All good.");
+  });
+
+  it("keeps a reply that is really in Chinese", () => {
+    expect(speechTextFromAssistantResponse("我们已经修复了这个按钮。")).toBe(
+      "我们已经修复了这个按钮。",
+    );
+  });
+
   it("returns an empty string for a code-only reply", () => {
     expect(speechTextFromAssistantResponse("```js\nconst x = 1;\n```")).toBe(
       "",

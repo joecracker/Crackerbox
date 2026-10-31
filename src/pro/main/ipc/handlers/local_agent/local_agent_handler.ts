@@ -36,6 +36,7 @@ import { ClaudeCodeModel } from "@/ipc/services/claude_code/model";
 import { requireMcpToolConsent } from "@/ipc/utils/mcp_consent";
 import { buildMcpAutoApprove } from "./mcp_auto_consent";
 import { scheduleChatSearchIndexing } from "./chat_search_indexer";
+import { trimOldToolOutput } from "./history_trim";
 import { parseMcpToolKey, sanitizeMcpName } from "@/ipc/utils/mcp_tool_utils";
 import { sanitizeMcpToolResult } from "@/ipc/utils/mcp_result_sanitizer";
 import { createModelTextGuard } from "./processors/model_text_guard";
@@ -463,7 +464,7 @@ export function buildChatMessageHistory(
     }
   }
 
-  return history;
+  return trimOldToolOutput(history);
 }
 
 export function hasCompletedAppBlueprintQuestionnaire(
@@ -1612,6 +1613,17 @@ export async function handleLocalAgentStream(
                 result = {
                   ...(result ?? stepOptions),
                   messages: normalizedTargetMessages,
+                };
+              }
+
+              // Old tool output and old thinking are cut down in what she is
+              // shown on this step (the saved chat is untouched).
+              const shownMessages = result?.messages ?? stepOptions.messages;
+              const trimmedMessages = trimOldToolOutput(shownMessages);
+              if (trimmedMessages !== shownMessages) {
+                result = {
+                  ...(result ?? stepOptions),
+                  messages: trimmedMessages,
                 };
               }
 

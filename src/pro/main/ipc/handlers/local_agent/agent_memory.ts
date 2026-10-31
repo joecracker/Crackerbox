@@ -348,8 +348,84 @@ export function agentMemoryPromptBlock(appId: number): string {
     `\n\n## Your memory for this app\n` +
     `This is your own memory of earlier work in this app, kept between chats. Trust it as your starting point and check it when something looks off. Read "decisions" before proposing anything and never re-propose what it rules out. Open any file below with read_memory; change it with update_memory.\n\n` +
     `Files:\n${memoryIndexText(appId)}\n\n` +
-    sections.join("\n\n")
+    sections.join("\n\n") +
+    libraryPromptSection(appId)
   );
+}
+
+function libraryPromptSection(appId: number): string {
+  const library = readLibrary(appId);
+  if (!library) return "";
+  return (
+    `\n\n### chat library (older chats in this app, newest last)\n` +
+    `${library}\n` +
+    `The detail of an older chat is NOT in your memory on purpose. When you need something from one, open it: search_chats for a keyword, or read_chat with the chat number above. Do that before asking the user to repeat themselves or re-deriving something.`
+  );
+}
+
+// ---------------------------------------------------------------------------
+// The chat library: one line per past chat, newest last. Handoffs add the line
+// for the chat that just ended. It is shown to her at the start of every chat,
+// so she knows what each older chat was about and can open one (read_chat)
+// instead of carrying its detail forward.
+// ---------------------------------------------------------------------------
+
+export const LIBRARY_MAX_LINES = 15;
+export const LIBRARY_MAX_CHARS = 3500;
+const LIBRARY_LINE_MAX = 420;
+
+function libraryPath(appId: number): string {
+  return path.join(agentMemoryDir(appId), "library.md");
+}
+
+export function readLibrary(appId: number): string {
+  try {
+    return fs.readFileSync(libraryPath(appId), "utf8").trim();
+  } catch {
+    return "";
+  }
+}
+
+function libraryLineChatId(line: string): number | null {
+  const m = /^-\s*chat\s+(\d+)\b/.exec(line.trim());
+  return m ? Number(m[1]) : null;
+}
+
+function oneLine(text: string, max: number): string {
+  const flat = text.replace(/\s+/g, " ").trim();
+  return flat.length > max ? `${flat.slice(0, max - 1).trimEnd()}…` : flat;
+}
+
+/** What the library would hold after adding this chat; nothing is written. */
+export function planLibrary(
+  appId: number,
+  entry: { chatId: number; title?: string | null; summary?: string | null },
+  now: Date,
+): string {
+  const title = oneLine(entry.title ?? "", 90);
+  const summary = oneLine(entry.summary ?? "", LIBRARY_LINE_MAX);
+  const label =
+    [title, summary].filter(Boolean).join(" — ") || "(no description)";
+  const line = `- chat ${entry.chatId} (${now.toISOString().slice(0, 10)}): ${oneLine(label, LIBRARY_LINE_MAX)}`;
+  const kept = readLibrary(appId)
+    .split("\n")
+    .filter((l) => l.trim() && libraryLineChatId(l) !== entry.chatId);
+  kept.push(line);
+  while (
+    kept.length > LIBRARY_MAX_LINES ||
+    (kept.length > 1 && kept.join("\n").length > LIBRARY_MAX_CHARS)
+  ) {
+    kept.shift();
+  }
+  return kept.join("\n");
+}
+
+export function writeLibrary(appId: number, text: string): void {
+  fs.mkdirSync(agentMemoryDir(appId), { recursive: true });
+  const file = libraryPath(appId);
+  const temp = `${file}.tmp`;
+  fs.writeFileSync(temp, `${text.trim()}\n`);
+  fs.renameSync(temp, file);
 }
 
 export interface HandoffRecord {

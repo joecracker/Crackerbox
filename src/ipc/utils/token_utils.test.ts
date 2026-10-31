@@ -129,8 +129,8 @@ describe("getCompactionThreshold", () => {
   });
 
   describe("other non-google providers", () => {
-    it("uses the 250k cap for large context windows", () => {
-      expect(getCompactionThreshold(1_000_000, "anthropic")).toBe(250_000);
+    it("uses the 120k cap for large context windows", () => {
+      expect(getCompactionThreshold(1_000_000, "anthropic")).toBe(120_000);
     });
 
     it("falls back to contextWindow - 25k when the cap is higher", () => {
@@ -138,12 +138,16 @@ describe("getCompactionThreshold", () => {
     });
 
     it("treats unknown providers like non-google providers", () => {
-      expect(getCompactionThreshold(400_000, "vertex")).toBe(250_000);
-      expect(getCompactionThreshold(400_000, "openrouter")).toBe(250_000);
+      expect(getCompactionThreshold(400_000, "vertex")).toBe(120_000);
+      expect(getCompactionThreshold(400_000, "openrouter")).toBe(120_000);
+      expect(getCompactionThreshold(1_000_000, "custom::Venice AI")).toBe(
+        120_000,
+      );
     });
 
-    it("leaves 25k headroom for the Auto model's configured context", () => {
-      expect(getCompactionThreshold(250_000, "auto")).toBe(225_000);
+    it("still leaves 25k headroom when the window is small", () => {
+      expect(getCompactionThreshold(128_000, "auto")).toBe(103_000);
+      expect(getCompactionThreshold(250_000, "auto")).toBe(120_000);
     });
   });
 

@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { eq } from "drizzle-orm";
+import { db } from "@/db";
+import { chats } from "@/db/schema";
 import { ToolDefinition, AgentContext } from "./types";
 import {
   MAX_GAME_PLAN_ITEMS,
@@ -9,6 +12,12 @@ import {
 import { MEMORY_LIMITS } from "../agent_memory";
 
 const writeHandoffSchema = z.object({
+  chat_summary: z
+    .string()
+    .optional()
+    .describe(
+      `One or two plain sentences (under ${MAX_ITEM_CHARS} characters) saying what this chat was about and what it got done. It becomes this chat's line in your chat library, so a future you can tell whether to open it.`,
+    ),
   doing_now: z
     .string()
     .describe(
@@ -50,6 +59,8 @@ export const writeHandoffTool: ToolDefinition<
 
 The new chat starts with your memory in front of it and nothing else from this chat, so write for a fresh you who remembers nothing. It saves into your memory: the state (max ${MEMORY_LIMITS.state} characters in total) is replaced with doing_now, game_plan, questions and carry_over; new_decisions and new_facts are added to your decisions and facts files. Do not repeat what those files already say. If a line in them is wrong or stale, fix it first with update_memory. If decisions or facts are full, the oldest lines are moved to an archive topic for you (topics/decisions-archive, topics/facts-archive), so never condense them just to make room.
 
+Also give chat_summary: it becomes this chat's one line in your chat library (shown at the start of every chat), which is how a future you knows what this chat was about without carrying its detail.
+
 The new chat opens by asking the user the questions, with no list and no recap, so make them specific and worth answering, and name the real options inside them. The game plan is what you will work from once the user answers. Do not summarize what was done.`,
   inputSchema: writeHandoffSchema,
   defaultConsent: "always",
@@ -60,7 +71,13 @@ The new chat opens by asking the user the questions, with no list and no recap, 
   getConsentPreview: () => "Write the handoff for a new chat",
 
   execute: async (args, ctx: AgentContext) => {
+    const chat = await db.query.chats.findFirst({
+      where: eq(chats.id, ctx.chatId),
+      columns: { title: true },
+    });
     return writeHandoff(ctx.appId, ctx.chatId, {
+      chatTitle: chat?.title ?? null,
+      chatSummary: args.chat_summary,
       doingNow: args.doing_now,
       gamePlan: args.game_plan,
       questions: args.questions,

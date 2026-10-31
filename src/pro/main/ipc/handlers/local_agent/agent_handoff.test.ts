@@ -8,8 +8,11 @@ vi.mock("@/paths/paths", () => ({ getUserDataPath: () => h.userData }));
 
 import { MAX_ITEM_CHARS, handoffStatus, writeHandoff } from "./agent_handoff";
 import {
+  LIBRARY_MAX_LINES,
   MEMORY_LIMITS,
+  agentMemoryPromptBlock,
   readHandoffRecord,
+  readLibrary,
   readMemoryFile,
   updateMemory,
 } from "./agent_memory";
@@ -106,6 +109,60 @@ describe("writeHandoff", () => {
     ).toThrow(/Nothing was saved/);
     expect(readMemoryFile(APP, "state")).toBe("keep");
     expect(readHandoffRecord(APP)).toBeNull();
+  });
+
+  it("adds this chat to the chat library, and replaces it if the same chat hands off again", () => {
+    writeHandoff(APP, CHAT, {
+      ...base,
+      chatTitle: "Read-aloud test drive",
+      chatSummary: "Wired read-aloud on the six story sites.",
+    });
+    let library = readLibrary(APP);
+    expect(library).toMatch(
+      /^- chat 41 \(\d{4}-\d{2}-\d{2}\): Read-aloud test drive — Wired read-aloud on the six story sites\.$/,
+    );
+    writeHandoff(APP, CHAT, {
+      ...base,
+      chatTitle: "Read-aloud test drive",
+      chatSummary: "Second pass: fixed MCStories.",
+    });
+    library = readLibrary(APP);
+    expect(library.split("\n")).toHaveLength(1);
+    expect(library).toContain("Second pass");
+    expect(library).not.toContain("Wired read-aloud");
+  });
+
+  it("keeps only the newest fifteen chats in the library", () => {
+    for (let i = 1; i <= 18; i++) {
+      writeHandoff(APP, 100 + i, {
+        ...base,
+        chatTitle: `Chat ${i}`,
+        chatSummary: `About thing ${i}.`,
+      });
+    }
+    const lines = readLibrary(APP).split("\n");
+    expect(lines).toHaveLength(LIBRARY_MAX_LINES);
+    expect(lines[0]).toContain("chat 104 ");
+    expect(lines.at(-1)).toContain("chat 118 ");
+  });
+
+  it("still writes a library line when no summary was given", () => {
+    writeHandoff(APP, CHAT, { ...base, chatTitle: "Just a title" });
+    expect(readLibrary(APP)).toMatch(
+      /chat 41 \(\d{4}-\d{2}-\d{2}\): Just a title/,
+    );
+  });
+
+  it("shows the library to her every turn, with the instruction to open old chats", () => {
+    writeHandoff(APP, CHAT, {
+      ...base,
+      chatTitle: "Story finder",
+      chatSummary: "Built it.",
+    });
+    const block = agentMemoryPromptBlock(APP);
+    expect(block).toContain("### chat library");
+    expect(block).toContain("chat 41");
+    expect(block).toContain("read_chat");
   });
 
   function fillDecisions(lines: number) {

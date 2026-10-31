@@ -94,15 +94,18 @@ export async function getTemperature(
  *
  * Per-provider caps differ because of input-token pricing tiers and operational
  * headroom. Google compacts before its 200k pricing boundary, while OpenAI
- * compacts at 220k to leave more room for tool-heavy agent steps. Other
- * providers retain the historical 250k cap.
+ * compacts at 220k to leave more room for tool-heavy agent steps. Every other
+ * provider compacts at 120k (Crackerbox; upstream uses 250k).
  */
 export function getCompactionThreshold(
   contextWindow: number,
   provider: string,
 ): number {
+  // Crackerbox compacts sooner than upstream (120k instead of 250k) for every
+  // provider that isn't tuned separately: a long chat gets hard to follow and
+  // costly well before the window fills.
   const cap =
-    provider === "google" ? 190_000 : provider === "openai" ? 220_000 : 250_000;
+    provider === "google" ? 190_000 : provider === "openai" ? 220_000 : 120_000;
   return Math.min(cap, Math.max(0, contextWindow - 25_000));
 }
 

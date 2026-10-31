@@ -4,9 +4,11 @@ import {
   appendToArchive,
   formatAppend,
   planFit,
+  planLibrary,
   readHandoffRecord,
   readMemoryFile,
   writeHandoffRecord,
+  writeLibrary,
   writeMemoryFile,
 } from "./agent_memory";
 
@@ -19,6 +21,9 @@ import {
 // with the game plan and questions instead of a recap.
 
 export interface HandoffInput {
+  /** The chat's title, and a one-line digest of what it was about. */
+  chatTitle?: string | null;
+  chatSummary?: string | null;
   doingNow: string;
   gamePlan: string[];
   questions: string[];
@@ -170,6 +175,11 @@ export function writeHandoff(
   // Everything fits. The archives are written first (a failure there saves
   // nothing), then the files, and the record goes last, so "handoff saved" is
   // only ever true when all three files are written.
+  const library = planLibrary(
+    appId,
+    { chatId, title: input.chatTitle, summary: input.chatSummary },
+    now,
+  );
   const archived: string[] = [];
   if (decisionsFit.removed.length) {
     const topic = appendToArchive(appId, "decisions", decisionsFit.removed);
@@ -183,6 +193,7 @@ export function writeHandoff(
       `${factsFit.removed.length} older fact line(s) moved to topics/${topic}`,
     );
   }
+  writeLibrary(appId, library);
   if (newDecisions.length)
     writeMemoryFile(appId, "decisions", decisionsFit.text);
   if (newFacts.length) writeMemoryFile(appId, "facts", factsFit.text);
@@ -193,6 +204,7 @@ export function writeHandoff(
     "state replaced",
     newDecisions.length ? `${newDecisions.length} decision(s) added` : null,
     newFacts.length ? `${newFacts.length} fact(s) added` : null,
+    "chat library updated",
     ...archived,
   ].filter(Boolean);
   return `Handoff saved (${bits.join(", ")}). Reply to the user with one short line saying the handoff is saved, and do nothing else this turn.`;

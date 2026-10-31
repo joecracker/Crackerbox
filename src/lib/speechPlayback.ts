@@ -41,6 +41,54 @@ export const VENICE_FIRST_PIECE_MAX_LENGTH = 130;
 export const VENICE_PIECE_MAX_LENGTH = 450;
 const VENICE_LOOKAHEAD = 2;
 
+// Bluetooth speakers, car stereos and headsets drop into low power whenever
+// nothing is streaming, then clip the first words (and the start of each new
+// piece) while they wake. Music never does this because it never stops. So for
+// the whole time she is talking, a tone far too quiet to hear keeps the link
+// awake, including the seconds spent waiting for the voice to be generated.
+let linkContext: AudioContext | null = null;
+let linkOscillator: OscillatorNode | null = null;
+let activeSource: AudioBufferSourceNode | null = null;
+let leadInPending = true;
+
+function startLinkKeepAlive() {
+  try {
+    if (typeof window === "undefined") return;
+    const Ctx =
+      window.AudioContext ??
+      (window as unknown as { webkitAudioContext?: typeof AudioContext })
+        .webkitAudioContext;
+    if (!Ctx) return;
+    linkContext ??= new Ctx();
+    void linkContext.resume().catch(() => {});
+    if (linkOscillator) return;
+    const oscillator = linkContext.createOscillator();
+    const gain = linkContext.createGain();
+    oscillator.frequency.value = 120;
+    gain.gain.value = 0.002;
+    oscillator.connect(gain).connect(linkContext.destination);
+    oscillator.start();
+    linkOscillator = oscillator;
+    leadInPending = true;
+  } catch {
+    // The keep-alive is a nicety; speech itself never depends on it.
+  }
+}
+
+function stopLinkKeepAlive() {
+  try {
+    linkOscillator?.stop();
+    linkOscillator?.disconnect();
+  } catch {
+    // Already stopped.
+  }
+  linkOscillator = null;
+  try {
+    void linkContext?.suspend().catch(() => {});
+  } catch {
+    // Nothing to suspend.
+  }
+}
 function publish(next: SpeechPlaybackState) {
   state = next;
   for (const listener of listeners) listener(state);
@@ -58,6 +106,16 @@ export function subscribeToSpeechPlayback(
 
 export function stopSpeechPlayback() {
   requestVersion += 1;
+  stopLinkKeepAlive();
+  if (activeSource) {
+    try {
+      activeSource.onended = null;
+      activeSource.stop();
+    } catch {
+      // Already stopped.
+    }
+    activeSource = null;
+  }
   if (audio) {
     audio.pause();
     audio.src = "";
@@ -75,7 +133,63 @@ function base64ToBytes(base64: string) {
   return bytes;
 }
 
+// Played through the same audio session that keeps the Bluetooth link awake,
+// so the phone sees one continuous stream instead of a new clip every few
+// seconds (each new clip can make it duck or dip the sound). Anything that
+// cannot use it (a changed speed, a suspended or missing audio context, a clip
+// that will not decode) plays the ordinary way.
 function playAudio(
+  audioBase64: string,
+  mimeType: string,
+  version: number,
+  playbackRate?: number,
+) {
+  const ctx = linkContext;
+  if (
+    !ctx ||
+    ctx.state !== "running" ||
+    (playbackRate !== undefined && playbackRate !== 1)
+  ) {
+    return playAudioElement(audioBase64, mimeType, version, playbackRate);
+  }
+  return new Promise<void>((resolve, reject) => {
+    const fallBack = () => {
+      playAudioElement(audioBase64, mimeType, version, playbackRate).then(
+        resolve,
+        reject,
+      );
+    };
+    try {
+      const bytes = base64ToBytes(audioBase64);
+      ctx
+        .decodeAudioData(bytes.buffer.slice(0) as ArrayBuffer)
+        .then((buffer) => {
+          if (version !== requestVersion) {
+            resolve();
+            return;
+          }
+          const source = ctx.createBufferSource();
+          source.buffer = buffer;
+          source.connect(ctx.destination);
+          const finish = () => {
+            source.onended = null;
+            if (resolveActivePlayback === finish) resolveActivePlayback = null;
+            if (activeSource === source) activeSource = null;
+            resolve();
+          };
+          resolveActivePlayback = finish;
+          activeSource = source;
+          source.onended = finish;
+          const lead = leadInPending ? 0.25 : 0;
+          leadInPending = false;
+          source.start(ctx.currentTime + lead);
+        }, fallBack);
+    } catch {
+      fallBack();
+    }
+  });
+}
+function playAudioElement(
   audioBase64: string,
   mimeType: string,
   version: number,
@@ -169,6 +283,7 @@ export async function playSpeech({
   stopSpeechPlayback();
   const version = requestVersion;
   publish({ messageId, status: "loading" });
+  startLinkKeepAlive();
 
   try {
     const synthesize = (chunk: string, selectedProvider: SpeechEngine) =>

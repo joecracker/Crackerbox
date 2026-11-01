@@ -399,6 +399,25 @@ export function applySearchReplace(
       }
     }
 
+    // Last resort: her text is an exact piece of the file, even if it starts or
+    // ends in the middle of a line. Accept it only when it occurs exactly once.
+    if (matchResult.error && !matchResult.error.includes("ambiguous")) {
+      const fileText = resultLines.join("\n");
+      const needle = searchContent.replace(/\r\n/g, "\n");
+      const first = needle.length >= 4 ? fileText.indexOf(needle) : -1;
+      if (first !== -1 && fileText.indexOf(needle, first + 1) === -1) {
+        const replacement = replaceContent.replace(/\r\n/g, "\n");
+        resultLines = (
+          fileText.slice(0, first) +
+          replacement +
+          fileText.slice(first + needle.length)
+        ).split("\n");
+        appliedCount++;
+        logger.debug("Matched as an exact piece of text inside the file");
+        continue;
+      }
+    }
+
     if (matchResult.error) {
       // Log detailed diagnostic information for debugging
       logMatchFailure(resultLines, searchLines, appliedCount);

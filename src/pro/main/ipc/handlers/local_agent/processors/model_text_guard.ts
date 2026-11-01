@@ -9,6 +9,10 @@
 const OPEN = "<dyad-";
 const CLOSE = "</dyad-";
 const ZERO_WIDTH_SPACE = "\u200b";
+// Stray Chinese/Japanese/Korean characters the model sometimes slips into
+// English replies. Dropped from chat text (tool arguments are not affected).
+const STRAY_CJK =
+  /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af\uff00-\uffef]/g;
 
 function defuse(text: string): string {
   return text.replace(/<(\/?)dyad-/gi, `<$1${ZERO_WIDTH_SPACE}dyad-`);
@@ -33,7 +37,7 @@ export function createModelTextGuard() {
   let held = "";
   return {
     push(text: string): string {
-      const combined = held + text;
+      const combined = held + text.replace(STRAY_CJK, "");
       held = "";
       const keep = partialTagSuffixLength(combined);
       if (keep > 0) {

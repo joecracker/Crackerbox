@@ -1461,6 +1461,7 @@ function renderCustomTag(
             properties: {
               steps: attributes.steps,
               limit: attributes.limit,
+              reason: attributes.reason,
               state: getState({ isStreaming, inProgress }),
             },
           }}

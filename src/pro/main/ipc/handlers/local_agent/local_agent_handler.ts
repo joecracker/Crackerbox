@@ -1599,7 +1599,7 @@ export async function handleLocalAgentStream(
                 result?.messages ?? stepOptions.messages,
               );
               if (normalizedStep.changed) {
-                logger.warn(
+                logger.debug(
                   `Normalized local-agent tool-call transcript before step for chat ${req.chatId}`,
                 );
                 result = {
@@ -1825,6 +1825,8 @@ export async function handleLocalAgentStream(
                     inThinkingBlock = false;
                     chunk = MODEL_REFUSAL_WARNING;
                     modelRefused = true;
+                  } else if (part.finishReason === "length") {
+                    chunk += `\n\n<dyad-step-limit reason="length">The reply hit the length limit and was cut off. Press Continue to let her finish.</dyad-step-limit>`;
                   }
                   break;
 

@@ -17,6 +17,7 @@ interface DyadStepLimitProps {
     properties: {
       steps?: string;
       limit?: string;
+      reason?: string;
       state?: CustomTagState;
     };
   };
@@ -24,7 +25,7 @@ interface DyadStepLimitProps {
 }
 
 export function DyadStepLimit({ node, children }: DyadStepLimitProps) {
-  const { steps = "50", limit: _limit = "50", state } = node.properties;
+  const { steps = "50", limit: _limit = "50", reason, state } = node.properties;
   const isFinished = state === "finished";
   const content = typeof children === "string" ? children : "";
   const chatId = useAtomValue(selectedChatIdAtom);
@@ -54,7 +55,9 @@ export function DyadStepLimit({ node, children }: DyadStepLimitProps) {
     <DyadCard state={state} accentColor="amber" isExpanded={true}>
       <DyadCardHeader icon={<PauseCircle size={15} />} accentColor="amber">
         <span className="font-medium text-sm text-foreground">
-          Paused after {steps} tool calls
+          {reason === "length"
+            ? "Reply cut off (hit the length limit)"
+            : `Paused after ${steps} tool calls`}
         </span>
         {isFinished && (
           <Button

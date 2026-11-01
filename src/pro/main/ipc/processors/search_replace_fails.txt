@@ -88,20 +88,6 @@ hi world
 Search block did not match any content
 </error_pattern>
 
---- Test case name: partial line does not match ---
-<original_file>
-the quick brown fox jumps
-over the lazy dog
-</original_file>
-<<<<<<< SEARCH
-brown fox
-=======
-red fox
->>>>>>> REPLACE
-<error_pattern>
-Search block did not match any content
-</error_pattern>
-
 --- Test case name: search with extra context that does not exist ---
 <original_file>
 line one

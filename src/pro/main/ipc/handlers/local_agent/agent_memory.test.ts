@@ -162,6 +162,29 @@ describe("limits and safety", () => {
     expect(readMemoryFile(APP, "decisions-archive")).toContain(lines[0]);
     expect(listTopicFiles(APP)).toContain("decisions-archive");
   });
+  it("append past the limit moves the oldest state lines to an archive topic", () => {
+    const lines = Array.from(
+      { length: 50 },
+      (_, i) => `- status line ${i} ${"s".repeat(100)}`,
+    );
+    updateMemory(APP, {
+      file: "state",
+      mode: "replace_file",
+      text: lines.join("\n"),
+    });
+    const result = updateMemory(APP, {
+      file: "state",
+      mode: "append",
+      text: "newest status " + "n".repeat(600),
+    });
+    expect(result).toMatch(
+      /Moved the \d+ oldest line\(s\) to topics\/state-archive/,
+    );
+    const kept = readMemoryFile(APP, "state");
+    expect(kept.length).toBeLessThanOrEqual(MEMORY_LIMITS.state);
+    expect(kept).toContain("newest status");
+    expect(readMemoryFile(APP, "state-archive")).toContain(lines[0]);
+  });
   it("replace_file past the limit is still refused (she asked for that exact text)", () => {
     expect(() =>
       updateMemory(APP, {

@@ -57,7 +57,9 @@ export function DyadStepLimit({ node, children }: DyadStepLimitProps) {
         <span className="font-medium text-sm text-foreground">
           {reason === "length"
             ? "Reply cut off (hit the length limit)"
-            : `Paused after ${steps} tool calls`}
+            : reason === "garbled"
+              ? "Her command came out as text and did not run"
+              : `Paused after ${steps} tool calls`}
         </span>
         {isFinished && (
           <Button

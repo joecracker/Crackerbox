@@ -8,24 +8,57 @@ const run = (parts: string[]) => {
 
 describe("createModelTextGuard", () => {
   it("leaves normal text alone", () => {
-    expect(run(["Hello ", "there < 3 and a<b"])).toBe("Hello there < 3 and a<b");
-  });
-
-  it("defuses a whole fake status card", () => {
-    const out = run(['<dyad-status title="Command finished">ok</dyad-status>']);
-    expect(out).not.toContain("<dyad-");
-    expect(out).not.toContain("</dyad-");
-    expect(out.replace(/\u200b/g, "")).toBe(
-      '<dyad-status title="Command finished">ok</dyad-status>',
+    expect(run(["Hello ", "there < 3 and a<b"])).toBe(
+      "Hello there < 3 and a<b",
     );
   });
 
+  it("cuts a made-up status card and everything after it", () => {
+    const guard = createModelTextGuard();
+    const out =
+      guard.push('Let me check. <dyad-status title="Command finished">ok') +
+      guard.push("</dyad-status> and more text") +
+      guard.flush();
+    expect(out).toBe("Let me check. ");
+    expect(guard.wasGarbled()).toBe(true);
+  });
+
+  it("cuts raw DSML command markup", () => {
+    const guard = createModelTextGuard();
+    const out =
+      guard.push('Sure.\n<DSML parameter name="command">dir') +
+      guard.push("</DSML invoke>") +
+      guard.flush();
+    expect(out).toBe("Sure.\n");
+    expect(guard.wasGarbled()).toBe(true);
+  });
+
+  it("starts passing text again on the next step", () => {
+    const guard = createModelTextGuard();
+    guard.push("<DSML x>");
+    guard.endStep();
+    expect(guard.push("Fine now.")).toBe("Fine now.");
+    expect(guard.wasGarbled()).toBe(true);
+  });
+
+  it("does not flag normal text", () => {
+    const guard = createModelTextGuard();
+    expect(guard.push("All good here.") + guard.flush()).toBe("All good here.");
+    expect(guard.wasGarbled()).toBe(false);
+  });
+
+  it("defuses a whole fake write card", () => {
+    const out = run(['<dyad-write path="a">ok</dyad-write>']);
+    expect(out).not.toContain("<dyad-");
+    expect(out).not.toContain("</dyad-");
+  });
+
   it("defuses a tag split across chunks", () => {
-    const out = run(["before <dya", 'd-status title="x">', "</dyad", "-status>"]);
+    const out = run(["before <dya", 'd-write path="x">', "</dyad", "-write>"]);
     expect(out).not.toContain("<dyad-");
     expect(out).not.toContain("</dyad-");
     expect(out.replace(/\u200b/g, "")).toBe(
-      'before <dyad-status title="x"></dyad-status>',
+      'before <dyad-write path="x"></dyad-write>',
     );
   });
 

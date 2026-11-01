@@ -1812,6 +1812,10 @@ export async function handleLocalAgentStream(
               }
 
               switch (part.type) {
+                case "start-step":
+                  modelTextGuard.endStep();
+                  break;
+
                 case "finish":
                   {
                     const heldText = modelTextGuard.flush();
@@ -1825,6 +1829,8 @@ export async function handleLocalAgentStream(
                     inThinkingBlock = false;
                     chunk = MODEL_REFUSAL_WARNING;
                     modelRefused = true;
+                  } else if (modelTextGuard.wasGarbled()) {
+                    chunk += `\n\n<dyad-step-limit reason="garbled">She tried to run a command, but it came out as plain text and did not run. Press Continue to have her try again.</dyad-step-limit>`;
                   } else if (part.finishReason === "length") {
                     chunk += `\n\n<dyad-step-limit reason="length">The reply hit the length limit and was cut off. Press Continue to let her finish.</dyad-step-limit>`;
                   }

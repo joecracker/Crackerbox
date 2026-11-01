@@ -192,10 +192,10 @@ export function formatAppend(name: string, text: string, now: Date): string {
     .join("\n");
 }
 
-export type ArchivableFile = "decisions" | "facts";
+export type ArchivableFile = "state" | "decisions" | "facts";
 
 export function isArchivableFile(name: string): name is ArchivableFile {
-  return name === "decisions" || name === "facts";
+  return name === "state" || name === "decisions" || name === "facts";
 }
 
 /**

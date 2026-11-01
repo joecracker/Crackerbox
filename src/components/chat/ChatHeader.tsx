@@ -32,7 +32,7 @@ import { isMutatingState } from "@/version_preview/state";
 import { useRenameBranch } from "@/hooks/useRenameBranch";
 import { LoadingBar } from "../ui/LoadingBar";
 import { UncommittedFilesBanner } from "./UncommittedFilesBanner";
-import { OpenRouterBalanceChip } from "./OpenRouterBalanceChip";
+import { VeniceBalanceChip } from "./VeniceBalanceChip";
 import { terminalOpenByChatIdAtom } from "@/atoms/terminalAtoms";
 import { cn } from "@/lib/utils";
 
@@ -236,7 +236,7 @@ export function ChatHeader({
         </div>
 
         <div className="flex items-center gap-1">
-          <OpenRouterBalanceChip isStreaming={isStreaming} />
+          <VeniceBalanceChip isStreaming={isStreaming} />
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger

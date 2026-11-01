@@ -85,6 +85,7 @@ export { miscContracts, miscEvents } from "./misc";
 export { freeAgentQuotaContracts } from "./free_agent_quota";
 export { freeModelQuotaContracts } from "./free_model_quota";
 export { openRouterBalanceContracts } from "./openrouter_balance";
+export { veniceBalanceContracts } from "./venice_balance";
 export { audioContracts } from "./audio";
 export { mediaContracts } from "./media";
 export {
@@ -152,6 +153,7 @@ export { miscClient, miscEventClient } from "./misc";
 export { freeAgentQuotaClient } from "./free_agent_quota";
 export { freeModelQuotaClient } from "./free_model_quota";
 export { openRouterBalanceClient } from "./openrouter_balance";
+export { veniceBalanceClient } from "./venice_balance";
 export { audioClient } from "./audio";
 export { mediaClient } from "./media";
 export {
@@ -446,6 +448,7 @@ export type {
 export type { FreeAgentQuotaStatus } from "./free_agent_quota";
 export type { FreeModelQuotaStatus } from "./free_model_quota";
 export type { OpenRouterBalance } from "./openrouter_balance";
+export type { VeniceBalance } from "./venice_balance";
 
 // Pro types
 export type { TranscribeAudioParams, TranscribeAudioResult } from "./audio";
@@ -567,6 +570,7 @@ import { miscClient, miscEventClient } from "./misc";
 import { freeAgentQuotaClient } from "./free_agent_quota";
 import { freeModelQuotaClient } from "./free_model_quota";
 import { openRouterBalanceClient } from "./openrouter_balance";
+import { veniceBalanceClient } from "./venice_balance";
 import { audioClient } from "./audio";
 import { mediaClient } from "./media";
 import {
@@ -655,6 +659,7 @@ export const ipc = {
   freeAgentQuota: freeAgentQuotaClient,
   freeModelQuota: freeModelQuotaClient,
   openRouterBalance: openRouterBalanceClient,
+  veniceBalance: veniceBalanceClient,
   audio: audioClient,
   media: mediaClient,
   appBlueprint: appBlueprintClient,

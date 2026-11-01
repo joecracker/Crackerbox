@@ -327,6 +327,11 @@ export const queryKeys = {
     status: ["openRouterBalance"] as const,
   },
 
+  // Venice account balance (header chip)
+  veniceBalance: {
+    status: ["veniceBalance"] as const,
+  },
+
   // ─────────────────────────────────────────────────────────────────────────────
   // Vercel Deployments
   // ─────────────────────────────────────────────────────────────────────────────

@@ -28,6 +28,33 @@ const optionsFor = (
     modelSelection,
   });
 
+describe("Venice reasoning effort", () => {
+  const veniceId = "custom::Venice AI";
+  const venice = (effort: string) =>
+    optionsFor(
+      settingsFor(veniceId, "deepseek-v4-1-flash-uncensored", effort),
+      veniceId,
+      veniceId,
+    )[veniceId];
+
+  it("turns the generic medium into low, which Venice lists", () => {
+    expect(venice("medium")).toEqual({ reasoningEffort: "low" });
+  });
+
+  it("keeps low, high and max as chosen", () => {
+    expect(venice("low")).toEqual({ reasoningEffort: "low" });
+    expect(venice("high")).toEqual({ reasoningEffort: "high" });
+    expect(venice("max")).toEqual({ reasoningEffort: "max" });
+  });
+
+  it("leaves other custom providers alone", () => {
+    const id = "custom::Something Else";
+    expect(optionsFor(settingsFor(id, "m", "medium"), id, id)[id]).toEqual({
+      reasoningEffort: "medium",
+    });
+  });
+});
+
 describe("getProviderOptions model effort", () => {
   it("uses thinking levels for Gemini 3 direct requests", () => {
     expect(

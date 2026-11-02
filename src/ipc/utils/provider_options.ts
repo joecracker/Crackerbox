@@ -14,6 +14,20 @@ export interface MentionedAppCodebase {
   files: CodebaseFile[];
 }
 
+// Venice's DeepSeek models take none/low/high/max. "medium" (Crackerbox's generic
+// default) is not one of them, so the model fell back to its own default of
+// "high" and talked itself in circles. Anything Venice does not list becomes
+// "low". "none" is never chosen for her: it would switch thinking off entirely.
+const VENICE_EFFORT_LEVELS = ["low", "high", "max"];
+
+export function isVeniceProviderId(providerId: string | undefined): boolean {
+  return !!providerId && /venice/i.test(providerId);
+}
+
+export function getVeniceReasoningEffort(effort: string): string {
+  return VENICE_EFFORT_LEVELS.includes(effort) ? effort : "low";
+}
+
 export interface GetProviderOptionsParams {
   dyadAppId: number;
   dyadRequestId?: string;
@@ -65,7 +79,9 @@ export function getProviderOptions({
   };
   if (reasoningEffortProviderId) {
     providerOptions[reasoningEffortProviderId] = {
-      reasoningEffort: getModelEffort(modelSelection),
+      reasoningEffort: isVeniceProviderId(reasoningEffortProviderId)
+        ? getVeniceReasoningEffort(getModelEffort(modelSelection))
+        : getModelEffort(modelSelection),
     };
   }
 

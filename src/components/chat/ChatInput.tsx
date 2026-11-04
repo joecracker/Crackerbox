@@ -1164,7 +1164,7 @@ export function ChatInput({ chatId }: { chatId?: number }) {
                 </TooltipContent>
               </Tooltip>
             ) : (
-              <div className="mb-0.5 mr-1 flex items-center">
+              <div className="mr-1 flex items-center self-center">
                 <Tooltip>
                   <TooltipTrigger
                     render={
@@ -1172,12 +1172,12 @@ export function ChatInput({ chatId }: { chatId?: number }) {
                         onClick={() => handleSubmit()}
                         disabled={!hasComposerPayload || disableSendButton}
                         aria-label={t("sendMessage")}
-                        className="flex items-center gap-1.5 px-2 py-2 text-muted-foreground hover:text-primary rounded-lg transition-colors duration-150 disabled:opacity-30 disabled:hover:text-muted-foreground cursor-pointer disabled:cursor-default"
+                        className="flex items-center gap-2 rounded-lg bg-[color-mix(in_srgb,var(--primary)_72%,black)] px-4 py-2.5 text-white shadow-sm transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--primary)_85%,black)] disabled:opacity-40 disabled:hover:bg-[color-mix(in_srgb,var(--primary)_72%,black)] cursor-pointer disabled:cursor-default"
                       />
                     }
                   >
-                    <SendHorizontalIcon size={18} />
-                    <span className="text-xs font-medium">Send</span>
+                    <SendHorizontalIcon size={22} />
+                    <span className="text-sm font-semibold">Send</span>
                   </TooltipTrigger>
                   <TooltipContent>Send</TooltipContent>
                 </Tooltip>

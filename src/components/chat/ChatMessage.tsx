@@ -7,7 +7,6 @@ import { useStreamChat } from "@/hooks/useStreamChat";
 import { StreamingLoadingAnimation } from "./StreamingLoadingAnimation";
 import {
   XCircle,
-  Clock,
   GitCommit,
   Copy,
   Check,
@@ -19,7 +18,7 @@ import {
   Volume2,
   Square,
 } from "lucide-react";
-import { formatDistanceToNow, format } from "date-fns";
+import { format } from "date-fns";
 import { useVersions } from "@/hooks/useVersions";
 import { useAtomValue } from "jotai";
 import { selectedAppIdAtom } from "@/atoms/appAtoms";
@@ -229,18 +228,9 @@ const ChatMessage = ({
     };
   }, []);
 
-  // Format the message timestamp
-  const formatTimestamp = (timestamp: string | Date) => {
-    const now = new Date();
-    const messageTime = new Date(timestamp);
-    const diffInHours =
-      (now.getTime() - messageTime.getTime()) / (1000 * 60 * 60);
-    if (diffInHours < 24) {
-      return formatDistanceToNow(messageTime, { addSuffix: true });
-    } else {
-      return format(messageTime, "MMM d, yyyy 'at' h:mm a");
-    }
-  };
+  // Format the message time and date, e.g. "Mon, Nov 2 · 11:19 PM"
+  const formatTimestamp = (timestamp: string | Date) =>
+    format(new Date(timestamp), "EEE, MMM d · h:mm a");
 
   const isCancelled =
     isCancelledResponseContent(message.content) || !!isCancelledPrompt;
@@ -363,8 +353,8 @@ const ChatMessage = ({
           <div
             className={`rounded-lg p-2 ${
               message.role === "assistant"
-                ? ""
-                : "relative ml-24 bg-(--sidebar-accent)"
+                ? "bg-[var(--brand-assistant-bubble,var(--background-lighter))]"
+                : "relative ml-24 bg-[var(--brand-user-bubble,var(--sidebar-accent))]"
             }`}
           >
             {/* Text prompts anchor the button to the message box; attachment-only
@@ -559,11 +549,15 @@ const ChatMessage = ({
             ))}
           </div>
         )}
-        {/* Timestamp and commit info for assistant messages - only visible on hover */}
+        {/* Time and date under every message, plus commit info for assistant messages */}
+        {message.role !== "assistant" && message.createdAt && (
+          <div className="mt-1 text-right text-xs text-gray-500 dark:text-gray-400">
+            {formatTimestamp(message.createdAt)}
+          </div>
+        )}
         {message.role === "assistant" && message.createdAt && (
           <div className="mt-1 flex flex-wrap items-center justify-start space-x-2 text-xs text-gray-500 dark:text-gray-400 ">
-            <div className="hidden items-center space-x-1 md:flex">
-              <Clock className="h-3 w-3" />
+            <div className="flex items-center space-x-1">
               <span>{formatTimestamp(message.createdAt)}</span>
             </div>
             {messageVersion && messageVersion.message && versionNumber && (

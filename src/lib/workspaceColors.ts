@@ -28,6 +28,16 @@ export const WORKSPACE_COLOR_FIELDS = [
     label: "Accent and selected items",
     variables: ["--primary", "--brand-pinstripe"],
   },
+  {
+    key: "userBubble",
+    label: "Your messages",
+    variables: ["--brand-user-bubble"],
+  },
+  {
+    key: "assistantBubble",
+    label: "Her messages",
+    variables: ["--brand-assistant-bubble"],
+  },
 ] as const;
 
 export type WorkspaceColorKey = (typeof WORKSPACE_COLOR_FIELDS)[number]["key"];
@@ -44,6 +54,8 @@ export const WORKSPACE_COLOR_PRESETS: Record<string, WorkspaceColors> = {
     subtleText: "#a6afa2",
     surfaces: "#222920",
     accent: "#879b78",
+    userBubble: "#2c3a45",
+    assistantBubble: "#2a3328",
   },
   Graphite: {
     background: "#151617",
@@ -55,6 +67,8 @@ export const WORKSPACE_COLOR_PRESETS: Record<string, WorkspaceColors> = {
     subtleText: "#a8aaa9",
     surfaces: "#222426",
     accent: "#8c9ba3",
+    userBubble: "#2b3640",
+    assistantBubble: "#2a2d30",
   },
   "Dark Roast": {
     background: "#1c1714",
@@ -66,6 +80,8 @@ export const WORKSPACE_COLOR_PRESETS: Record<string, WorkspaceColors> = {
     subtleText: "#b3a79b",
     surfaces: "#2a221d",
     accent: "#a48b72",
+    userBubble: "#3a3028",
+    assistantBubble: "#2f2620",
   },
 };
 
@@ -81,6 +97,8 @@ export const WORKSPACE_COLOR_FALLBACKS = {
     subtleText: "#626b60",
     surfaces: "#ffffff",
     accent: "#70845d",
+    userBubble: "#dbe6ee",
+    assistantBubble: "#e3ead9",
   },
 } as const;
 

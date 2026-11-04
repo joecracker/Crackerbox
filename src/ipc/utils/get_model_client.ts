@@ -15,6 +15,7 @@ import { createVertex as createGoogleVertex } from "@ai-sdk/google-vertex";
 import { createAzure } from "@ai-sdk/azure";
 import type { LanguageModel } from "ai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import { withoutNullBytes } from "./strip_null_bytes";
 import { createAmazonBedrock } from "@ai-sdk/amazon-bedrock";
 import type { FetchFunction } from "@ai-sdk/provider-utils";
 import type {
@@ -942,6 +943,9 @@ function getRegularModelClient(
           baseURL: providerConfig.apiBaseUrl,
           apiKey,
           ...getModelClientFetchOption(),
+          // A NUL character saved in a past reply would otherwise get every
+          // later request refused. See strip_null_bytes.ts.
+          fetch: withoutNullBytes(getModelClientFetchOption().fetch),
         });
         return {
           modelClient: {

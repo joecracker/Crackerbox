@@ -348,7 +348,14 @@ export function registerMediaHandlers() {
         { name: "All files", extensions: ["*"] },
       ],
     };
-    const win = BrowserWindow.fromWebContents(event.sender);
+    // Calls from the phone page carry a stand-in sender that has no real
+    // window, so look the window up defensively.
+    let win: BrowserWindow | null = null;
+    try {
+      win = BrowserWindow.fromWebContents(event.sender);
+    } catch {
+      win = BrowserWindow.getFocusedWindow();
+    }
     const result = win
       ? await dialog.showSaveDialog(win, options)
       : await dialog.showSaveDialog(options);

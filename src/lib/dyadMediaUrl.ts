@@ -1,8 +1,13 @@
+import { toPhoneMediaUrl } from "./phoneClient";
+
 /**
  * Builds a dyad-media:// protocol URL for serving media files in Electron.
+ * On the phone page it becomes the plain web address the phone can open.
  */
 export function buildDyadMediaUrl(appPath: string, fileName: string): string {
-  return `dyad-media://media/${encodeURIComponent(appPath)}/.dyad/media/${encodeURIComponent(fileName)}`;
+  return toPhoneMediaUrl(
+    `dyad-media://media/${encodeURIComponent(appPath)}/.dyad/media/${encodeURIComponent(fileName)}`,
+  );
 }
 
 /**
@@ -12,7 +17,9 @@ export function buildDyadMediaUrlForApp(
   appId: number,
   fileName: string,
 ): string {
-  return `dyad-media://media/app-id/${appId}/.dyad/media/${encodeURIComponent(fileName)}`;
+  return toPhoneMediaUrl(
+    `dyad-media://media/app-id/${appId}/.dyad/media/${encodeURIComponent(fileName)}`,
+  );
 }
 
 /**

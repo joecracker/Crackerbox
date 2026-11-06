@@ -48,6 +48,11 @@ import {
 import { MediaFolderOpen } from "./media-library/MediaFolderOpen";
 import { ImageLightbox } from "./chat/ImageLightbox";
 import { buildDyadMediaUrl } from "@/lib/dyadMediaUrl";
+import {
+  copyPictureToClipboard,
+  isPhoneClient,
+  shareOrDownloadPicture,
+} from "@/lib/phoneClient";
 import { AppSearchSelect } from "./AppSearchSelect";
 import { getSectionCounts, UNSORTED_SECTION } from "@/lib/mediaUtils";
 
@@ -219,6 +224,17 @@ export function DyadAppMediaFolder({
 
   const handleSaveAs = async (file: MediaFile) => {
     try {
+      if (isPhoneClient()) {
+        // On the phone: share sheet (or download), not a PC pop-up.
+        const outcome = await shareOrDownloadPicture(
+          buildDyadMediaUrl(appPath, file.fileName),
+          file.fileName,
+        );
+        if (outcome === "downloaded") {
+          showSuccess("Saved to your phone's downloads.");
+        }
+        return;
+      }
       const result = await ipc.media.saveMediaFileAs({
         appId: file.appId,
         fileName: file.fileName,
@@ -233,6 +249,11 @@ export function DyadAppMediaFolder({
 
   const handleCopyImage = async (file: MediaFile) => {
     try {
+      if (isPhoneClient()) {
+        await copyPictureToClipboard(buildDyadMediaUrl(appPath, file.fileName));
+        showSuccess("Picture copied to your phone. Paste it anywhere.");
+        return;
+      }
       await ipc.media.copyMediaImage({
         appId: file.appId,
         fileName: file.fileName,

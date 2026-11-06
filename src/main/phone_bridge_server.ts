@@ -714,6 +714,10 @@ export const PHONE_SHIM_SCRIPT = `(function () {
     });
   }
 
+  // Lets Crackerbox's own pages know they are on a phone, so pictures are
+  // shared/saved with the phone instead of opening PC pop-ups.
+  window.__cbPhone = true;
+
   window.electron = {
     ipcRenderer: {
       invoke: function (channel) {

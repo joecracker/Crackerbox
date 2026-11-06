@@ -33,6 +33,7 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { ipc } from "@/ipc/types";
+import { isPhoneClient } from "@/lib/phoneClient";
 import type { MediaFile } from "@/ipc/types";
 
 type MediaAction = {
@@ -81,12 +82,14 @@ export function MediaFileThumbnail({
     file.sizeBytes,
   );
   const [imgError, setImgError] = useState(false);
+  // On the phone page the PC's pop-ups and drag-and-drop don't apply.
+  const onPhone = isPhoneClient();
 
-  const actions: MediaAction[] = [
+  const allActions: MediaAction[] = [
     {
       key: "save-as",
       testId: "media-save-as",
-      label: "Save As…",
+      label: onPhone ? "Share or Save…" : "Save As…",
       icon: Download,
       onSelect: () => onSaveAs(file),
     },
@@ -152,6 +155,9 @@ export function MediaFileThumbnail({
       separatorBefore: true,
     },
   ];
+  const actions = onPhone
+    ? allActions.filter((action) => action.key !== "show-in-folder")
+    : allActions;
 
   return (
     <ContextMenu>
@@ -164,14 +170,19 @@ export function MediaFileThumbnail({
           <div
             role="button"
             tabIndex={0}
-            draggable
-            title="Click to preview. Drag onto your desktop or another app to copy it out. Right-click for more."
+            draggable={!onPhone}
+            title={
+              onPhone
+                ? "Tap to preview. Press and hold for more."
+                : "Click to preview. Drag onto your desktop or another app to copy it out. Right-click for more."
+            }
             className="group w-[120px] h-[120px] relative cursor-pointer"
             onClick={() => onPreviewImage(file)}
             onDragStart={(e) => {
               // Hand the drag to the system so the real file can be dropped
               // on the desktop, in Explorer, or into other apps.
               e.preventDefault();
+              if (onPhone) return;
               ipc.media.startDrag({ filePath: file.filePath });
             }}
             onKeyDown={(e) => {

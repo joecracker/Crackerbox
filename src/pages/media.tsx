@@ -9,6 +9,7 @@ import { ImageGeneratorDialog } from "@/components/ImageGeneratorDialog";
 import { DYAD_CLOUD_FEATURES_ENABLED } from "@/lib/proBillingFlags";
 import { ImageGenerationProgressButton } from "@/components/ImageGenerationProgressButton";
 import { filterMediaAppsByQuery } from "@/lib/mediaUtils";
+import { MediaStorageBar } from "@/components/media-library/MediaStorageBar";
 
 export default function MediaPage() {
   const {
@@ -17,6 +18,8 @@ export default function MediaPage() {
     renameMediaFile,
     deleteMediaFile,
     moveMediaFile,
+    updateMediaMeta,
+    storageInfo,
     isMutatingMedia,
   } = useAppMediaFiles();
   const { apps: allApps } = useLoadApps();
@@ -43,6 +46,8 @@ export default function MediaPage() {
             )}
           </div>
         </div>
+
+        {storageInfo && <MediaStorageBar info={storageInfo} />}
 
         <LibrarySearchBar
           value={searchQuery}
@@ -73,6 +78,7 @@ export default function MediaPage() {
                 onRenameMediaFile={renameMediaFile}
                 onDeleteMediaFile={deleteMediaFile}
                 onMoveMediaFile={moveMediaFile}
+                onUpdateMediaMeta={updateMediaMeta}
                 isMutatingMedia={isMutatingMedia}
                 searchQuery={searchQuery}
               />

@@ -1,8 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ChevronLeft, ChevronRight, FolderOpen } from "lucide-react";
 import type { MediaFile } from "@/ipc/types";
 import { Button } from "@/components/ui/button";
 import { MediaFileThumbnail } from "./MediaFileThumbnail";
+import {
+  UNSORTED_SECTION,
+  fileMatchesQuery,
+  fileMatchesSection,
+  getSectionCounts,
+} from "@/lib/mediaUtils";
 
 export const MEDIA_LIBRARY_PAGE_SIZE = 48;
 
@@ -17,6 +23,8 @@ export function MediaFolderOpen({
   onMoveImage,
   onDeleteImage,
   onPreviewImage,
+  onSetSection,
+  onTogglePin,
   isBusy,
   searchQuery,
 }: {
@@ -30,15 +38,20 @@ export function MediaFolderOpen({
   onMoveImage: (file: MediaFile) => void;
   onDeleteImage: (file: MediaFile) => void;
   onPreviewImage: (file: MediaFile) => void;
+  onSetSection: (file: MediaFile) => void;
+  onTogglePin: (file: MediaFile) => void;
   isBusy: boolean;
   searchQuery?: string;
 }) {
   const [currentPage, setCurrentPage] = useState(1);
-  const filteredFiles = searchQuery
-    ? files.filter((f) =>
-        f.fileName.toLowerCase().includes(searchQuery.toLowerCase()),
-      )
-    : files;
+  const [activeSection, setActiveSection] = useState("");
+  const sectionCounts = useMemo(() => getSectionCounts(files), [files]);
+  const unsortedCount = files.filter((f) => !f.section).length;
+  const filteredFiles = files.filter(
+    (f) =>
+      fileMatchesQuery(f, searchQuery ?? "") &&
+      fileMatchesSection(f, activeSection),
+  );
   const totalPages = Math.max(
     1,
     Math.ceil(filteredFiles.length / MEDIA_LIBRARY_PAGE_SIZE),
@@ -52,7 +65,17 @@ export function MediaFolderOpen({
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery]);
+  }, [searchQuery, activeSection]);
+
+  useEffect(() => {
+    // Fall back to "All" when the chosen section has no pictures left.
+    if (!activeSection) return;
+    const stillThere =
+      activeSection === UNSORTED_SECTION
+        ? unsortedCount > 0
+        : sectionCounts.some((s) => s.section === activeSection);
+    if (!stillThere) setActiveSection("");
+  }, [activeSection, sectionCounts, unsortedCount]);
 
   useEffect(() => {
     setCurrentPage((page) => Math.min(page, totalPages));
@@ -78,6 +101,41 @@ export function MediaFolderOpen({
           ({filteredFiles.length} file{filteredFiles.length !== 1 ? "s" : ""})
         </span>
       </div>
+      {sectionCounts.length > 0 && (
+        <div
+          className="mb-3 flex flex-wrap gap-2"
+          data-testid="media-section-chips"
+        >
+          <Button
+            size="sm"
+            variant={activeSection === "" ? "default" : "outline"}
+            onClick={() => setActiveSection("")}
+          >
+            All ({files.length})
+          </Button>
+          {sectionCounts.map((s) => (
+            <Button
+              key={s.section}
+              size="sm"
+              variant={activeSection === s.section ? "default" : "outline"}
+              onClick={() => setActiveSection(s.section)}
+            >
+              {s.section} ({s.count})
+            </Button>
+          ))}
+          {unsortedCount > 0 && (
+            <Button
+              size="sm"
+              variant={
+                activeSection === UNSORTED_SECTION ? "default" : "outline"
+              }
+              onClick={() => setActiveSection(UNSORTED_SECTION)}
+            >
+              Unsorted ({unsortedCount})
+            </Button>
+          )}
+        </div>
+      )}
       {filteredFiles.length === 0 ? (
         <p className="text-muted-foreground text-center py-8">
           {searchQuery
@@ -97,6 +155,8 @@ export function MediaFolderOpen({
                 onMoveImage={onMoveImage}
                 onDeleteImage={onDeleteImage}
                 onPreviewImage={onPreviewImage}
+                onSetSection={onSetSection}
+                onTogglePin={onTogglePin}
                 isBusy={isBusy}
               />
             ))}

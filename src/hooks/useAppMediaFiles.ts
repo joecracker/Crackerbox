@@ -4,6 +4,7 @@ import {
   type RenameMediaFileParams,
   type DeleteMediaFileParams,
   type MoveMediaFileParams,
+  type UpdateMediaMetaParams,
 } from "@/ipc/types";
 import { queryKeys } from "@/lib/queryKeys";
 import { showError, showSuccess } from "@/lib/toast";
@@ -18,6 +19,12 @@ export function useAppMediaFiles() {
     queryFn: () => ipc.media.listAllMedia(),
     // Media files can be added externally (e.g., via file system), so keep
     // staleTime short to pick up new files promptly.
+    staleTime: settings?.isTestMode ? 0 : 10_000,
+  });
+
+  const storageQuery = useQuery({
+    queryKey: queryKeys.media.storage,
+    queryFn: () => ipc.media.getMediaStorageInfo(),
     staleTime: settings?.isTestMode ? 0 : 10_000,
   });
 
@@ -60,15 +67,30 @@ export function useAppMediaFiles() {
     },
   });
 
+  const metaMutation = useMutation({
+    mutationFn: (params: UpdateMediaMetaParams) => {
+      return ipc.media.updateMediaMeta(params);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.media.all });
+    },
+    onError: (error) => {
+      showError(error);
+    },
+  });
+
   return {
     mediaApps: query.data?.apps ?? [],
+    storageInfo: storageQuery.data,
     isLoading: query.isLoading,
     renameMediaFile: renameMutation.mutateAsync,
     deleteMediaFile: deleteMutation.mutateAsync,
     moveMediaFile: moveMutation.mutateAsync,
+    updateMediaMeta: metaMutation.mutateAsync,
     isMutatingMedia:
       renameMutation.isPending ||
       deleteMutation.isPending ||
-      moveMutation.isPending,
+      moveMutation.isPending ||
+      metaMutation.isPending,
   };
 }

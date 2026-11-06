@@ -7,6 +7,9 @@ import {
   Trash2,
   MoveRight,
   Expand,
+  Pin,
+  PinOff,
+  Tag,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { buildDyadMediaThumbnailUrl } from "@/lib/dyadMediaUrl";
@@ -27,6 +30,8 @@ export function MediaFileThumbnail({
   onMoveImage,
   onDeleteImage,
   onPreviewImage,
+  onSetSection,
+  onTogglePin,
   isBusy,
 }: {
   file: MediaFile;
@@ -36,6 +41,8 @@ export function MediaFileThumbnail({
   onMoveImage: (file: MediaFile) => void;
   onDeleteImage: (file: MediaFile) => void;
   onPreviewImage: (file: MediaFile) => void;
+  onSetSection: (file: MediaFile) => void;
+  onTogglePin: (file: MediaFile) => void;
   isBusy: boolean;
 }) {
   const mediaUrl = buildDyadMediaThumbnailUrl(
@@ -114,6 +121,26 @@ export function MediaFileThumbnail({
               Move To
             </DropdownMenuItem>
             <DropdownMenuItem
+              data-testid="media-set-section"
+              onClick={() => onSetSection(file)}
+              disabled={isBusy}
+            >
+              <Tag className="mr-2 h-4 w-4" />
+              Set Section
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              data-testid="media-toggle-pin"
+              onClick={() => onTogglePin(file)}
+              disabled={isBusy}
+            >
+              {file.pinned ? (
+                <PinOff className="mr-2 h-4 w-4" />
+              ) : (
+                <Pin className="mr-2 h-4 w-4" />
+              )}
+              {file.pinned ? "Unpin (allow archiving)" : "Pin (keep forever)"}
+            </DropdownMenuItem>
+            <DropdownMenuItem
               data-testid="media-delete-image"
               variant="destructive"
               onClick={() => onDeleteImage(file)}
@@ -124,6 +151,16 @@ export function MediaFileThumbnail({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        {file.pinned && (
+          <div
+            data-testid="media-pinned-badge"
+            title="Pinned: never moved to the archive"
+            className="absolute left-1 top-1 z-10 flex size-6 items-center justify-center rounded-full bg-secondary shadow"
+          >
+            <Pin className="h-3.5 w-3.5" />
+          </div>
+        )}
 
         {imgError ? (
           <div className="w-full h-full flex items-center justify-center text-muted-foreground">
@@ -148,10 +185,24 @@ export function MediaFileThumbnail({
       <div className="p-1.5">
         <p
           className="text-xs truncate text-muted-foreground"
-          title={file.fileName}
+          title={[
+            file.fileName,
+            file.engine ? `Engine: ${file.engine}` : "",
+            file.prompt ? `Prompt: ${file.prompt}` : "",
+          ]
+            .filter(Boolean)
+            .join("\n")}
         >
           {file.fileName}
         </p>
+        {file.section && (
+          <p
+            className="text-[10px] truncate text-primary/80"
+            title={`Section: ${file.section}`}
+          >
+            {file.section}
+          </p>
+        )}
       </div>
     </div>
   );

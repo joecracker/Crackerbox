@@ -16,6 +16,12 @@ const MediaFileSchema = z.object({
   sizeBytes: z.number(),
   modifiedAtMs: z.number(),
   mimeType: z.string(),
+  // Notes kept in the app's gallery index (see media_gallery_index.ts).
+  section: z.string().optional(),
+  pinned: z.boolean().optional(),
+  prompt: z.string().optional(),
+  engine: z.string().optional(),
+  createdAt: z.string().optional(),
 });
 
 export type MediaFile = z.infer<typeof MediaFileSchema>;
@@ -56,6 +62,31 @@ export const MoveMediaFileParamsSchema = z.object({
   targetAppId: z.number(),
 });
 
+export const UpdateMediaMetaParamsSchema = z.object({
+  appId: z.number(),
+  fileName: z.string(),
+  /** string = set the section, null = clear it, omitted = leave alone */
+  section: z.string().nullable().optional(),
+  pinned: z.boolean().optional(),
+});
+
+export const MediaStorageInfoSchema = z.object({
+  /** Pictures currently in the apps' media folders. */
+  liveBytes: z.number(),
+  liveFileCount: z.number(),
+  /** Pictures that aged out and now sit in the archive folder. */
+  archiveBytes: z.number(),
+  archiveFileCount: z.number(),
+  archivePath: z.string(),
+  /** The page warns once archive passes this many bytes. */
+  warnBytes: z.number(),
+});
+
+export const EmptyArchiveResponseSchema = z.object({
+  removedFiles: z.number(),
+  removedBytes: z.number(),
+});
+
 // =============================================================================
 // Media Contracts
 // =============================================================================
@@ -90,6 +121,30 @@ export const mediaContracts = {
     input: MoveMediaFileParamsSchema,
     output: z.void(),
   }),
+
+  updateMediaMeta: defineContract({
+    channel: "update-media-meta",
+    input: UpdateMediaMetaParamsSchema,
+    output: z.void(),
+  }),
+
+  getMediaStorageInfo: defineContract({
+    channel: "get-media-storage-info",
+    input: z.void(),
+    output: MediaStorageInfoSchema,
+  }),
+
+  openArchiveFolder: defineContract({
+    channel: "open-media-archive-folder",
+    input: z.void(),
+    output: z.void(),
+  }),
+
+  emptyArchive: defineContract({
+    channel: "empty-media-archive",
+    input: z.void(),
+    output: EmptyArchiveResponseSchema,
+  }),
 } as const;
 
 // =============================================================================
@@ -106,3 +161,6 @@ export type RenameMediaFileParams = z.infer<typeof RenameMediaFileParamsSchema>;
 export type DeleteMediaFileParams = z.infer<typeof DeleteMediaFileParamsSchema>;
 export type OpenMediaFileParams = z.infer<typeof OpenMediaFileParamsSchema>;
 export type MoveMediaFileParams = z.infer<typeof MoveMediaFileParamsSchema>;
+export type UpdateMediaMetaParams = z.infer<typeof UpdateMediaMetaParamsSchema>;
+export type MediaStorageInfo = z.infer<typeof MediaStorageInfoSchema>;
+export type EmptyArchiveResponse = z.infer<typeof EmptyArchiveResponseSchema>;

@@ -513,6 +513,7 @@ export const queryKeys = {
   // ─────────────────────────────────────────────────────────────────────────────
   media: {
     all: ["media"] as const,
+    storage: ["media", "storage"] as const,
   },
 } as const;
 

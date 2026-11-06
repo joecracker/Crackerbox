@@ -45,6 +45,7 @@ import { searchReplaceTool } from "./tools/search_replace";
 import { webSearchTool } from "./tools/web_search";
 import { webFetchTool } from "./tools/web_fetch";
 import { generateImageTool } from "./tools/generate_image";
+import { removeBackgroundTool } from "./tools/remove_background";
 import { updateTodosTool } from "./tools/update_todos";
 import { runTypeChecksTool } from "./tools/run_type_checks";
 import { runTestsTool } from "./tools/run_tests";
@@ -213,6 +214,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinition[] = [
   webSearchTool,
   webFetchTool,
   generateImageTool,
+  removeBackgroundTool,
   updateTodosTool,
   runTypeChecksTool,
   runPreCommitTool,

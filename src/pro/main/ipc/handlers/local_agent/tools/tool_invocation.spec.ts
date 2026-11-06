@@ -115,7 +115,7 @@ describe("trackAppMutation", () => {
     expect(ctx.fileMutationCount).toBe(1);
   });
 
-  it.each(["generate_image"])(
+  it.each(["generate_image", "remove_background"])(
     "does not count %s as a Git-visible file mutation",
     (toolName) => {
       const ctx = {} as AgentContext;

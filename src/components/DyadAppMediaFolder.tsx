@@ -27,6 +27,7 @@ import {
   type RenameMediaFileParams,
   type DeleteMediaFileParams,
   type MoveMediaFileParams,
+  type UpdateMediaMetaParams,
 } from "@/ipc/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/queryKeys";
@@ -41,6 +42,7 @@ import { MediaFolderOpen } from "./media-library/MediaFolderOpen";
 import { ImageLightbox } from "./chat/ImageLightbox";
 import { buildDyadMediaUrl } from "@/lib/dyadMediaUrl";
 import { AppSearchSelect } from "./AppSearchSelect";
+import { getSectionCounts } from "@/lib/mediaUtils";
 
 interface DyadAppMediaFolderProps {
   appName: string;
@@ -51,6 +53,7 @@ interface DyadAppMediaFolderProps {
   onRenameMediaFile: (params: RenameMediaFileParams) => Promise<void>;
   onDeleteMediaFile: (params: DeleteMediaFileParams) => Promise<void>;
   onMoveMediaFile: (params: MoveMediaFileParams) => Promise<void>;
+  onUpdateMediaMeta: (params: UpdateMediaMetaParams) => Promise<void>;
   isMutatingMedia?: boolean;
   searchQuery?: string;
 }
@@ -64,6 +67,7 @@ export function DyadAppMediaFolder({
   onRenameMediaFile,
   onDeleteMediaFile,
   onMoveMediaFile,
+  onUpdateMediaMeta,
   isMutatingMedia = false,
   searchQuery,
 }: DyadAppMediaFolderProps) {
@@ -82,6 +86,11 @@ export function DyadAppMediaFolder({
   const [isMoving, setIsMoving] = useState(false);
   const [isStartingChat, setIsStartingChat] = useState(false);
   const [previewFile, setPreviewFile] = useState<MediaFile | null>(null);
+  const [sectionTargetFile, setSectionTargetFile] = useState<MediaFile | null>(
+    null,
+  );
+  const [sectionDraft, setSectionDraft] = useState("");
+  const [isSavingMeta, setIsSavingMeta] = useState(false);
   const queryClient = useQueryClient();
   const { selectChat } = useSelectChat();
 
@@ -91,7 +100,12 @@ export function DyadAppMediaFolder({
   );
 
   const isBusy =
-    isMutatingMedia || isRenaming || isDeleting || isMoving || isStartingChat;
+    isMutatingMedia ||
+    isRenaming ||
+    isDeleting ||
+    isMoving ||
+    isStartingChat ||
+    isSavingMeta;
   const renameError =
     renameBaseName.trim() && INVALID_FILE_NAME_CHARS.test(renameBaseName.trim())
       ? 'Name contains invalid characters (<>:"/\\|?*)'
@@ -177,6 +191,44 @@ export function DyadAppMediaFolder({
     }
   };
 
+  const existingSections = useMemo(
+    () => getSectionCounts(files).map((s) => s.section),
+    [files],
+  );
+
+  const handleSaveSection = async () => {
+    if (!sectionTargetFile) return;
+    setIsSavingMeta(true);
+    try {
+      await onUpdateMediaMeta({
+        appId: sectionTargetFile.appId,
+        fileName: sectionTargetFile.fileName,
+        section: sectionDraft.trim() ? sectionDraft.trim() : null,
+      });
+      setSectionTargetFile(null);
+      setSectionDraft("");
+    } catch {
+      // Error toast is handled in the mutation hook.
+    } finally {
+      setIsSavingMeta(false);
+    }
+  };
+
+  const handleTogglePin = async (file: MediaFile) => {
+    setIsSavingMeta(true);
+    try {
+      await onUpdateMediaMeta({
+        appId: file.appId,
+        fileName: file.fileName,
+        pinned: !file.pinned,
+      });
+    } catch {
+      // Error toast is handled in the mutation hook.
+    } finally {
+      setIsSavingMeta(false);
+    }
+  };
+
   if (isOpen) {
     return (
       <>
@@ -191,6 +243,13 @@ export function DyadAppMediaFolder({
           onMoveImage={(file) => setMoveTargetFile(file)}
           onDeleteImage={(file) => setDeleteTargetFile(file)}
           onPreviewImage={(file) => setPreviewFile(file)}
+          onSetSection={(file) => {
+            setSectionTargetFile(file);
+            setSectionDraft(file.section ?? "");
+          }}
+          onTogglePin={(file) => {
+            void handleTogglePin(file);
+          }}
           isBusy={isBusy}
           searchQuery={searchQuery}
         />
@@ -344,6 +403,68 @@ export function DyadAppMediaFolder({
                 disabled={isBusy || moveTargetAppId === null}
               >
                 Move
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          open={sectionTargetFile !== null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setSectionTargetFile(null);
+              setSectionDraft("");
+            }
+          }}
+        >
+          <DialogContent data-testid="media-section-dialog">
+            <DialogHeader>
+              <DialogTitle>Set Section</DialogTitle>
+              <DialogDescription>
+                Group <strong>{sectionTargetFile?.fileName}</strong> under a
+                section such as &quot;characters&quot; or
+                &quot;backgrounds&quot;. Leave it empty to remove the section.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-2">
+              <Input
+                data-testid="media-section-input"
+                list={`media-sections-${appId}`}
+                value={sectionDraft}
+                maxLength={40}
+                onChange={(event) => setSectionDraft(event.target.value)}
+                placeholder="Section name"
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    void handleSaveSection();
+                  }
+                }}
+              />
+              <datalist id={`media-sections-${appId}`}>
+                {existingSections.map((name) => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSectionTargetFile(null);
+                  setSectionDraft("");
+                }}
+                disabled={isBusy}
+              >
+                Cancel
+              </Button>
+              <Button
+                data-testid="media-section-confirm-button"
+                onClick={() => {
+                  void handleSaveSection();
+                }}
+                disabled={isBusy}
+              >
+                Save
               </Button>
             </DialogFooter>
           </DialogContent>

@@ -7,6 +7,8 @@ import {
   DYAD_MEDIA_DIR_NAME,
   pruneAttachmentManifest,
 } from "@/ipc/utils/media_path_utils";
+import { readMediaMeta } from "@/ipc/utils/media_gallery_index";
+import { retireMediaFile } from "@/ipc/utils/media_archive";
 import { db } from "@/db";
 import { apps } from "@/db/schema";
 
@@ -58,8 +60,10 @@ async function getSafeMediaDirectory(
 }
 
 /**
- * Delete media files older than TTL from all app .dyad/media directories.
- * Run on app startup to reclaim disk space.
+ * Move media files older than the TTL out of every app's .dyad/media folder
+ * into the archive folder (see media_archive.ts). Pinned pictures stay put.
+ * Nothing is deleted here; the Media page can empty archive on request.
+ * Run on app startup.
  */
 export async function cleanupOldMediaFiles(): Promise<void> {
   const cutoffMs = Date.now() - MEDIA_TTL_DAYS * 24 * 60 * 60 * 1000;
@@ -82,9 +86,14 @@ export async function cleanupOldMediaFiles(): Promise<void> {
           return 0;
         }
 
+        const meta = await readMediaMeta(appPath);
+
         const results = await Promise.all(
           files.map(async (file) => {
             if (file === ATTACHMENTS_MANIFEST_FILE) {
+              return 0;
+            }
+            if (meta[file]?.pinned) {
               return 0;
             }
             const filePath = path.join(safeMediaDir.path, file);
@@ -99,7 +108,7 @@ export async function cleanupOldMediaFiles(): Promise<void> {
               }
               const stat = await fs.stat(filePath);
               if (stat.mtimeMs < cutoffMs) {
-                await fs.unlink(filePath);
+                await retireMediaFile(filePath, appPath);
                 return 1;
               }
             } catch (err) {
@@ -120,9 +129,9 @@ export async function cleanupOldMediaFiles(): Promise<void> {
       }),
     );
 
-    const totalDeleted = counts.reduce<number>((sum, n) => sum + n, 0);
-    logger.log(`Cleaned up ${totalDeleted} old media files`);
+    const totalMoved = counts.reduce<number>((sum, n) => sum + n, 0);
+    logger.log(`Moved ${totalMoved} old media files to archive`);
   } catch (err) {
-    logger.warn("Failed to cleanup old media files:", err);
+    logger.warn("Failed to clean up old media files:", err);
   }
 }

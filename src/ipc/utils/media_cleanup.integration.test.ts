@@ -8,6 +8,8 @@ const dbMocks = vi.hoisted(() => {
   return { select: vi.fn(() => ({ from })), from };
 });
 
+const userData = vi.hoisted(() => ({ dir: "" }));
+
 vi.mock("electron-log", () => ({
   default: { scope: () => ({ log: vi.fn(), warn: vi.fn() }) },
 }));
@@ -16,6 +18,7 @@ vi.mock("@/db", () => ({ db: { select: dbMocks.select } }));
 vi.mock("@/db/schema", () => ({ apps: { path: "path" } }));
 vi.mock("@/paths/paths", () => ({
   getDyadAppPath: (appPath: string) => appPath,
+  getUserDataPath: () => userData.dir,
 }));
 vi.mock("@/ipc/utils/media_path_utils", async () => {
   const actual = await vi.importActual<
@@ -66,7 +69,7 @@ describe("cleanupOldMediaFiles filesystem safety", () => {
     );
   });
 
-  it("deletes stale media, keeps fresh media, and prunes the manifest", async () => {
+  it("moves stale media to the archive, keeps fresh media, and prunes the manifest", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2025-01-31T00:00:00.000Z"));
 
@@ -75,6 +78,7 @@ describe("cleanupOldMediaFiles filesystem safety", () => {
     const appPath = path.join(root, "app");
     const mediaPath = path.join(appPath, DYAD_MEDIA_DIR_NAME);
     await fs.mkdir(mediaPath, { recursive: true });
+    userData.dir = path.join(root, "userdata");
     const oldFile = path.join(mediaPath, "old.png");
     const freshFile = path.join(mediaPath, "fresh.png");
     await fs.writeFile(oldFile, "old");
@@ -111,6 +115,12 @@ describe("cleanupOldMediaFiles filesystem safety", () => {
     await cleanupOldMediaFiles();
 
     await expect(fs.access(oldFile)).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(
+      fs.readFile(
+        path.join(root, "userdata", "media-archive", "app", "old.png"),
+        "utf8",
+      ),
+    ).resolves.toBe("old");
     await expect(fs.readFile(freshFile, "utf8")).resolves.toBe("fresh");
     const manifest = JSON.parse(
       await fs.readFile(
@@ -121,6 +131,34 @@ describe("cleanupOldMediaFiles filesystem safety", () => {
     expect(manifest).toEqual([
       expect.objectContaining({ storedFileName: "fresh.png" }),
     ]);
+  });
+
+  it("leaves pinned pictures in place however old they are", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2025-01-31T00:00:00.000Z"));
+
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "dyad-media-"));
+    tempDirectories.push(root);
+    userData.dir = path.join(root, "userdata");
+    const appPath = path.join(root, "app");
+    const mediaPath = path.join(appPath, DYAD_MEDIA_DIR_NAME);
+    await fs.mkdir(mediaPath, { recursive: true });
+    const keep = path.join(mediaPath, "keep.png");
+    const drop = path.join(mediaPath, "drop.png");
+    await fs.writeFile(keep, "keep");
+    await fs.writeFile(drop, "drop");
+    await fs.utimes(keep, new Date(2020, 0), new Date(2020, 0));
+    await fs.utimes(drop, new Date(2020, 0), new Date(2020, 0));
+    await fs.writeFile(
+      path.join(appPath, ".dyad", "gallery-index.json"),
+      JSON.stringify({ version: 1, files: { "keep.png": { pinned: true } } }),
+    );
+    dbMocks.from.mockResolvedValue([{ path: appPath }]);
+
+    await cleanupOldMediaFiles();
+
+    await expect(fs.readFile(keep, "utf8")).resolves.toBe("keep");
+    await expect(fs.access(drop)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
   it("does not delete the manifest through a symlink alias", async () => {

@@ -61,6 +61,18 @@ vi.mock("@/ipc/utils/media_path_utils", () => ({
   pruneAttachmentManifest: mediaPathMocks.pruneAttachmentManifest,
 }));
 
+const metaMocks = vi.hoisted(() => ({ readMediaMeta: vi.fn() }));
+
+vi.mock("@/ipc/utils/media_gallery_index", () => ({
+  readMediaMeta: metaMocks.readMediaMeta,
+}));
+
+// Moving to the archive is tested in media_archive.test.ts; here "moved out of
+// the media folder" is observed through fs.unlink.
+vi.mock("@/ipc/utils/media_archive", () => ({
+  retireMediaFile: (filePath: string) => fsMocks.unlink(filePath),
+}));
+
 import {
   MEDIA_TTL_DAYS,
   cleanupOldMediaFiles,
@@ -79,6 +91,8 @@ describe("cleanupOldMediaFiles", () => {
     dbMocks.from.mockReset();
     mediaPathMocks.pruneAttachmentManifest.mockReset();
     mediaPathMocks.pruneAttachmentManifest.mockResolvedValue(0);
+    metaMocks.readMediaMeta.mockReset();
+    metaMocks.readMediaMeta.mockResolvedValue({});
     fsMocks.realpath.mockImplementation((filePath: string) =>
       Promise.resolve(filePath),
     );
@@ -154,7 +168,9 @@ describe("cleanupOldMediaFiles", () => {
     expect(mediaPathMocks.pruneAttachmentManifest).toHaveBeenCalledWith(
       appPath,
     );
-    expect(logMocks.log).toHaveBeenCalledWith("Cleaned up 1 old media files");
+    expect(logMocks.log).toHaveBeenCalledWith(
+      "Moved 1 old media files to archive",
+    );
     expect(logMocks.warn).not.toHaveBeenCalled();
   });
 
@@ -163,7 +179,9 @@ describe("cleanupOldMediaFiles", () => {
 
     await expect(cleanupOldMediaFiles()).resolves.toBeUndefined();
 
-    expect(logMocks.log).toHaveBeenCalledWith("Cleaned up 0 old media files");
+    expect(logMocks.log).toHaveBeenCalledWith(
+      "Moved 0 old media files to archive",
+    );
     expect(logMocks.warn).not.toHaveBeenCalled();
   });
 
@@ -175,7 +193,9 @@ describe("cleanupOldMediaFiles", () => {
     await cleanupOldMediaFiles();
 
     expect(fsMocks.unlink).not.toHaveBeenCalled();
-    expect(logMocks.log).toHaveBeenCalledWith("Cleaned up 0 old media files");
+    expect(logMocks.log).toHaveBeenCalledWith(
+      "Moved 0 old media files to archive",
+    );
   });
 
   it("should not throw if a per-file operation fails (logs a warning)", async () => {
@@ -249,7 +269,9 @@ describe("cleanupOldMediaFiles", () => {
       `Failed to prune attachment manifest for ${mediaDir}:`,
       pruneError,
     );
-    expect(logMocks.log).toHaveBeenCalledWith("Cleaned up 1 old media files");
+    expect(logMocks.log).toHaveBeenCalledWith(
+      "Moved 1 old media files to archive",
+    );
   });
 
   it("should keep the attachments manifest", async () => {
@@ -289,7 +311,9 @@ describe("cleanupOldMediaFiles", () => {
     await cleanupOldMediaFiles();
 
     expect(fsMocks.unlink).toHaveBeenCalledTimes(2);
-    expect(logMocks.log).toHaveBeenCalledWith("Cleaned up 2 old media files");
+    expect(logMocks.log).toHaveBeenCalledWith(
+      "Moved 2 old media files to archive",
+    );
   });
 
   it("should handle apps with absolute paths (skipCopy imports)", async () => {

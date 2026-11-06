@@ -459,6 +459,9 @@ export type {
   RenameMediaFileParams,
   DeleteMediaFileParams,
   MoveMediaFileParams,
+  UpdateMediaMetaParams,
+  MediaStorageInfo,
+  EmptyArchiveResponse,
 } from "./media";
 
 // Image generation types

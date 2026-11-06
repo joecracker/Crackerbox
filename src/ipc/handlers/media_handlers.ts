@@ -6,6 +6,19 @@ import { getDyadAppPath } from "../../paths/paths";
 import { safeJoin } from "../utils/path_utils";
 import { getMimeType, MIME_TYPE_MAP } from "../utils/mime_utils";
 import { DYAD_MEDIA_DIR_NAME } from "../utils/media_path_utils";
+import {
+  patchMediaMeta,
+  readMediaMeta,
+  removeMediaMeta,
+  renameMediaMeta,
+  moveMediaMeta,
+} from "../utils/media_gallery_index";
+import {
+  ARCHIVE_WARN_BYTES,
+  emptyArchive,
+  getArchiveInfo,
+  getArchiveRoot,
+} from "../utils/media_archive";
 import { INVALID_FILE_NAME_CHARS } from "../../shared/media_validation";
 import { ensureDyadGitignored } from "./gitignoreUtils";
 import {
@@ -46,6 +59,8 @@ async function getMediaFilesForApp(
     return SUPPORTED_MEDIA_EXTENSIONS.includes(ext);
   });
 
+  const metaIndex = await readMediaMeta(appPath);
+
   const results = await Promise.all(
     mediaEntries.map(async (entry) => {
       const fullPath = path.join(mediaDir, entry.name);
@@ -59,6 +74,7 @@ async function getMediaFilesForApp(
           sizeBytes: stat.size,
           modifiedAtMs: stat.mtimeMs,
           mimeType: getMimeType(path.extname(entry.name).toLowerCase()),
+          ...metaIndex[entry.name],
         };
       } catch {
         // File was deleted between readdir and stat — skip it
@@ -263,6 +279,7 @@ export function registerMediaHandlers() {
         throw e;
       }
       await invalidateThumbnail(sourcePath);
+      await renameMediaMeta(appPath, params.fileName, destinationFileName);
       logger.log(`Renamed media file: ${sourcePath} -> ${destinationPath}`);
     });
   });
@@ -284,6 +301,7 @@ export function registerMediaHandlers() {
         throw e;
       }
       await invalidateThumbnail(filePath);
+      await removeMediaMeta(appPath, params.fileName);
       logger.log(`Deleted media file: ${filePath}`);
     });
   });
@@ -370,9 +388,73 @@ export function registerMediaHandlers() {
         }
 
         await invalidateThumbnail(sourcePath);
+        await moveMediaMeta(sourceAppPath, targetAppPath, params.fileName);
         logger.log(`Moved media file: ${sourcePath} -> ${destinationPath}`);
       },
       [params.targetAppId],
     );
+  });
+
+  createTypedHandler(mediaContracts.updateMediaMeta, async (_, params) => {
+    await withMediaLock([params.appId], async () => {
+      const app = await getAppOrThrow(params.appId);
+      const appPath = getDyadAppPath(app.path);
+      const filePath = getMediaFilePath(appPath, params.fileName);
+      if (!fs.existsSync(filePath)) {
+        throw new DyadError("Media file not found", DyadErrorKind.NotFound);
+      }
+      await patchMediaMeta(appPath, params.fileName, {
+        section: params.section,
+        pinned: params.pinned,
+      });
+    });
+  });
+
+  createTypedHandler(mediaContracts.getMediaStorageInfo, async () => {
+    const allApps = await db.select().from(apps);
+    let liveBytes = 0;
+    let liveFileCount = 0;
+    await Promise.all(
+      allApps.map(async (app) => {
+        const files = await getMediaFilesForApp(
+          app.id,
+          app.name,
+          getDyadAppPath(app.path),
+        );
+        for (const file of files) {
+          liveBytes += file.sizeBytes;
+          liveFileCount += 1;
+        }
+      }),
+    );
+    const archive = await getArchiveInfo();
+    return {
+      liveBytes,
+      liveFileCount,
+      archiveBytes: archive.bytes,
+      archiveFileCount: archive.fileCount,
+      archivePath: archive.path,
+      warnBytes: ARCHIVE_WARN_BYTES,
+    };
+  });
+
+  createTypedHandler(mediaContracts.openArchiveFolder, async () => {
+    const root = getArchiveRoot();
+    await fs.promises.mkdir(root, { recursive: true });
+    const result = await shell.openPath(root);
+    if (result) {
+      throw new DyadError(
+        `Failed to open folder: ${result}`,
+        DyadErrorKind.External,
+      );
+    }
+  });
+
+  createTypedHandler(mediaContracts.emptyArchive, async () => {
+    const removed = await emptyArchive();
+    logger.log(
+      `Emptied media archive: ${removed.fileCount} files, ${removed.bytes} bytes`,
+    );
+    return { removedFiles: removed.fileCount, removedBytes: removed.bytes };
   });
 }

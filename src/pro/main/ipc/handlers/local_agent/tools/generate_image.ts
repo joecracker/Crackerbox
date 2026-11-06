@@ -10,6 +10,7 @@ import {
   escapeXmlContent,
 } from "./types";
 import { DYAD_MEDIA_DIR_NAME } from "@/ipc/utils/media_path_utils";
+import { patchMediaMeta } from "@/ipc/utils/media_gallery_index";
 import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
 import { readSettings } from "@/main/settings";
 import { findSirayApiKey, findVeniceApiKey } from "./venice_api";
@@ -50,6 +51,12 @@ const generateImageSchema = z.object({
     .describe(
       "realistic (photo look, default) or anime. Use anime only when the user wants an anime or cartoon look.",
     ),
+  section: z
+    .string()
+    .optional()
+    .describe(
+      "Media-page section to file the pictures under, for example 'characters', 'backgrounds' or 'logos'. Reuse an existing section name when one fits. Default 'generated'.",
+    ),
   negative_prompt: z
     .string()
     .optional()
@@ -64,7 +71,7 @@ const generateImageSchema = z.object({
     ),
 });
 
-const DESCRIPTION = `Generate 1 to 4 pictures from a text prompt using the user's own Venice and Siray accounts. Venice is tried first; if it refuses, times out or fails, Siray engines are tried automatically. Pictures are saved to the project's .dyad/media directory.
+const DESCRIPTION = `Generate 1 to 4 pictures from a text prompt using the user's own Venice and Siray accounts. Venice is tried first; if it refuses, times out or fails, Siray engines are tried automatically. Pictures are saved to the project's .dyad/media directory and filed under a section (default "generated") on the Media page, with the prompt and engine remembered.
 
 ### When to Use
 - The user asks for a picture, illustration, character, icon, hero image or any visual asset
@@ -168,6 +175,16 @@ export const generateImageTool: ToolDefinition<
           image.ext,
           ctx.appPath,
         );
+        try {
+          await patchMediaMeta(ctx.appPath, path.basename(relativePath), {
+            section: args.section ?? "generated",
+            prompt: args.prompt,
+            engine: image.engine,
+            createdAt: new Date().toISOString(),
+          });
+        } catch (error) {
+          logger.warn("Could not save picture details:", error);
+        }
         ctx.onXmlComplete(
           `<dyad-image-generation prompt="${escapeXmlAttr(args.prompt)}" path="${escapeXmlAttr(relativePath)}">${escapeXmlContent(relativePath)}</dyad-image-generation>`,
         );

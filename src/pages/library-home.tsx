@@ -47,6 +47,7 @@ export default function LibraryHomePage() {
     renameMediaFile,
     deleteMediaFile,
     moveMediaFile,
+    updateMediaMeta,
     isMutatingMedia,
   } = useAppMediaFiles();
   const { apps: allApps } = useLoadApps();
@@ -201,6 +202,7 @@ export default function LibraryHomePage() {
                   onRenameMediaFile={renameMediaFile}
                   onDeleteMediaFile={deleteMediaFile}
                   onMoveMediaFile={moveMediaFile}
+                  onUpdateMediaMeta={updateMediaMeta}
                   isMutatingMedia={isMutatingMedia}
                   searchQuery={searchQuery}
                 />

@@ -115,6 +115,7 @@ describe("local-agent default request (integration)", () => {
       "read_guide",
       "read_logs",
       "reinstall_and_restart_app",
+      "remove_background",
       "rename_file",
       "restart_app",
       "run_build",

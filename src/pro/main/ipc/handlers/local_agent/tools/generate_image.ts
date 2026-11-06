@@ -12,8 +12,14 @@ import {
 import { DYAD_MEDIA_DIR_NAME } from "@/ipc/utils/media_path_utils";
 import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
 import { readSettings } from "@/main/settings";
-import { findVeniceApiKey } from "./venice_api";
-import { IMAGE_ASPECTS, generateVeniceImage } from "./venice_image";
+import { findSirayApiKey, findVeniceApiKey } from "./venice_api";
+import {
+  ENGINE_NAMES,
+  IMAGE_ASPECT_LIST,
+  IMAGE_STYLES,
+  MAX_COUNT,
+  generateImages,
+} from "./image_engines";
 
 const logger = log.scope("generate_image");
 
@@ -21,58 +27,72 @@ const generateImageSchema = z.object({
   prompt: z
     .string()
     .describe(
-      "A detailed, descriptive prompt for the image to generate. Be specific about colors, composition, style, mood, and subject matter. Avoid generic or vague descriptions.",
+      "A detailed, descriptive prompt for the image to generate. Be specific about subject, look, clothing, setting, lighting, mood and art style. Avoid vague descriptions.",
+    ),
+  count: z
+    .number()
+    .int()
+    .min(1)
+    .max(MAX_COUNT)
+    .optional()
+    .describe(
+      "How many pictures to make, 1 to 4. Use exactly the number the user asked for. Default 1.",
     ),
   aspect_ratio: z
-    .enum(IMAGE_ASPECTS)
+    .enum(IMAGE_ASPECT_LIST)
     .optional()
     .describe(
       "Shape of the picture, for example 16:9 for a wide banner or 1:1 for an icon. Default 1:1.",
+    ),
+  style: z
+    .enum(IMAGE_STYLES)
+    .optional()
+    .describe(
+      "realistic (photo look, default) or anime. Use anime only when the user wants an anime or cartoon look.",
+    ),
+  negative_prompt: z
+    .string()
+    .optional()
+    .describe(
+      "Things to keep OUT of the picture, for example 'text, watermark, extra fingers'. Works on Venice engines. Prefer this over writing 'no X' in the main prompt.",
     ),
   model: z
     .string()
     .optional()
     .describe(
-      "A Venice image model id. Leave this out to use the default; only set it when the user asked for a specific model.",
+      `Optional engine. Leave out to use the default. One of: ${ENGINE_NAMES.join(", ")}; or any Venice image model id. You do not need to retry yourself: if an engine fails or refuses, the next one is tried automatically and the result says which engine made each picture.`,
     ),
 });
 
-const DESCRIPTION = `Generate an image from a text prompt with the user's own Venice account. The generated image is saved to the project's .dyad/media directory.
+const DESCRIPTION = `Generate 1 to 4 pictures from a text prompt using the user's own Venice and Siray accounts. Venice is tried first; if it refuses, times out or fails, Siray engines are tried automatically. Pictures are saved to the project's .dyad/media directory.
 
 ### When to Use
-- User requests a custom image, illustration, icon, or graphic for their app
-- User wants a hero image, background, banner, or visual asset
-- Creating images that are more visually relevant than placeholder rectangles
+- The user asks for a picture, illustration, character, icon, hero image or any visual asset
 
 ### Prompt Guidelines
-Write detailed, descriptive prompts. Be specific about:
-- **Subject**: What is in the image (objects, people, scenes)
-- **Style**: Photography, illustration, flat design, 3D render, watercolor, etc.
-- **Composition**: Layout, perspective, framing
-- **Colors**: Specific color palette or mood
-- **Mood**: Cheerful, professional, dramatic, minimal, etc.
-
-### Examples
-- "A modern flat illustration of a team collaborating around a laptop, using a blue and purple color palette, clean minimal style with subtle gradients, white background"
-- "Professional product photography of a sleek smartphone on a marble surface, soft studio lighting, shallow depth of field, warm neutral tones"
+Write detailed prompts: subject, style, composition, colors, lighting, mood. Put things to avoid in negative_prompt.
 
 ### After Generation
-The tool returns the file path in .dyad/media. Use the copy_file tool to copy it to the appropriate location in the project (e.g., public/assets/) and reference that path in your code. Each picture costs a little Venice credit, so generate only what is needed.
-`;
+The result lists each saved file and which engine actually made it. Tell the user which engine made the pictures. To use a picture in the app, copy it with copy_file (e.g., to public/assets/). Each picture costs a little credit, so make only what was asked for; there is an hourly safety limit.`;
 
-function veniceKey(): string | undefined {
-  return findVeniceApiKey(readSettings().providerSettings);
+function keys() {
+  const providers = readSettings().providerSettings;
+  return {
+    venice: findVeniceApiKey(providers),
+    siray: findSirayApiKey(providers),
+  };
 }
 
 async function saveGeneratedImage(
   bytes: Buffer,
+  ext: string,
   appPath: string,
 ): Promise<string> {
   const mediaDir = path.join(appPath, DYAD_MEDIA_DIR_NAME);
   await fs.mkdir(mediaDir, { recursive: true });
 
   const hash = crypto.randomBytes(8).toString("hex");
-  const fileName = `generated-${Date.now()}-${hash}.png`;
+  const fileName = `generated-${Date.now()}-${hash}${ext}`;
   await fs.writeFile(path.join(mediaDir, fileName), bytes);
   return path.join(DYAD_MEDIA_DIR_NAME, fileName);
 }
@@ -86,13 +106,17 @@ export const generateImageTool: ToolDefinition<
   defaultConsent: "always",
   modifiesState: true,
 
-  // Only offered when a Venice key is set up.
-  isEnabled: () => Boolean(veniceKey()),
+  // Offered when at least one image service has a key.
+  isEnabled: () => {
+    const k = keys();
+    return Boolean(k.venice || k.siray);
+  },
 
-  getConsentPreview: (args) => `Generate image: "${args.prompt}"`,
+  getConsentPreview: (args) =>
+    `Generate ${args.count ?? 1} image(s): "${args.prompt}"`,
 
   shouldTrackMutation: (_args, result) =>
-    result.startsWith("Image generated and saved"),
+    /^Images? generated and saved/.test(result),
 
   buildXml: (args, isComplete) => {
     if (!args.prompt) return undefined;
@@ -107,35 +131,77 @@ export const generateImageTool: ToolDefinition<
       `<dyad-image-generation prompt="${escapeXmlAttr(args.prompt)}">`,
     );
 
+    const emptyCard = `<dyad-image-generation prompt="${escapeXmlAttr(args.prompt)}"></dyad-image-generation>`;
+
     try {
-      const apiKey = veniceKey();
-      if (!apiKey) {
+      const k = keys();
+      if (!k.venice && !k.siray) {
         throw new DyadError(
-          "Image generation needs a Venice API key. Add Venice as a provider in Settings.",
+          "Image generation needs a Venice or Siray key. Add one as a provider in Settings.",
           DyadErrorKind.Precondition,
         );
       }
-      const { bytes, model } = await generateVeniceImage({
-        apiKey,
+
+      const batch = await generateImages({
         prompt: args.prompt,
+        count: args.count,
         aspect: args.aspect_ratio,
+        style: args.style,
         model: args.model,
+        negativePrompt: args.negative_prompt,
+        keys: k,
         signal: ctx.abortSignal,
       });
 
-      const relativePath = await saveGeneratedImage(bytes, ctx.appPath);
+      if (batch.images.length === 0) {
+        ctx.onXmlComplete(emptyCard);
+        throw new DyadError(
+          `No pictures were made. ${batch.failures[0] ?? ""}`.trim(),
+          DyadErrorKind.External,
+        );
+      }
 
-      ctx.onXmlComplete(
-        `<dyad-image-generation prompt="${escapeXmlAttr(args.prompt)}" path="${escapeXmlAttr(relativePath)}">${escapeXmlContent(relativePath)}</dyad-image-generation>`,
-      );
+      const lines: string[] = [];
+      for (const image of batch.images) {
+        const relativePath = await saveGeneratedImage(
+          image.bytes,
+          image.ext,
+          ctx.appPath,
+        );
+        ctx.onXmlComplete(
+          `<dyad-image-generation prompt="${escapeXmlAttr(args.prompt)}" path="${escapeXmlAttr(relativePath)}">${escapeXmlContent(relativePath)}</dyad-image-generation>`,
+        );
+        const fell = image.fellBack ? " (backup engine)" : "";
+        lines.push(`- ${relativePath} — made by ${image.engine}${fell}`);
+        for (const note of image.notes) lines.push(`  note: ${note}`);
+        logger.log(`Image (${image.engine}) saved to: ${relativePath}`);
+      }
 
-      logger.log(`Image generation (${model}) saved to: ${relativePath}`);
-
-      return `Image generated and saved to: ${relativePath}\nUse the copy_file tool to copy it from "${relativePath}" to the appropriate location in the project (e.g., public/assets/), then reference the copied path in your code.`;
+      const made = batch.images.length;
+      const wanted = args.count ?? 1;
+      const head =
+        made === 1
+          ? "Image generated and saved:"
+          : `Images generated and saved (${made} of ${wanted}):`;
+      const tail: string[] = [];
+      if (batch.capped) {
+        tail.push(
+          "The hourly image limit was reached, so no more can be made for a while. Tell the user.",
+        );
+      }
+      if (batch.failures.length) {
+        tail.push(
+          `${batch.failures.length} could not be made: ${batch.failures[0]}`,
+        );
+      }
+      return [
+        head,
+        ...lines,
+        ...tail,
+        "Tell the user which engine made each picture. To use one in the app, copy it with copy_file (e.g., to public/assets/).",
+      ].join("\n");
     } catch (error) {
-      ctx.onXmlComplete(
-        `<dyad-image-generation prompt="${escapeXmlAttr(args.prompt)}"></dyad-image-generation>`,
-      );
+      if (ctx.abortSignal?.aborted) ctx.onXmlComplete(emptyCard);
       throw error;
     }
   },

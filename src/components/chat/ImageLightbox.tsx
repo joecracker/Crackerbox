@@ -1,6 +1,6 @@
 import type React from "react";
 import { useEffect, useRef } from "react";
-import { ExternalLink, X } from "lucide-react";
+import { Copy, Download, ExternalLink, X } from "lucide-react";
 import { ipc } from "@/ipc/types";
 import { toast } from "sonner";
 
@@ -9,6 +9,8 @@ interface ImageLightboxProps {
   alt: string;
   filePath?: string;
   mediaFile?: { appId: number; fileName: string };
+  onSaveAs?: () => void;
+  onCopy?: () => void;
   onClose: () => void;
   onError?: () => void;
 }
@@ -37,6 +39,8 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
   alt,
   filePath,
   mediaFile,
+  onSaveAs,
+  onCopy,
   onClose,
   onError,
 }) => {
@@ -65,6 +69,32 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
       aria-label={`Expanded image: ${alt}`}
     >
       <div className="absolute top-4 right-4 flex items-center gap-2">
+        {onSaveAs && (
+          <button
+            className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white cursor-pointer transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSaveAs();
+            }}
+            title="Save As"
+            aria-label="Save As"
+          >
+            <Download size={20} />
+          </button>
+        )}
+        {onCopy && (
+          <button
+            className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white cursor-pointer transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              onCopy();
+            }}
+            title="Copy image"
+            aria-label="Copy image"
+          >
+            <Copy size={20} />
+          </button>
+        )}
         {(filePath || mediaFile) && (
           <button
             className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white cursor-pointer transition-colors"

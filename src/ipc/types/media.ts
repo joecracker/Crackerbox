@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { defineContract, createClient } from "../contracts/core";
+import {
+  defineContract,
+  createClient,
+  defineSendContract,
+  createSendClient,
+} from "../contracts/core";
 
 // =============================================================================
 // Media Schemas
@@ -70,6 +75,15 @@ export const UpdateMediaMetaParamsSchema = z.object({
   pinned: z.boolean().optional(),
 });
 
+export const SaveMediaFileAsResponseSchema = z.object({
+  saved: z.boolean(),
+  savedPath: z.string().optional(),
+});
+
+export const StartMediaDragParamsSchema = z.object({
+  filePath: z.string(),
+});
+
 export const MediaStorageInfoSchema = z.object({
   /** Pictures currently in the apps' media folders. */
   liveBytes: z.number(),
@@ -122,6 +136,24 @@ export const mediaContracts = {
     output: z.void(),
   }),
 
+  saveMediaFileAs: defineContract({
+    channel: "save-media-file-as",
+    input: OpenMediaFileParamsSchema,
+    output: SaveMediaFileAsResponseSchema,
+  }),
+
+  copyMediaImage: defineContract({
+    channel: "copy-media-image",
+    input: OpenMediaFileParamsSchema,
+    output: z.void(),
+  }),
+
+  showMediaInFolder: defineContract({
+    channel: "show-media-in-folder",
+    input: OpenMediaFileParamsSchema,
+    output: z.void(),
+  }),
+
   updateMediaMeta: defineContract({
     channel: "update-media-meta",
     input: UpdateMediaMetaParamsSchema,
@@ -153,6 +185,17 @@ export const mediaContracts = {
 
 export const mediaClient = createClient(mediaContracts);
 
+// One-way: start dragging a picture out of the window (to the desktop, other
+// apps, a chat window). Fire-and-forget because it runs inside a dragstart.
+export const mediaSendContracts = {
+  startDrag: defineSendContract({
+    channel: "start-media-drag",
+    input: StartMediaDragParamsSchema,
+  }),
+} as const;
+
+export const mediaSendClient = createSendClient(mediaSendContracts);
+
 // =============================================================================
 // Type Exports
 // =============================================================================
@@ -163,4 +206,7 @@ export type OpenMediaFileParams = z.infer<typeof OpenMediaFileParamsSchema>;
 export type MoveMediaFileParams = z.infer<typeof MoveMediaFileParamsSchema>;
 export type UpdateMediaMetaParams = z.infer<typeof UpdateMediaMetaParamsSchema>;
 export type MediaStorageInfo = z.infer<typeof MediaStorageInfoSchema>;
+export type SaveMediaFileAsResponse = z.infer<
+  typeof SaveMediaFileAsResponseSchema
+>;
 export type EmptyArchiveResponse = z.infer<typeof EmptyArchiveResponseSchema>;

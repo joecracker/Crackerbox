@@ -575,7 +575,7 @@ import { freeModelQuotaClient } from "./free_model_quota";
 import { openRouterBalanceClient } from "./openrouter_balance";
 import { veniceBalanceClient } from "./venice_balance";
 import { audioClient } from "./audio";
-import { mediaClient } from "./media";
+import { mediaClient, mediaSendClient } from "./media";
 import {
   imageGenerationClient,
   imageGenerationEventClient,
@@ -664,7 +664,7 @@ export const ipc = {
   openRouterBalance: openRouterBalanceClient,
   veniceBalance: veniceBalanceClient,
   audio: audioClient,
-  media: mediaClient,
+  media: { ...mediaClient, startDrag: mediaSendClient.startDrag },
   appBlueprint: appBlueprintClient,
   appCollection: appCollectionClient,
   terminal: terminalClient,

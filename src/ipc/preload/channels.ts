@@ -55,7 +55,7 @@ import { openRouterBalanceContracts } from "../types/openrouter_balance";
 import { veniceBalanceContracts } from "../types/venice_balance";
 import { planEvents, planContracts } from "../types/plan";
 import { audioContracts } from "../types/audio";
-import { mediaContracts } from "../types/media";
+import { mediaContracts, mediaSendContracts } from "../types/media";
 import {
   imageGenerationContracts,
   imageGenerationEvents,
@@ -176,6 +176,7 @@ export const VALID_INVOKE_CHANNELS = [
 export const VALID_SEND_CHANNELS = [
   ...getSendChannels(firstPromptSendContracts),
   ...getSendChannels(previewViewSendContracts),
+  ...getSendChannels(mediaSendContracts),
 ] as const;
 
 // =============================================================================

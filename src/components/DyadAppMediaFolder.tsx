@@ -13,6 +13,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   AlertDialog,
   AlertDialogCancel,
   AlertDialogContent,
@@ -31,7 +38,7 @@ import {
 } from "@/ipc/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/queryKeys";
-import { showError } from "@/lib/toast";
+import { showError, showSuccess } from "@/lib/toast";
 import { useSelectChat } from "@/hooks/useSelectChat";
 import { INVALID_FILE_NAME_CHARS } from "@/shared/media_validation";
 import {
@@ -42,7 +49,11 @@ import { MediaFolderOpen } from "./media-library/MediaFolderOpen";
 import { ImageLightbox } from "./chat/ImageLightbox";
 import { buildDyadMediaUrl } from "@/lib/dyadMediaUrl";
 import { AppSearchSelect } from "./AppSearchSelect";
-import { getSectionCounts } from "@/lib/mediaUtils";
+import { getSectionCounts, UNSORTED_SECTION } from "@/lib/mediaUtils";
+
+const STARTER_SECTIONS = ["generated", "cutouts", "finals", "references"];
+const SECTION_NONE = "__none__";
+const SECTION_NEW = "__new__";
 
 interface DyadAppMediaFolderProps {
   appName: string;
@@ -90,6 +101,7 @@ export function DyadAppMediaFolder({
     null,
   );
   const [sectionDraft, setSectionDraft] = useState("");
+  const [sectionIsNew, setSectionIsNew] = useState(false);
   const [isSavingMeta, setIsSavingMeta] = useState(false);
   const queryClient = useQueryClient();
   const { selectChat } = useSelectChat();
@@ -192,9 +204,55 @@ export function DyadAppMediaFolder({
   };
 
   const existingSections = useMemo(
-    () => getSectionCounts(files).map((s) => s.section),
+    () =>
+      getSectionCounts(files)
+        .map((s) => s.section)
+        .filter((name) => name !== UNSORTED_SECTION),
     [files],
   );
+
+  const sectionChoices = useMemo(() => {
+    const names = new Set<string>(existingSections);
+    for (const name of STARTER_SECTIONS) names.add(name);
+    return Array.from(names).sort((a, b) => a.localeCompare(b));
+  }, [existingSections]);
+
+  const handleSaveAs = async (file: MediaFile) => {
+    try {
+      const result = await ipc.media.saveMediaFileAs({
+        appId: file.appId,
+        fileName: file.fileName,
+      });
+      if (result.saved) {
+        showSuccess(`Saved to ${result.savedPath ?? "your computer"}`);
+      }
+    } catch (error) {
+      showError(error);
+    }
+  };
+
+  const handleCopyImage = async (file: MediaFile) => {
+    try {
+      await ipc.media.copyMediaImage({
+        appId: file.appId,
+        fileName: file.fileName,
+      });
+      showSuccess("Picture copied. Paste it anywhere.");
+    } catch (error) {
+      showError(error);
+    }
+  };
+
+  const handleShowInFolder = async (file: MediaFile) => {
+    try {
+      await ipc.media.showMediaInFolder({
+        appId: file.appId,
+        fileName: file.fileName,
+      });
+    } catch (error) {
+      showError(error);
+    }
+  };
 
   const handleSaveSection = async () => {
     if (!sectionTargetFile) return;
@@ -207,6 +265,7 @@ export function DyadAppMediaFolder({
       });
       setSectionTargetFile(null);
       setSectionDraft("");
+      setSectionIsNew(false);
     } catch {
       // Error toast is handled in the mutation hook.
     } finally {
@@ -246,6 +305,16 @@ export function DyadAppMediaFolder({
           onSetSection={(file) => {
             setSectionTargetFile(file);
             setSectionDraft(file.section ?? "");
+            setSectionIsNew(false);
+          }}
+          onSaveAs={(file) => {
+            void handleSaveAs(file);
+          }}
+          onCopyImage={(file) => {
+            void handleCopyImage(file);
+          }}
+          onShowInFolder={(file) => {
+            void handleShowInFolder(file);
           }}
           onTogglePin={(file) => {
             void handleTogglePin(file);
@@ -414,6 +483,7 @@ export function DyadAppMediaFolder({
             if (!open) {
               setSectionTargetFile(null);
               setSectionDraft("");
+              setSectionIsNew(false);
             }
           }}
         >
@@ -422,29 +492,61 @@ export function DyadAppMediaFolder({
               <DialogTitle>Set Section</DialogTitle>
               <DialogDescription>
                 Group <strong>{sectionTargetFile?.fileName}</strong> under a
-                section such as &quot;characters&quot; or
-                &quot;backgrounds&quot;. Leave it empty to remove the section.
+                section. Pick one from the list, or choose &quot;New
+                section…&quot; to make your own.
               </DialogDescription>
             </DialogHeader>
-            <div className="py-2">
-              <Input
-                data-testid="media-section-input"
-                list={`media-sections-${appId}`}
-                value={sectionDraft}
-                maxLength={40}
-                onChange={(event) => setSectionDraft(event.target.value)}
-                placeholder="Section name"
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    void handleSaveSection();
+            <div className="py-2 space-y-2">
+              <Select
+                value={
+                  sectionIsNew ? SECTION_NEW : sectionDraft || SECTION_NONE
+                }
+                onValueChange={(value) => {
+                  if (value === null) return;
+                  if (value === SECTION_NONE) {
+                    setSectionIsNew(false);
+                    setSectionDraft("");
+                  } else if (value === SECTION_NEW) {
+                    setSectionIsNew(true);
+                    setSectionDraft("");
+                  } else {
+                    setSectionIsNew(false);
+                    setSectionDraft(value);
                   }
                 }}
-              />
-              <datalist id={`media-sections-${appId}`}>
-                {existingSections.map((name) => (
-                  <option key={name} value={name} />
-                ))}
-              </datalist>
+              >
+                <SelectTrigger data-testid="media-section-select">
+                  <SelectValue>
+                    {sectionIsNew
+                      ? "New section…"
+                      : sectionDraft || "No section"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={SECTION_NONE}>No section</SelectItem>
+                  {sectionChoices.map((name) => (
+                    <SelectItem key={name} value={name}>
+                      {name}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value={SECTION_NEW}>New section…</SelectItem>
+                </SelectContent>
+              </Select>
+              {sectionIsNew && (
+                <Input
+                  data-testid="media-section-input"
+                  autoFocus
+                  value={sectionDraft}
+                  maxLength={40}
+                  onChange={(event) => setSectionDraft(event.target.value)}
+                  placeholder="Name the new section"
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      void handleSaveSection();
+                    }
+                  }}
+                />
+              )}
             </div>
             <DialogFooter>
               <Button
@@ -452,6 +554,7 @@ export function DyadAppMediaFolder({
                 onClick={() => {
                   setSectionTargetFile(null);
                   setSectionDraft("");
+                  setSectionIsNew(false);
                 }}
                 disabled={isBusy}
               >
@@ -475,6 +578,12 @@ export function DyadAppMediaFolder({
             imageUrl={buildDyadMediaUrl(appPath, previewFile.fileName)}
             alt={previewFile.fileName}
             filePath={`${appPath}/.dyad/media/${previewFile.fileName}`}
+            onSaveAs={() => {
+              void handleSaveAs(previewFile);
+            }}
+            onCopy={() => {
+              void handleCopyImage(previewFile);
+            }}
             onClose={() => setPreviewFile(null)}
           />
         )}

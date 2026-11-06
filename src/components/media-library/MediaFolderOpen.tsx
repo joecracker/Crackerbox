@@ -25,6 +25,9 @@ export function MediaFolderOpen({
   onPreviewImage,
   onSetSection,
   onTogglePin,
+  onSaveAs,
+  onCopyImage,
+  onShowInFolder,
   isBusy,
   searchQuery,
 }: {
@@ -40,6 +43,9 @@ export function MediaFolderOpen({
   onPreviewImage: (file: MediaFile) => void;
   onSetSection: (file: MediaFile) => void;
   onTogglePin: (file: MediaFile) => void;
+  onSaveAs: (file: MediaFile) => void;
+  onCopyImage: (file: MediaFile) => void;
+  onShowInFolder: (file: MediaFile) => void;
   isBusy: boolean;
   searchQuery?: string;
 }) {
@@ -157,6 +163,9 @@ export function MediaFolderOpen({
                 onPreviewImage={onPreviewImage}
                 onSetSection={onSetSection}
                 onTogglePin={onTogglePin}
+                onSaveAs={onSaveAs}
+                onCopyImage={onCopyImage}
+                onShowInFolder={onShowInFolder}
                 isBusy={isBusy}
               />
             ))}

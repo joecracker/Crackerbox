@@ -30,7 +30,17 @@ import path from "node:path";
 import { eq } from "drizzle-orm";
 import log from "electron-log";
 import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
-import { app as electronApp, shell } from "electron";
+import {
+  app as electronApp,
+  BrowserWindow,
+  clipboard,
+  dialog,
+  ipcMain,
+  nativeImage,
+  shell,
+} from "electron";
+import { assertTrustedRenderer } from "../utils/renderer_security";
+import { mediaSendContracts } from "../types/media";
 import {
   getMediaThumbnailCacheRoot,
   invalidateMediaThumbnailCache,
@@ -319,6 +329,90 @@ export function registerMediaHandlers() {
         `Failed to open file: ${result}`,
         DyadErrorKind.External,
       );
+    }
+  });
+
+  createTypedHandler(mediaContracts.saveMediaFileAs, async (event, params) => {
+    const app = await getAppOrThrow(params.appId);
+    const appPath = getDyadAppPath(app.path);
+    const filePath = getMediaFilePath(appPath, params.fileName);
+    if (!fs.existsSync(filePath)) {
+      throw new DyadError("Media file not found", DyadErrorKind.NotFound);
+    }
+    const ext = path.extname(params.fileName).replace(/^\./, "");
+    const options = {
+      title: "Save picture",
+      defaultPath: path.join(electronApp.getPath("downloads"), params.fileName),
+      filters: [
+        { name: "Picture", extensions: [ext || "png"] },
+        { name: "All files", extensions: ["*"] },
+      ],
+    };
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const result = win
+      ? await dialog.showSaveDialog(win, options)
+      : await dialog.showSaveDialog(options);
+    if (result.canceled || !result.filePath) {
+      return { saved: false };
+    }
+    await fs.promises.copyFile(filePath, result.filePath);
+    return { saved: true, savedPath: result.filePath };
+  });
+
+  createTypedHandler(mediaContracts.copyMediaImage, async (_, params) => {
+    const app = await getAppOrThrow(params.appId);
+    const appPath = getDyadAppPath(app.path);
+    const filePath = getMediaFilePath(appPath, params.fileName);
+    if (!fs.existsSync(filePath)) {
+      throw new DyadError("Media file not found", DyadErrorKind.NotFound);
+    }
+    const image = nativeImage.createFromPath(filePath);
+    if (image.isEmpty()) {
+      throw new DyadError(
+        "Could not read this picture to copy it",
+        DyadErrorKind.External,
+      );
+    }
+    clipboard.writeImage(image);
+  });
+
+  createTypedHandler(mediaContracts.showMediaInFolder, async (_, params) => {
+    const app = await getAppOrThrow(params.appId);
+    const appPath = getDyadAppPath(app.path);
+    const filePath = getMediaFilePath(appPath, params.fileName);
+    if (!fs.existsSync(filePath)) {
+      throw new DyadError("Media file not found", DyadErrorKind.NotFound);
+    }
+    shell.showItemInFolder(filePath);
+  });
+
+  // Drag a picture out of the window. One-way because it must start inside
+  // the dragstart event. The path is checked so only real media-folder
+  // pictures can be dragged.
+  ipcMain?.on(mediaSendContracts.startDrag.channel, (event, input: unknown) => {
+    try {
+      assertTrustedRenderer(event);
+      const { filePath } = mediaSendContracts.startDrag.input.parse(input);
+      const normalizedDir = path
+        .dirname(path.resolve(filePath))
+        .replace(/\\/g, "/");
+      const mediaDir = DYAD_MEDIA_DIR_NAME.replace(/\\/g, "/");
+      const ext = path.extname(filePath).toLowerCase();
+      if (
+        !normalizedDir.endsWith(`/${mediaDir}`) ||
+        !SUPPORTED_MEDIA_EXTENSIONS.includes(ext) ||
+        !fs.existsSync(filePath)
+      ) {
+        logger.warn("Ignoring drag request for non-media path");
+        return;
+      }
+      const icon = nativeImage
+        .createFromPath(filePath)
+        .resize({ width: 64, quality: "good" });
+      if (icon.isEmpty()) return;
+      event.sender.startDrag({ file: path.resolve(filePath), icon });
+    } catch (error) {
+      logger.error("Could not start picture drag", error);
     }
   });
 

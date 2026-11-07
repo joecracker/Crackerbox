@@ -376,6 +376,7 @@ async function callSiray(
             ? "1k"
             : (SIRAY_SIZES[row.style][req.aspect] ?? "1024x1024"),
     };
+    // Siray takes exactly one reference picture, as a plain string.
     if (row.kind === "image-to-image") body.image = req.baseImageUri;
     if (row.outputFormat) body.output_format = row.outputFormat;
 

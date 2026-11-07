@@ -68,7 +68,7 @@ const generateImageSchema = z.object({
     .string()
     .optional()
     .describe(
-      "Path to a picture IN THIS PROJECT to edit instead of making a new one (for example public/library/nyx/nyx-field-nude-01.png or .dyad/media/<file>). Use this whenever the user wants the SAME character in a new pose, outfit or setting: the picture is edited, so the face and body stay hers. Describe only what should change in the prompt. Needs a Siray key; if it fails, say so and do not fall back to a text-only picture. aspect_ratio should match the base picture's shape.",
+      "Path to a picture IN THIS PROJECT that shows who the subject is (for example public/library/nyx/nyx-field-nude-01.png or .dyad/media/<file>). Use it when the user wants the same woman or character again. It shows who she is; the pose, setting and everything else come from what the user asks for in the prompt. Needs a Siray key; if it fails, say so and do not fall back to a text-only picture. aspect_ratio should match the shape the user wants.",
     ),
   model: z
     .string()
@@ -80,8 +80,8 @@ const generateImageSchema = z.object({
 
 const DESCRIPTION = `Generate 1 to 4 pictures from a text prompt using the user's own Venice and Siray accounts. Venice is tried first; if it refuses, times out or fails, Siray engines are tried automatically. Pictures are saved to the project's .dyad/media directory and filed under a section (default "generated") on the Media page, with the prompt and engine remembered.
 
-### Editing a base picture (keeps the same face)
-Pass base_image to edit an existing picture instead of making a new person. Only image-to-image engines run then, and there is no text-only fallback, because a text-only picture would be a stranger. The base picture is sent to the user's Siray account.
+### Same subject, new picture (base_image)
+Pass base_image when the user wants the same woman or character in a new picture. The base picture shows who she is; the pose and everything else follow what the user asks for. Do what the user says. If the result is not what they wanted, they will tell you and you try again. Only image-to-image engines run, with no text-only fallback, because a text-only picture would be a stranger. The pictures are sent to the user's Siray account.
 
 ### When to Use
 - The user asks for a picture, illustration, character, icon, hero image or any visual asset
@@ -159,9 +159,11 @@ export const generateImageTool: ToolDefinition<
         );
       }
 
-      let baseImage: { bytes: Buffer; mime: string } | undefined;
-      if (args.base_image) {
-        const full = safeJoin(ctx.appPath, args.base_image);
+      const loadPicture = async (
+        rel: string,
+        label: string,
+      ): Promise<{ bytes: Buffer; mime: string }> => {
+        const full = safeJoin(ctx.appPath, rel);
         const ext = path.extname(full).toLowerCase();
         const mime =
           ext === ".png"
@@ -173,23 +175,28 @@ export const generateImageTool: ToolDefinition<
                 : undefined;
         if (!mime) {
           throw new DyadError(
-            "base_image must be a .png, .jpg or .webp picture.",
+            `${label} must be a .png, .jpg or .webp picture.`,
             DyadErrorKind.Validation,
           );
         }
         const bytes = await fs.readFile(full).catch(() => {
           throw new DyadError(
-            `Could not read the base picture: ${args.base_image}`,
+            `Could not read the ${label === "base_image" ? "base picture" : "reference picture"}: ${rel}`,
             DyadErrorKind.NotFound,
           );
         });
         if (bytes.length > 10 * 1024 * 1024) {
           throw new DyadError(
-            "The base picture is over 10 MB. Use a smaller copy.",
+            `The ${label === "base_image" ? "base" : "reference"} picture is over 10 MB. Use a smaller copy.`,
             DyadErrorKind.Validation,
           );
         }
-        baseImage = { bytes, mime };
+        return { bytes, mime };
+      };
+
+      let baseImage: { bytes: Buffer; mime: string } | undefined;
+      if (args.base_image) {
+        baseImage = await loadPicture(args.base_image, "base_image");
       }
 
       const batch = await generateImages({

@@ -32,6 +32,62 @@ export interface SuggestablePlugin {
   oauthRequired: boolean;
   /** Whether connecting it still has to run that authorization. */
   needsOAuth: boolean;
+  /**
+   * Set for a plugin the user installed themselves and switched off. Its
+   * slug is `custom-<id>`; connecting it only switches the existing row on.
+   */
+  localServerId?: number;
+}
+
+const LOCAL_SLUG_PREFIX = "custom-";
+
+export function localServerIdFromSlug(slug: string): number | null {
+  if (!slug.startsWith(LOCAL_SLUG_PREFIX)) return null;
+  const id = Number(slug.slice(LOCAL_SLUG_PREFIX.length));
+  return Number.isInteger(id) ? id : null;
+}
+
+// One-line hints for the user's own plugins so the model can tell what each
+// is for without loading any of its tools.
+const LOCAL_PLUGIN_HINTS: Record<string, string> = {
+  github:
+    "Read, search and change the user's GitHub repos, issues and pull requests (large tool set)",
+  playwright:
+    "Drive a real Chrome browser: open pages, click, read, take screenshots",
+  context7: "Look up current library and framework documentation",
+  "sequential-thinking":
+    "Step-by-step planning scratchpad for hard multi-step problems",
+  "ship-check":
+    "Check a live site for errors and scan a folder for leaked keys before pushing",
+};
+
+/** The user's own plugins that are installed but switched off. */
+async function collectOwnDisabledPlugins(
+  chatId: number,
+): Promise<SuggestablePlugin[]> {
+  const rows = await db
+    .select({
+      id: mcpServers.id,
+      name: mcpServers.name,
+      enabled: mcpServers.enabled,
+      catalogSlug: mcpServers.catalogSlug,
+    })
+    .from(mcpServers);
+  const declined = declinedSlugsByChat.get(chatId);
+  const neverSuggest = new Set(readSettings().neverSuggestPluginSlugs ?? []);
+  return rows
+    .filter((row) => !row.enabled && !row.catalogSlug)
+    .map((row) => ({
+      slug: `${LOCAL_SLUG_PREFIX}${row.id}`,
+      name: row.name,
+      description: LOCAL_PLUGIN_HINTS[row.name.toLowerCase()],
+      oauthRequired: false,
+      needsOAuth: false,
+      localServerId: row.id,
+    }))
+    .filter(
+      (plugin) => !declined?.has(plugin.slug) && !neverSuggest.has(plugin.slug),
+    );
 }
 
 /**
@@ -107,6 +163,14 @@ async function isPluginUsable(
   slug: string,
   oauthRequired: boolean,
 ): Promise<boolean> {
+  const localId = localServerIdFromSlug(slug);
+  if (localId !== null) {
+    const local = await db
+      .select({ enabled: mcpServers.enabled })
+      .from(mcpServers)
+      .where(eq(mcpServers.id, localId));
+    return !!local[0]?.enabled;
+  }
   const rows = await db
     .select(pluginRowColumns())
     .from(mcpServers)
@@ -148,8 +212,9 @@ export async function collectSuggestablePlugins({
   chatId: number;
   cachedOnly?: boolean;
 }): Promise<SuggestablePlugin[]> {
+  const localPlugins = await collectOwnDisabledPlugins(chatId);
   const entries = await readCatalog(cachedOnly);
-  if (entries.length === 0) return [];
+  if (entries.length === 0) return localPlugins;
   const rows: PluginRow[] = await db
     .select(pluginRowColumns())
     .from(mcpServers)
@@ -157,7 +222,7 @@ export async function collectSuggestablePlugins({
   const rowBySlug = new Map(rows.map((row) => [row.catalogSlug, row]));
   const declined = declinedSlugsByChat.get(chatId);
   const neverSuggest = new Set(readSettings().neverSuggestPluginSlugs ?? []);
-  return entries
+  const catalogPlugins = entries
     .filter(
       (entry): entry is HttpCatalogEntry =>
         entry.featured === true &&
@@ -179,6 +244,7 @@ export async function collectSuggestablePlugins({
       oauthRequired,
       needsOAuth: oauthRequired && !isAuthorized(row),
     }));
+  return [...localPlugins, ...catalogPlugins];
 }
 
 const suggestPluginSchema = z.object({
@@ -199,7 +265,7 @@ const suggestPluginSchema = z.object({
 
 type SuggestPluginArgs = z.infer<typeof suggestPluginSchema>;
 
-const BASE_DESCRIPTION = `Ask the user to connect a Crackerbox plugin (an MCP server from the curated catalog) so you can use its tools.
+const BASE_DESCRIPTION = `Ask the user to connect a Crackerbox plugin (an MCP server from the curated catalog) so you can use its tools. Plugins the user installed themselves but switched off are listed below too (slugs starting with custom-): their tools are not loaded, so when your next step needs one, call this tool and the user switches it on with one tap. Do not try to work around a listed plugin.
 
 Call this only at the moment your next step needs a capability that one of the plugins below provides and no available tool can do it, for example reading a platform's deployment or runtime logs, inspecting live data on that platform, or creating a resource there. Never call it speculatively because the project happens to use that vendor, and never suggest the same plugin twice in a conversation.
 

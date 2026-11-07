@@ -142,9 +142,19 @@ function PendingSuggestionCard({
       // Only one-click entries are suggestable (http, no inputs). Adding is
       // idempotent, so a plugin that already exists comes back as its row,
       // which may be disabled and may still hold its authorization.
-      const created = await ipc.mcp.addFromCatalog({ slug: pending.slug });
-      if (!created.enabled) {
-        await ipc.mcp.updateServer({ id: created.id, enabled: true });
+      // A slug of custom-<id> is one of the user's own plugins that is
+      // switched off: connecting it just switches that row on.
+      const localId = pending.slug.startsWith("custom-")
+        ? Number(pending.slug.slice("custom-".length))
+        : NaN;
+      let created;
+      if (Number.isInteger(localId)) {
+        created = await ipc.mcp.updateServer({ id: localId, enabled: true });
+      } else {
+        created = await ipc.mcp.addFromCatalog({ slug: pending.slug });
+        if (!created.enabled) {
+          await ipc.mcp.updateServer({ id: created.id, enabled: true });
+        }
       }
       // Not awaited: the refetch runs tool discovery on every plugin, and
       // the one just added can sit in that until its timeout when it is

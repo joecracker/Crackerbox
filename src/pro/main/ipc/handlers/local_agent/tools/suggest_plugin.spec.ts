@@ -17,6 +17,12 @@ const mocks = vi.hoisted(() => ({
     enabled: boolean;
     oauthState: string | null;
   }[],
+  ownRows: [] as {
+    id: number;
+    name: string;
+    enabled: boolean;
+    catalogSlug: string | null;
+  }[],
   neverSlugs: undefined as string[] | undefined,
   tryWriteSettings: vi.fn(() => true),
 }));
@@ -54,6 +60,8 @@ vi.mock("@/db", () => ({
           condition?.slug !== undefined
             ? mocks.rows.filter((row) => row.catalogSlug === condition.slug)
             : mocks.rows,
+        // A plain select of every server row: the user's own plugins.
+        then: (resolve: (value: unknown) => unknown) => resolve(mocks.ownRows),
       }),
     }),
   },
@@ -61,6 +69,8 @@ vi.mock("@/db", () => ({
 
 vi.mock("@/db/schema", () => ({
   mcpServers: {
+    id: "id",
+    name: "name",
     catalogSlug: "catalog_slug",
     enabled: "enabled",
     oauthState: "oauth_state",
@@ -559,5 +569,24 @@ describe("suggestPluginTool", () => {
     settleFirst({ kind: "plugin-suggestion", outcome: "connected" });
     await expect(first).resolves.toContain("queued a follow-up turn");
     expect(mocks.request).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("user's own switched-off plugins", () => {
+  beforeEach(() => {
+    mocks.ownRows = [];
+    mocks.peekCatalog.mockReturnValue(null);
+    mocks.catalog.mockResolvedValue([]);
+  });
+
+  it("offers an installed plugin that is switched off, even with no catalog", async () => {
+    mocks.ownRows = [
+      { id: 8, name: "Github", enabled: false, catalogSlug: null },
+      { id: 9, name: "Ship-check", enabled: true, catalogSlug: null },
+    ];
+    const result = await collectSuggestablePlugins({ chatId: 1 });
+    expect(result.map((p) => p.slug)).toEqual(["custom-8"]);
+    expect(result[0].localServerId).toBe(8);
+    expect(result[0].needsOAuth).toBe(false);
   });
 });

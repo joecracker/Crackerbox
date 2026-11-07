@@ -70,4 +70,20 @@ describe("createModelTextGuard", () => {
   it("is case-insensitive", () => {
     expect(run(["<DYAD-write path='x'>"])).not.toContain("<DYAD-");
   });
+
+  it("cuts a made-up generate/output/memory tag and everything after it", () => {
+    for (const tag of [
+      '<dyad-generate prompt="x"></dyad-generate>',
+      '<dyad-output type="text">Image saved</dyad-output>',
+      '<dyad-update-memory file="a" mode="append">x</dyad-update-memory>',
+      '<dyad-copy from="a" to="b" />',
+      '<dyad-delete path="a" />',
+    ]) {
+      const guard = createModelTextGuard();
+      const out =
+        guard.push(`Going now.\n${tag}\nDone, it worked.`) + guard.flush();
+      expect(out).toBe("Going now.\n");
+      expect(guard.wasGarbled()).toBe(true);
+    }
+  });
 });

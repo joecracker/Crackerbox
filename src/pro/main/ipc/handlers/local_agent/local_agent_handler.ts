@@ -40,6 +40,7 @@ import { trimOldToolOutput } from "./history_trim";
 import { parseMcpToolKey, sanitizeMcpName } from "@/ipc/utils/mcp_tool_utils";
 import { sanitizeMcpToolResult } from "@/ipc/utils/mcp_result_sanitizer";
 import { createModelTextGuard } from "./processors/model_text_guard";
+import { repairOrphanThink } from "./processors/think_repair";
 
 import {
   isDyadProEnabled,
@@ -1977,6 +1978,9 @@ export async function handleLocalAgentStream(
 
               if (chunk) {
                 fullResponse += chunk;
+                if (part.type === "text-delta" && chunk.includes("</think>")) {
+                  fullResponse = repairOrphanThink(fullResponse);
+                }
                 await updateResponseInDb(placeholderMessageId, fullResponse);
                 sendChunk(fullResponse);
               }

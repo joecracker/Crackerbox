@@ -155,11 +155,12 @@ const getProposalHandler = async (
       // renderer projection of tool calls that already executed, not a legacy
       // proposal awaiting approval. This also protects interrupted Agent turns
       // created before agentic messages were eagerly marked approved.
-      if (latestAssistantMessage?.hasAiMessagesJson) {
-        return null;
-      }
+      // Agent turns are finished actions, not proposals: no code proposal and no
+      // rebuild/restart buttons. They still get the long-chat handoff button below.
+      const isAgentTurn = Boolean(latestAssistantMessage?.hasAiMessagesJson);
 
       if (
+        !isAgentTurn &&
         latestAssistantMessage?.content &&
         latestAssistantMessage.id &&
         !latestAssistantMessage?.approvalState
@@ -244,7 +245,7 @@ const getProposalHandler = async (
         }
       }
       const actions: ActionProposal["actions"] = [];
-      if (latestAssistantMessage?.content) {
+      if (!isAgentTurn && latestAssistantMessage?.content) {
         const writeTags = getDyadWriteTags(latestAssistantMessage.content);
         const refactorTarget = writeTags.reduce(
           (largest, tag) => {
@@ -332,6 +333,10 @@ const getProposalHandler = async (
         }
       }
       if (latestAssistantMessage) {
+        // Short agent chats stay clean: only show buttons once the chat is long.
+        if (isAgentTurn && !actions.some((a) => a.id === "write-handoff")) {
+          return null;
+        }
         actions.push({
           id: "keep-going",
         });

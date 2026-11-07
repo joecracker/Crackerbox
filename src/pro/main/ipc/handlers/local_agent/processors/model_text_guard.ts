@@ -35,9 +35,11 @@ function partialTagSuffixLength(text: string): number {
 
 // Signs the model typed its own command or command result as plain text instead
 // of making a real tool call: its raw command markup (DSML) or a made-up
-// "Command finished" box. Everything from that point on is dropped, because the
+// "Command finished" box, or an old-style action/result tag (generate, output,
+// update-memory, copy, delete, ...). Everything from that point on is dropped, because the
 // command never ran and any "result" after it is invented.
-const FAKE_MARKUP = /<\s*\/?\s*[|\uff5c]*\s*DSML|<dyad-status[\s>]/i;
+const FAKE_MARKUP =
+  /<\s*\/?\s*[|\uff5c]*\s*DSML|<dyad-(?:status|output|generate|update-memory|copy|delete|rename|script)[\s>/]/i;
 
 export function createModelTextGuard() {
   let held = "";

@@ -1,4 +1,4 @@
-﻿import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import {
   MAX_ATTEMPTS_PER_HOUR,
   fitPrompt,
@@ -222,5 +222,61 @@ describe("generateImages", () => {
     expect(r.capped).toBe(true);
     expect(r.images).toHaveLength(0);
     expect(calls.veniceBodies).toHaveLength(0);
+  });
+});
+
+describe("editing a base picture", () => {
+  const base = { bytes: PNG, mime: "image/png" };
+
+  it("sends the base picture to the i2i engine and nothing else", async () => {
+    const { fetchImpl, calls } = fakeFetch({});
+    const r = await generateImages({
+      prompt: "sitting on a sofa",
+      aspect: "2:3",
+      baseImage: base,
+      keys: { venice: "k", siray: "s" },
+      fetchImpl,
+      sleep: noSleep,
+      sampler: goodSampler,
+    });
+    expect(r.images).toHaveLength(1);
+    expect(r.images[0].engine).toBe("siray-seedream-4-5-i2i");
+    expect(r.images[0].fellBack).toBe(false);
+    expect(calls.veniceBodies).toHaveLength(0);
+    const body = calls.sirayBodies[0];
+    expect(body.model).toBe("bytedance/seedream-4.5-i2i-spicy");
+    expect(body.image).toBe(`data:image/png;base64,${PNG.toString("base64")}`);
+    expect(body.size).toBe("1664x2496");
+    expect(body.prompt).toBe("sitting on a sofa");
+  });
+
+  it("never falls back to a text-only picture", async () => {
+    const { fetchImpl, calls } = fakeFetch({});
+    const r = await generateImages({
+      prompt: "x",
+      baseImage: base,
+      keys: { venice: "k" },
+      fetchImpl,
+      sleep: noSleep,
+      sampler: goodSampler,
+    });
+    expect(r.images).toHaveLength(0);
+    expect(r.failures[0]).toMatch(/no siray key/);
+    expect(calls.veniceBodies).toHaveLength(0);
+    expect(calls.sirayBodies).toHaveLength(0);
+  });
+
+  it("does not run the i2i engine without a base picture", async () => {
+    const { fetchImpl, calls } = fakeFetch({});
+    const r = await generateImages({
+      prompt: "x",
+      model: "siray-seedream-4-5-i2i",
+      keys: { siray: "s" },
+      fetchImpl,
+      sleep: noSleep,
+      sampler: goodSampler,
+    });
+    expect(calls.sirayBodies.every((b) => b.image === undefined)).toBe(true);
+    expect(r.images[0]?.engine ?? "").not.toBe("siray-seedream-4-5-i2i");
   });
 });

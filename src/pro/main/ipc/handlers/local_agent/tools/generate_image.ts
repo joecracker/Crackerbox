@@ -13,6 +13,7 @@ import { DYAD_MEDIA_DIR_NAME } from "@/ipc/utils/media_path_utils";
 import { patchMediaMeta } from "@/ipc/utils/media_gallery_index";
 import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
 import { readSettings } from "@/main/settings";
+import { safeJoin } from "@/ipc/utils/path_utils";
 import { findSirayApiKey, findVeniceApiKey } from "./venice_api";
 import {
   ENGINE_NAMES,
@@ -63,6 +64,12 @@ const generateImageSchema = z.object({
     .describe(
       "Things to keep OUT of the picture, for example 'text, watermark, extra fingers'. Works on Venice engines. Prefer this over writing 'no X' in the main prompt.",
     ),
+  base_image: z
+    .string()
+    .optional()
+    .describe(
+      "Path to a picture IN THIS PROJECT to edit instead of making a new one (for example public/library/nyx/nyx-field-nude-01.png or .dyad/media/<file>). Use this whenever the user wants the SAME character in a new pose, outfit or setting: the picture is edited, so the face and body stay hers. Describe only what should change in the prompt. Needs a Siray key; if it fails, say so and do not fall back to a text-only picture. aspect_ratio should match the base picture's shape.",
+    ),
   model: z
     .string()
     .optional()
@@ -72,6 +79,9 @@ const generateImageSchema = z.object({
 });
 
 const DESCRIPTION = `Generate 1 to 4 pictures from a text prompt using the user's own Venice and Siray accounts. Venice is tried first; if it refuses, times out or fails, Siray engines are tried automatically. Pictures are saved to the project's .dyad/media directory and filed under a section (default "generated") on the Media page, with the prompt and engine remembered.
+
+### Editing a base picture (keeps the same face)
+Pass base_image to edit an existing picture instead of making a new person. Only image-to-image engines run then, and there is no text-only fallback, because a text-only picture would be a stranger. The base picture is sent to the user's Siray account.
 
 ### When to Use
 - The user asks for a picture, illustration, character, icon, hero image or any visual asset
@@ -149,8 +159,42 @@ export const generateImageTool: ToolDefinition<
         );
       }
 
+      let baseImage: { bytes: Buffer; mime: string } | undefined;
+      if (args.base_image) {
+        const full = safeJoin(ctx.appPath, args.base_image);
+        const ext = path.extname(full).toLowerCase();
+        const mime =
+          ext === ".png"
+            ? "image/png"
+            : ext === ".jpg" || ext === ".jpeg"
+              ? "image/jpeg"
+              : ext === ".webp"
+                ? "image/webp"
+                : undefined;
+        if (!mime) {
+          throw new DyadError(
+            "base_image must be a .png, .jpg or .webp picture.",
+            DyadErrorKind.Validation,
+          );
+        }
+        const bytes = await fs.readFile(full).catch(() => {
+          throw new DyadError(
+            `Could not read the base picture: ${args.base_image}`,
+            DyadErrorKind.NotFound,
+          );
+        });
+        if (bytes.length > 10 * 1024 * 1024) {
+          throw new DyadError(
+            "The base picture is over 10 MB. Use a smaller copy.",
+            DyadErrorKind.Validation,
+          );
+        }
+        baseImage = { bytes, mime };
+      }
+
       const batch = await generateImages({
         prompt: args.prompt,
+        baseImage,
         count: args.count,
         aspect: args.aspect_ratio,
         style: args.style,

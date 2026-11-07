@@ -28,8 +28,8 @@ export interface EngineRow {
   sizeRule?: "pixels" | "tier";
   /** Siray only: extra output_format field some models want. */
   outputFormat?: string;
-  /** Later: image-to-image and edit engines get their own kinds. */
-  kind: "text-to-image";
+  /** image-to-image engines edit a base picture; they never run without one. */
+  kind: "text-to-image" | "image-to-image";
 }
 
 export const ENGINES: EngineRow[] = [
@@ -79,6 +79,14 @@ export const ENGINES: EngineRow[] = [
     style: "anime",
     sizeRule: "pixels",
     kind: "text-to-image",
+  },
+  {
+    name: "siray-seedream-4-5-i2i",
+    service: "siray",
+    modelId: "bytedance/seedream-4.5-i2i-spicy",
+    style: "realistic",
+    sizeRule: "pixels",
+    kind: "image-to-image",
   },
 ];
 
@@ -172,6 +180,24 @@ export function sniffExtension(bytes: Buffer): ".png" | ".jpg" | ".webp" {
   return ".png";
 }
 
+/** Edit-a-base-picture engines. A named one goes alone; otherwise all of them. */
+export function resolveI2iChain(model: string | undefined): EngineRow[] {
+  const all = ENGINES.filter((e) => e.kind === "image-to-image");
+  const named = model ? all.find((e) => e.name === model) : undefined;
+  return named ? [named] : all;
+}
+
+/** Seedream 4.5 sizes by shape (its size field is a fixed list). */
+const SEEDREAM_45_SIZES: Record<string, string> = {
+  "1:1": "2048x2048",
+  "4:3": "2304x1728",
+  "3:4": "1728x2304",
+  "16:9": "2848x1600",
+  "9:16": "1600x2848",
+  "3:2": "2496x1664",
+  "2:3": "1664x2496",
+};
+
 /** The engine rows to try, in order, for a request. */
 export function resolveChain(model: string | undefined, style: ImageStyle) {
   const byName = (n: string) => ENGINES.find((e) => e.name === n);
@@ -258,6 +284,8 @@ interface CallRequest {
   prompt: string;
   aspect: string;
   negativePrompt?: string;
+  /** Base picture as a data: URI, for image-to-image engines. */
+  baseImageUri?: string;
   signal?: AbortSignal;
   fetchImpl: typeof fetch;
   sleep: (ms: number) => Promise<void>;
@@ -342,10 +370,13 @@ async function callSiray(
       model: row.modelId,
       prompt: req.prompt,
       size:
-        row.sizeRule === "tier"
-          ? "1k"
-          : (SIRAY_SIZES[row.style][req.aspect] ?? "1024x1024"),
+        row.kind === "image-to-image"
+          ? (SEEDREAM_45_SIZES[req.aspect] ?? "2048x2048")
+          : row.sizeRule === "tier"
+            ? "1k"
+            : (SIRAY_SIZES[row.style][req.aspect] ?? "1024x1024"),
     };
+    if (row.kind === "image-to-image") body.image = req.baseImageUri;
     if (row.outputFormat) body.output_format = row.outputFormat;
 
     const submit = await req.fetchImpl(
@@ -417,6 +448,8 @@ export interface GenerateOptions {
   style?: ImageStyle;
   model?: string;
   negativePrompt?: string;
+  /** A picture to edit. When set, only image-to-image engines run. */
+  baseImage?: { bytes: Buffer; mime: string };
   count?: number;
   keys: { venice?: string; siray?: string };
   signal?: AbortSignal;
@@ -456,6 +489,9 @@ async function makeOne(
     prompt: opts.prompt,
     aspect: opts.aspect,
     negativePrompt: opts.negativePrompt,
+    baseImageUri: opts.baseImage
+      ? `data:${opts.baseImage.mime};base64,${opts.baseImage.bytes.toString("base64")}`
+      : undefined,
     signal: opts.signal,
     fetchImpl,
     sleep,
@@ -463,6 +499,15 @@ async function makeOne(
 
   for (let i = 0; i < chain.length; i++) {
     const row = chain[i];
+    // Editing keeps her face; making a new picture does not. Never mix them.
+    if ((row.kind === "image-to-image") !== Boolean(opts.baseImage)) {
+      notes.push(
+        row.kind === "image-to-image"
+          ? `: skipped, it needs a base picture.`
+          : `: skipped, text-only engines would make a new face.`,
+      );
+      continue;
+    }
     const key = opts.keys[row.service];
     if (!key) {
       notes.push(`${row.name}: skipped, no ${row.service} key is set up.`);
@@ -522,7 +567,9 @@ export async function generateImages(
   )
     ? (options.aspect as string)
     : "1:1";
-  const chain = resolveChain(options.model, options.style ?? "realistic");
+  const chain = options.baseImage
+    ? resolveI2iChain(options.model)
+    : resolveChain(options.model, options.style ?? "realistic");
   const state = { capped: false };
   const results = await Promise.all(
     Array.from({ length: count }, () =>

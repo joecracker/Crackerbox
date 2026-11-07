@@ -140,9 +140,13 @@ describe("getCompactionThreshold", () => {
     it("treats unknown providers like non-google providers", () => {
       expect(getCompactionThreshold(400_000, "vertex")).toBe(120_000);
       expect(getCompactionThreshold(400_000, "openrouter")).toBe(120_000);
+    });
+
+    it("compacts custom providers sooner, at 80k", () => {
       expect(getCompactionThreshold(1_000_000, "custom::Venice AI")).toBe(
-        120_000,
+        80_000,
       );
+      expect(getCompactionThreshold(64_000, "custom::Venice AI")).toBe(39_000);
     });
 
     it("still leaves 25k headroom when the window is small", () => {

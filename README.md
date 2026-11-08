@@ -7,6 +7,14 @@ Crackerbox is a local, open-source AI app builder: chat with an AI and it builds
 - ⚡️ **Local**: Fast, private and no lock-in.
 - 🛠 **Bring your own keys**: Use your own AI API keys — no vendor lock-in.
 - **Windows**: built and tested on Windows only for now.
+- **Plugins**: add MCP servers (docs lookup, GitHub, your own tools); the assistant can ask you to switch one on when she needs it.
+- **Images**: several image engines with fallback, plus image-to-image from a base picture.
+
+## Documentation
+
+- [Getting started](docs/getting-started.md): first run, plugins (MCP servers), image generation and image-to-image, long chats, known limits.
+- [Changelog](docs/changelog.md): what changed and when.
+- [Phone and remote access](docs/phone-remote.md)
 
 ## 📱 Phone
 

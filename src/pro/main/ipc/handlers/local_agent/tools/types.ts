@@ -64,6 +64,7 @@ export const APP_MUTATING_TOOL_NAMES = [
   "enable_nitro",
   "generate_image",
   "remove_background",
+  "tag_media",
   "generate_test_assertions",
   "git_restore_file",
   "reinstall_and_restart_app",

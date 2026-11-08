@@ -49,6 +49,7 @@ export const FILE_MUTATION_POLICIES = {
   enable_nitro: "always",
   generate_image: "never",
   remove_background: "never",
+  tag_media: "never",
   generate_test_assertions: "always",
   git_restore_file: "always",
   reinstall_and_restart_app: "never",

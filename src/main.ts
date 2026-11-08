@@ -185,6 +185,9 @@ const LAUNCH_TIME = Date.now();
 // Above the dev block so a failure there is still reported. Only registers
 // process handlers; it writes nothing, so it can't fix the log directory early.
 log.errorHandler.startCatching({
+  // No modal box: it blocks the main process, which freezes the phone link until
+  // someone clicks OK at the PC. The error is still logged below.
+  showDialog: false,
   // Runs before electron-log logs the error itself. Must not return false:
   // that suppresses both the stack trace and the error dialog.
   onError: ({ errorName }) => {

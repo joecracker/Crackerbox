@@ -994,6 +994,18 @@ function proxyPhonePreviewWebSocket(
     socket.write(responseHead + "\r\n");
     if (head.length > 0) proxySocket.write(head);
     if (proxyHead.length > 0) socket.write(proxyHead);
+    // A phone dropping off (ECONNRESET) must end the pair quietly. With no
+    // error listener Node throws it, and Electron shows a blocking dialog that
+    // freezes the main process until someone clicks OK.
+    const endPair = (error?: Error) => {
+      if (error) logger.warn("Phone preview WebSocket socket error:", error);
+      socket.destroy();
+      proxySocket.destroy();
+    };
+    socket.on("error", endPair);
+    proxySocket.on("error", endPair);
+    socket.on("close", () => proxySocket.destroy());
+    proxySocket.on("close", () => socket.destroy());
     proxySocket.pipe(socket).pipe(proxySocket);
   });
   proxyReq.on("response", () => socket.destroy());
@@ -1152,6 +1164,9 @@ export function startPhoneBridgeServer(devServerUrl: string | undefined) {
     (conn) => conn.notifyClosed(),
   );
   server.on("upgrade", (req, socket, head) => {
+    socket.on("error", (error) =>
+      logger.warn("Phone upgrade socket error:", error),
+    );
     if (isPreviewHost(req.headers.host)) {
       const plan = planPreviewHostRequest(
         req.url ?? "/",

@@ -530,6 +530,11 @@ const BaseUserSettingsFields = {
   homeAssistant: HomeAssistantSchema.optional(),
   localAi: LocalAiSchema.optional(),
   autoApproveChanges: z.boolean().optional(),
+  // Apps (by id) that cannot be deleted from the app: persona tabs like Nyx.
+  protectedAppIds: z.array(z.number()).optional(),
+  // Plugins (by mcp_servers id) that switch themselves off after a turn in
+  // which the agent did not use them, e.g. Playwright.
+  autoOffPluginIds: z.array(z.number()).optional(),
   telemetryConsent: z.enum(["opted_in", "opted_out", "unset"]).optional(),
   telemetryUserId: z.string().optional(),
   hasRunBefore: z.boolean().optional(),

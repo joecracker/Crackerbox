@@ -25,7 +25,12 @@ export const MEMORY_LIMITS: Record<CoreMemoryFile, number> = {
   facts: 5000,
 };
 export const TOPIC_LIMIT = 8000;
-export const MAX_TOPICS = 20;
+export const MAX_TOPICS = 40;
+
+/** Auto-made overflow files (facts-archive, decisions-archive-2, ...). */
+export function isArchiveTopic(name: string): boolean {
+  return /^(facts|decisions)-archive(-\d+)?$/.test(name);
+}
 
 const CORE_PURPOSE: Record<CoreMemoryFile, string> = {
   state: "what is being worked on right now and the single next step",
@@ -123,7 +128,12 @@ export function writeMemoryFile(
     );
   }
   if (!isCoreMemoryFile(name) && !fs.existsSync(file)) {
-    if (listTopicFiles(appId).length >= MAX_TOPICS) {
+    // Archive overflow files are managed automatically and never count.
+    if (
+      !isArchiveTopic(name) &&
+      listTopicFiles(appId).filter((t) => !isArchiveTopic(t)).length >=
+        MAX_TOPICS
+    ) {
       throw new DyadError(
         `There are already ${MAX_TOPICS} topic files. Merge or clear one before adding another. Nothing was saved.`,
         DyadErrorKind.Validation,
@@ -328,12 +338,25 @@ function indexLine(name: string, text: string, label?: string): string {
 }
 
 /** What read_memory returns for a missing or unnamed file. */
-export function memoryIndexText(appId: number): string {
+export function memoryIndexText(
+  appId: number,
+  collapseArchives = false,
+): string {
   const lines: string[] = CORE_MEMORY_FILES.map((n) =>
     indexLine(n, readMemoryFile(appId, n)),
   );
+  let archived = 0;
   for (const t of listTopicFiles(appId)) {
+    if (collapseArchives && isArchiveTopic(t)) {
+      archived++;
+      continue;
+    }
     lines.push(indexLine(t, readMemoryFile(appId, t), `topics/${t}`));
+  }
+  if (archived > 0) {
+    lines.push(
+      `- ${archived} older archive files (topics/facts-archive*, topics/decisions-archive*): call read_memory with no file name to list them`,
+    );
   }
   return lines.join("\n");
 }
@@ -347,7 +370,7 @@ export function agentMemoryPromptBlock(appId: number): string {
   return (
     `\n\n## Your memory for this app\n` +
     `This is your own memory of earlier work in this app, kept between chats. Trust it as your starting point and check it when something looks off. Read "decisions" before proposing anything and never re-propose what it rules out. Open any file below with read_memory; change it with update_memory.\n\n` +
-    `Files:\n${memoryIndexText(appId)}\n\n` +
+    `Files:\n${memoryIndexText(appId, true)}\n\n` +
     sections.join("\n\n") +
     libraryPromptSection(appId)
   );

@@ -2574,6 +2574,7 @@ export async function handleLocalAgentStream(
       ?.close()
       .catch((error) => logger.error("Claude admission cleanup failed", error));
     await persistCompactionFallback();
+    await switchOffIdleAutoOffPlugins(chat.id);
     endTurnFinalization(mutationTurnId);
     // If an in-progress tool's XML preview was overlaid in the renderer
     // and the stream tore down before onXmlComplete could commit and
@@ -2968,6 +2969,44 @@ function shouldRunTodoFollowUpPass(params: {
  * `<dyad-mcp-tool-call>` / `<dyad-mcp-tool-result>` pair for the UI,
  * and surfaces tool errors as `<dyad-output type="error">`.
  */
+// Plugin ids that ran a tool during the current turn, per chat.
+const pluginsUsedThisTurn = new Map<number, Set<number>>();
+function markPluginUsed(chatId: number, serverId: number) {
+  let set = pluginsUsedThisTurn.get(chatId);
+  if (!set) pluginsUsedThisTurn.set(chatId, (set = new Set()));
+  set.add(serverId);
+}
+
+/**
+ * Plugins listed in settings.autoOffPluginIds (e.g. Playwright) switch
+ * themselves off after a turn where the agent never called them, so their
+ * tool descriptions stop loading into every later chat. The agent's
+ * suggest_plugin card can switch them back on when needed.
+ */
+async function switchOffIdleAutoOffPlugins(chatId: number): Promise<void> {
+  const used = pluginsUsedThisTurn.get(chatId);
+  pluginsUsedThisTurn.delete(chatId);
+  try {
+    const ids = readSettings().autoOffPluginIds ?? [];
+    for (const id of ids) {
+      if (used?.has(id)) continue;
+      const rows = await db
+        .select({ enabled: mcpServers.enabled })
+        .from(mcpServers)
+        .where(eq(mcpServers.id, id));
+      if (!rows[0]?.enabled) continue;
+      await db
+        .update(mcpServers)
+        .set({ enabled: false })
+        .where(eq(mcpServers.id, id));
+      void mcpManager.dispose(id).catch(() => {});
+      logger.info(`Plugin ${id} switched off: unused this turn`);
+    }
+  } catch (e) {
+    logger.warn("Auto-off of idle plugins failed", e);
+  }
+}
+
 async function getMcpTools(
   event: IpcMainInvokeEvent,
   ctx: AgentContext,
@@ -3065,6 +3104,7 @@ async function getMcpTools(
                 return mcpTool.execute(args, execCtx);
               });
               ctx.mcpToolRan = true;
+              markPluginUsed(ctx.chatId, s.id);
               const safeResult = sanitizeMcpToolResult(res);
 
               ctx.onXmlComplete(

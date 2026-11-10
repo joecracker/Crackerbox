@@ -1554,7 +1554,16 @@ export function registerAppHandlers() {
     return {};
   });
 
+  const assertNotProtected = (appId: number) => {
+    if (readSettings().protectedAppIds?.includes(appId)) {
+      throw new Error(
+        "This app is protected and cannot be deleted. Remove it from protectedAppIds in settings first.",
+      );
+    }
+  };
+
   createTypedHandler(appContracts.deleteApp, async (_, params) => {
+    assertNotProtected(params.appId);
     await deleteAppById(params.appId);
   });
 
@@ -1568,6 +1577,7 @@ export function registerAppHandlers() {
     await Promise.all(
       params.appIds.map(async (appId) => {
         try {
+          assertNotProtected(appId);
           await deleteAppById(appId);
           results.push({ appId, success: true });
         } catch (error: any) {

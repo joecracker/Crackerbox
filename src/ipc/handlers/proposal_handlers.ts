@@ -26,6 +26,7 @@ import {
   estimateMessagesTokens,
   estimateTokens,
   getContextWindow,
+  getCompactionThreshold,
 } from "../utils/token_utils";
 import { extractCodebase } from "../../utils/codebase";
 import { getDyadAppPath } from "../../paths/paths";
@@ -322,8 +323,24 @@ const getProposalHandler = async (
           `Token usage: ${totalTokens}/${contextWindow} (${(totalTokens / contextWindow) * 100}%)`,
         );
 
-        // If we're using more than 80% of the context window, suggest summarizing
-        if (totalTokens > contextWindow * 0.8 || chat.messages.length > 10) {
+        // Agent chats never load the whole codebase, so judge them by the real
+        // prompt size of the last turn against the cap compaction uses.
+        if (isAgentTurn) {
+          const realTokens =
+            chat.messages.find((m) => m.id === latestAssistantMessage?.id)
+              ?.maxTokensUsed ?? messagesTokenCount;
+          const agentCap = getCompactionThreshold(
+            await getContextWindow(selectedModel),
+            selectedModel.provider,
+          );
+          if (realTokens >= agentCap * 0.75) {
+            actions.push({ id: "write-handoff" });
+          }
+        } else if (
+          // If we're using more than 80% of the context window, suggest summarizing
+          totalTokens > contextWindow * 0.8 ||
+          chat.messages.length > 10
+        ) {
           logger.debug(
             `Token usage is high (${totalTokens}/${contextWindow}) OR long chat history (${chat.messages.length} messages), suggesting summarize action`,
           );

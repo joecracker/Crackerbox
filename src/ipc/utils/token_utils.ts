@@ -104,15 +104,15 @@ export function getCompactionThreshold(
   // Crackerbox compacts sooner than upstream (120k instead of 250k) for every
   // provider that isn't tuned separately: a long chat gets hard to follow and
   // costly well before the window fills.
-  // Custom providers (e.g. Venice) run smaller, faster models that get loopy
-  // and drop instructions long before 120k, so they compact at 80k.
+  // Custom providers (e.g. Venice) compact at 120k (raised from 80k on
+  // 2026-11-10; persona tabs were running out of room too early).
   const cap =
     provider === "google"
       ? 190_000
       : provider === "openai"
         ? 220_000
         : provider.startsWith("custom::")
-          ? 80_000
+          ? 120_000
           : 120_000;
   return Math.min(cap, Math.max(0, contextWindow - 25_000));
 }

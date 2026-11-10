@@ -142,9 +142,9 @@ describe("getCompactionThreshold", () => {
       expect(getCompactionThreshold(400_000, "openrouter")).toBe(120_000);
     });
 
-    it("compacts custom providers sooner, at 80k", () => {
+    it("compacts custom providers at 120k", () => {
       expect(getCompactionThreshold(1_000_000, "custom::Venice AI")).toBe(
-        80_000,
+        120_000,
       );
       expect(getCompactionThreshold(64_000, "custom::Venice AI")).toBe(39_000);
     });

@@ -142,7 +142,7 @@ const VENICE_DEFAULT_PROMPT_CAP = 1450; // Venice 400s a little past ~1500
 const VENICE_TIMEOUT_MS = 120_000;
 const SIRAY_SUBMIT_TIMEOUT_MS = 60_000;
 const SIRAY_POLL_MS = 3_000;
-const SIRAY_GIVE_UP_MS = 150_000;
+const SIRAY_GIVE_UP_MS = 240_000;
 const BLANK_MEAN = 8;
 const BLANK_RETRIES = 2;
 // ----------------------------------------------------------------------------

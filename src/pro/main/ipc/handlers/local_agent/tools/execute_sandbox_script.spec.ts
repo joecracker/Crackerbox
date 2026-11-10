@@ -752,7 +752,7 @@ describe("buildExecuteSandboxScriptDescription (search mode)", () => {
       );
       expect(description).toContain("en-US only");
       expect(description).not.toContain("localeCompare is not supported");
-      expect(description).toContain("Top-level return is not supported");
+      expect(description).toContain("A final top-level `return` is accepted");
       expect(description).toContain("BigInt to a string");
       expect(description).toContain("lone UTF-16 surrogates");
       expect(description).toContain(

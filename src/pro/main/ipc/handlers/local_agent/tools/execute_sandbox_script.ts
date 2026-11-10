@@ -212,7 +212,7 @@ Supported language surface:
 - let/const, functions, closures, arrow functions, async/await, promises, arrays, plain objects, Map, Set, if/switch, loops, break/continue, try/catch/finally, throw, template literals, destructuring, optional chaining, nullish coalescing, JSON, Math, and conservative Array/String/Object/Date/Intl/RegExp helpers.
 - Data helpers include Object.groupBy/Map.groupBy, toSorted/toReversed/toSpliced, Set union/intersection/difference, and delete for object properties or array elements. JSON.parse revivers and JSON.stringify replacers/indentation are supported; JSON callbacks must be synchronous and must not call host functions.
 - String.prototype.localeCompare and Intl formatting support en-US only (the default); other locale arguments are rejected, not silently ignored. Date local-time methods such as getHours/getDate return UTC values, not the user's local time; Intl date formatting rejects non-UTC time zones. URI encoding/decoding helpers are available, but URL/URLSearchParams and network access are not.
-- Top-level await is supported. Top-level return is not supported; return the final expression value instead, e.g. \`const text = await read_file("attachments:data.csv"); text.length;\`.
+- Top-level await is supported. A final top-level \`return\` is accepted; earlier or nested top-level returns are not. Ending with the final expression value also works, e.g. \`const text = await read_file("attachments:data.csv"); text.length;\`.
 - The script has no ambient authority. It can only act through the host functions below.
 
 Recommendations:

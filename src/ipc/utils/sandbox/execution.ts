@@ -308,7 +308,8 @@ export async function executeSandboxScriptInProcess(
   let wallClockTimeoutError: DyadError | undefined;
 
   try {
-    const program = new Mustard(params.script);
+    // A final top-level `return` is common in model-written scripts; accept it as the result.
+    const program = new Mustard(params.script, { lenientMode: true });
     const rawCapabilityMap =
       params.capabilities ??
       buildSandboxCapabilitiesWithObserver(params.appPath, params.onHostCall);

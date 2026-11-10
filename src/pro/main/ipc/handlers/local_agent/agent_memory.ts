@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { getUserDataPath } from "@/paths/paths";
 import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
+import { housePromptSection } from "./house";
 
 // CB's memory for one app: a small filing cabinet that lives in Crackerbox's
 // data folder (not inside the project, so it never rides along into GitHub).
@@ -372,7 +373,8 @@ export function agentMemoryPromptBlock(appId: number): string {
     `This is your own memory of earlier work in this app, kept between chats. Trust it as your starting point and check it when something looks off. Read "decisions" before proposing anything and never re-propose what it rules out. Open any file below with read_memory; change it with update_memory.\n\n` +
     `Files:\n${memoryIndexText(appId, true)}\n\n` +
     sections.join("\n\n") +
-    libraryPromptSection(appId)
+    libraryPromptSection(appId) +
+    housePromptSection(appId)
   );
 }
 

@@ -37,6 +37,7 @@ import { getSupabaseProjectInfoTool } from "./tools/get_supabase_project_info";
 import { setChatSummaryTool } from "./tools/set_chat_summary";
 import { updateMemoryTool } from "./tools/update_memory";
 import { readMemoryTool } from "./tools/read_memory";
+import { houseTool } from "./tools/house";
 import { writeHandoffTool } from "./tools/write_handoff";
 import { addIntegrationTool } from "./tools/add_integration";
 import { enableNitroTool } from "./tools/enable_nitro";
@@ -208,6 +209,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinition[] = [
   setChatSummaryTool,
   updateMemoryTool,
   readMemoryTool,
+  houseTool,
   writeHandoffTool,
   addIntegrationTool,
   enableNitroTool,

@@ -536,6 +536,16 @@ export const miscEvents = {
     payload: z.array(AppOutputSchema),
   }),
 
+  houseTrigger: defineEvent({
+    channel: "house:trigger",
+    payload: z.object({
+      appId: z.number(),
+      sisterId: z.string(),
+      prompt: z.string(),
+      title: z.string(),
+    }),
+  }),
+
   deepLinkReceived: defineEvent({
     channel: "deep-link-received",
     payload: DeepLinkDataSchema,

@@ -20,6 +20,7 @@ import { promisify } from "node:util";
 import { registerIpcHandlers } from "./ipc/ipc_host";
 import "./main/ipc_bridge_registry"; // must load before registerIpcHandlers() below
 import { startPhoneBridgeServer } from "./main/phone_bridge_server";
+import { startHouseScheduler } from "./main/house_schedule";
 import { setPhoneMediaHandler } from "./main/phone_bridge_media";
 import dotenv from "dotenv";
 import { updateElectronApp, UpdateSourceType } from "update-electron-app";
@@ -659,6 +660,20 @@ export async function onReady() {
     startPhoneBridgeServer(MAIN_WINDOW_VITE_DEV_SERVER_URL || undefined);
   } catch (error) {
     logger.error("Failed to start phone bridge server", error);
+  }
+
+  // The house scheduler: starts a chat turn as a sister at set times.
+  try {
+    startHouseScheduler((payload) => {
+      const win = mainWindow;
+      if (!win || win.isDestroyed() || win.webContents.isLoading()) {
+        return false;
+      }
+      win.webContents.send("house:trigger", payload);
+      return true;
+    });
+  } catch (error) {
+    logger.error("Failed to start house scheduler", error);
   }
 
   sendTelemetryEvent("runtime_source", {

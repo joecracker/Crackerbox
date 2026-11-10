@@ -52,6 +52,7 @@ import {
   useScreenshotManager,
 } from "@/screenshot/ScreenshotProvider";
 import { useSyncDefaultChatMode } from "@/hooks/useSyncDefaultChatMode";
+import { HouseTriggerListener } from "@/components/HouseTriggerListener";
 import { PreviewErrorFacadeProvider } from "@/app_wiring/preview_error_facade";
 import { usePreviewErrorFacade } from "@/app_wiring/preview_error_facade";
 import { PackageManagerWarningProvider } from "@/package_manager_warnings/PackageManagerWarningProvider";
@@ -247,6 +248,7 @@ function RootLayoutContent({ children }: { children: ReactNode }) {
                 <PreviewNativeOverlayGuard />
                 <ReleaseNotesDialog />
                 <ForceCloseDialog />
+                <HouseTriggerListener />
                 {/* Outside the sidebar, whose hover handlers would otherwise
                     hear the screenshot bar's pointer events through React's
                     tree and keep the sidebar expanded. */}

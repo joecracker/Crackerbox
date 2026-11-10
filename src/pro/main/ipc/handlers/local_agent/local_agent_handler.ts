@@ -37,6 +37,7 @@ import { requireMcpToolConsent } from "@/ipc/utils/mcp_consent";
 import { buildMcpAutoApprove } from "./mcp_auto_consent";
 import { scheduleChatSearchIndexing } from "./chat_search_indexer";
 import { trimOldToolOutput } from "./history_trim";
+import { readRoster } from "./house";
 import { parseMcpToolKey, sanitizeMcpName } from "@/ipc/utils/mcp_tool_utils";
 import { sanitizeMcpToolResult } from "@/ipc/utils/mcp_result_sanitizer";
 import { createModelTextGuard } from "./processors/model_text_guard";
@@ -1017,6 +1018,24 @@ export async function handleLocalAgentStream(
       })),
       event,
       appId: chat.app.id,
+      sisterId: (() => {
+        try {
+          const roster = readRoster();
+          return (
+            roster.find((s) => s.id === chat.sisterId)?.id ??
+            roster.find((s) => s.appId === chat.app.id)?.id
+          );
+        } catch {
+          return undefined;
+        }
+      })(),
+      sisterAppId: (() => {
+        try {
+          return readRoster().find((s) => s.id === chat.sisterId)?.appId;
+        } catch {
+          return undefined;
+        }
+      })(),
       appPath,
       referencedApps: referencedAppsMap,
       referencedAppIds: new Map(

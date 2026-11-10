@@ -19,6 +19,8 @@ import { useOpenApp } from "@/hooks/useOpenApp";
 import { useAppCollections } from "@/hooks/useAppCollections";
 import { useSettings } from "@/hooks/useSettings";
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { ipc } from "@/ipc/types";
 import { AppSearchDialog } from "./AppSearchDialog";
 import { AppItem } from "./appItem";
 export function AppList({ show }: { show?: boolean }) {
@@ -28,6 +30,12 @@ export function AppList({ show }: { show?: boolean }) {
   const { apps, loading, error } = useLoadApps();
   const { collections } = useAppCollections();
   const { settings } = useSettings();
+  const sistersQuery = useQuery({
+    queryKey: ["house", "sisters"],
+    queryFn: () => ipc.chat.listSisters(),
+  });
+  const sisterFor = (appId: number) =>
+    sistersQuery.data?.find((s) => s.appId === appId);
   const enableMultiWindow = !!settings?.enableMultiWindow;
   // search dialog state
   const [isSearchDialogOpen, setIsSearchDialogOpen] = useState(false);
@@ -147,6 +155,7 @@ export function AppList({ show }: { show?: boolean }) {
                     <AppItem
                       key={app.id}
                       app={app}
+                      sister={sisterFor(app.id)}
                       handleAppClick={handleAppClick}
                       selectedAppId={selectedAppId}
                       enableMultiWindow={enableMultiWindow}
@@ -196,6 +205,7 @@ export function AppList({ show }: { show?: boolean }) {
                                   <AppItem
                                     key={app.id}
                                     app={app}
+                                    sister={sisterFor(app.id)}
                                     handleAppClick={handleAppClick}
                                     selectedAppId={selectedAppId}
                                     enableMultiWindow={enableMultiWindow}
@@ -216,6 +226,7 @@ export function AppList({ show }: { show?: boolean }) {
                   <AppItem
                     key={app.id}
                     app={app}
+                    sister={sisterFor(app.id)}
                     handleAppClick={handleAppClick}
                     selectedAppId={selectedAppId}
                     enableMultiWindow={enableMultiWindow}

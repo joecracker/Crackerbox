@@ -170,6 +170,9 @@ export const chats = sqliteTable("chats", {
   isFavorite: integer("is_favorite", { mode: "boolean" })
     .notNull()
     .default(sql`0`),
+  // The sister (house roster id) who is in this chat. Null means the app's own
+  // assistant, or the sister whose room the app is.
+  sisterId: text("sister_id"),
 });
 
 export const messages = sqliteTable(

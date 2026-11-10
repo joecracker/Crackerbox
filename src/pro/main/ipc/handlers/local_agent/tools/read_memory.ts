@@ -14,6 +14,12 @@ const readMemorySchema = z.object({
     .describe(
       "state, decisions, facts, or a topic name from your memory index.",
     ),
+  scope: z
+    .enum(["project", "mine"])
+    .optional()
+    .describe(
+      "Only when you are a sister working in a project: project (default) or mine (your private memory).",
+    ),
 });
 
 export const readMemoryTool: ToolDefinition<z.infer<typeof readMemorySchema>> =
@@ -30,11 +36,13 @@ export const readMemoryTool: ToolDefinition<z.infer<typeof readMemorySchema>> =
 
     execute: async (args, ctx: AgentContext) => {
       const name = normalizeMemoryName(args.file);
-      const text = readMemoryFile(ctx.appId, name);
+      const appId =
+        args.scope === "mine" && ctx.sisterAppId ? ctx.sisterAppId : ctx.appId;
+      const text = readMemoryFile(appId, name);
       if (text) return text;
-      if (isCoreMemoryFile(name) || listTopicFiles(ctx.appId).includes(name)) {
+      if (isCoreMemoryFile(name) || listTopicFiles(appId).includes(name)) {
         return `${name} is empty.`;
       }
-      return `There is no memory file called "${name}". What exists:\n${memoryIndexText(ctx.appId)}`;
+      return `There is no memory file called "${name}". What exists:\n${memoryIndexText(appId)}`;
     },
   };

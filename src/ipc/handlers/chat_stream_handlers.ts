@@ -64,6 +64,10 @@ import {
 import { NEON_DISCONNECTED_SYSTEM_PROMPT } from "../../prompts/neon_prompt";
 import { getDyadAppPath } from "../../paths/paths";
 import { agentMemoryPromptBlock } from "@/pro/main/ipc/handlers/local_agent/agent_memory";
+import {
+  housePromptForSister,
+  readRoster,
+} from "@/pro/main/ipc/handlers/local_agent/house";
 import { buildDyadMediaUrl } from "../../lib/dyadMediaUrl";
 import type { ChatStreamParams } from "@/ipc/types";
 import type { ChatStreamInvocationRef } from "@/chat_stream/invocation";
@@ -2173,9 +2177,7 @@ ${componentSnippet}
           );
         }
 
-        const aiRules =
-          (await readAiRules(getDyadAppPath(updatedChat.app.path))) +
-          agentMemoryPromptBlock(updatedChat.app.id);
+        const aiRules = await buildSisterAwareRules(updatedChat);
 
         // Get theme prompt for the app (null themeId means "no theme")
         const themePrompt = await getThemePromptById(updatedChat.app.themeId);
@@ -3505,4 +3507,48 @@ These are the other apps that I've mentioned in my prompt. These other apps' cod
 
 ${otherAppsCodebaseInfo}
 `;
+}
+
+/**
+ * The rules text for a turn. A chat with a sister picked brings her persona
+ * and private memory into the app it runs in; the app's own rules and notes
+ * follow as "the project". Without a pick, a sister's own room behaves as
+ * before: that app's rules, its memory, and the house block.
+ */
+async function buildSisterAwareRules(chat: {
+  sisterId: string | null;
+  app: { id: number; path: string; name: string };
+}): Promise<string> {
+  const projectRules = await readAiRules(getDyadAppPath(chat.app.path));
+  let roster: ReturnType<typeof readRoster> = [];
+  try {
+    roster = readRoster();
+  } catch {
+    roster = [];
+  }
+  const own = roster.find((s) => s.appId === chat.app.id);
+  const picked = roster.find((s) => s.id === chat.sisterId);
+  if (picked && picked.appId !== chat.app.id) {
+    const sisterApp = await db.query.apps.findFirst({
+      where: eq(apps.id, picked.appId),
+    });
+    const persona = sisterApp
+      ? await readAiRules(getDyadAppPath(sisterApp.path))
+      : "";
+    return (
+      `# You are ${picked.name}\nTim asked you to work in his project "${chat.app.name}". Stay yourself: your persona, voice and private memory below are yours and come with you into the project. The project's own rules and notes come after.\n\n` +
+      persona +
+      agentMemoryPromptBlock(picked.appId, "private") +
+      housePromptForSister(picked) +
+      `\n\n# The project: ${chat.app.name}\n` +
+      projectRules +
+      agentMemoryPromptBlock(chat.app.id)
+    );
+  }
+  const me = picked ?? own;
+  return (
+    projectRules +
+    agentMemoryPromptBlock(chat.app.id) +
+    (me ? housePromptForSister(me) : "")
+  );
 }

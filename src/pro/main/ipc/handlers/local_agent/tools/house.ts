@@ -7,7 +7,7 @@ import {
   readRoster,
   readShared,
   sendMail,
-  sisterForApp,
+  sisterById,
   writeShared,
 } from "../house";
 import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
@@ -48,12 +48,12 @@ export const houseTool: ToolDefinition<z.infer<typeof houseSchema>> = {
   modifiesState: false,
   mutationTracking: "none",
   requiresBlueprintApproval: false,
-  isEnabled: (ctx: AgentContext) => sisterForApp(ctx.appId) !== undefined,
+  isEnabled: (ctx: AgentContext) => ctx.sisterId !== undefined,
 
   getConsentPreview: (args) => `House: ${args.action}`,
 
   execute: async (args, ctx: AgentContext) => {
-    const me = sisterForApp(ctx.appId);
+    const me = ctx.sisterId ? sisterById(ctx.sisterId) : undefined;
     if (!me) return "You are not a registered member of the house.";
     const need = (v: string | undefined, label: string) => {
       if (!v) {

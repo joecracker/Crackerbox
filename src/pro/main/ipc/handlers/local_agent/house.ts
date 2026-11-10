@@ -100,6 +100,10 @@ export function sisterForApp(appId: number): Sister | undefined {
   return readRoster().find((s) => s.appId === appId);
 }
 
+export function sisterById(id: string): Sister | undefined {
+  return readRoster().find((s) => s.id === id);
+}
+
 function mailDir(id: string) {
   return path.join(houseDir(), "mailbox", id);
 }
@@ -241,14 +245,21 @@ export function writeShared(
 
 /** The block added to a sister's rules at the start of every turn. */
 export function housePromptSection(appId: number): string {
+  try {
+    const me = readRoster().find((s) => s.appId === appId);
+    return me ? housePromptForSister(me) : "";
+  } catch {
+    return "";
+  }
+}
+
+export function housePromptForSister(me: Sister): string {
   let roster: Sister[];
   try {
     roster = readRoster();
   } catch {
     return "";
   }
-  const me = roster.find((s) => s.appId === appId);
-  if (!me) return "";
   const others = roster
     .filter((s) => s.id !== me.id)
     .map((s) => s.name)

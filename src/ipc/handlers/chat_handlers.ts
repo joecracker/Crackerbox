@@ -30,6 +30,7 @@ import {
   BACKEND_SWITCH_MESSAGE,
 } from "@/shared/execution_backend";
 import { createChatForApp } from "../utils/chat_creation_utils";
+import { readRoster } from "@/pro/main/ipc/handlers/local_agent/house";
 import {
   getReferencedAppsForDisplay,
   readStoredReferencedAppIds,
@@ -284,6 +285,7 @@ export function registerChatHandlers() {
         createdAt: true,
         chatMode: true,
         isFavorite: true,
+        sisterId: true,
       },
     });
 
@@ -298,7 +300,36 @@ export function registerChatHandlers() {
       createdAt: chat.createdAt,
       chatMode: normalizeStoredChatMode(chat.chatMode),
       isFavorite: chat.isFavorite,
+      sisterId: chat.sisterId,
     };
+  });
+
+  createTypedHandler(chatContracts.listSisters, async () =>
+    readRoster().map(({ id, name, appId, color, initial }) => ({
+      id,
+      name,
+      appId,
+      color,
+      initial,
+    })),
+  );
+
+  createTypedHandler(chatContracts.setChatSister, async (_, params) => {
+    if (
+      params.sisterId !== null &&
+      !readRoster().some((s) => s.id === params.sisterId)
+    ) {
+      throw new DyadError("Unknown sister", DyadErrorKind.Validation);
+    }
+    const updated = await db
+      .update(chats)
+      .set({ sisterId: params.sisterId })
+      .where(eq(chats.id, params.chatId))
+      .returning({ sisterId: chats.sisterId });
+    if (updated.length === 0) {
+      throw new DyadError("Chat not found", DyadErrorKind.NotFound);
+    }
+    return updated[0];
   });
 
   createTypedHandler(chatContracts.getChats, async (_, appId) => {

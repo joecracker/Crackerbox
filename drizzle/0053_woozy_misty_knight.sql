@@ -1,0 +1,1 @@
+ALTER TABLE `chats` ADD `sister_id` text;

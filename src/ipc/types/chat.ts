@@ -359,6 +359,15 @@ export const SetChatFavoriteResultSchema = z.object({
   isFavorite: z.boolean(),
 });
 
+export const SisterSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  appId: z.number(),
+  color: z.string(),
+  initial: z.string(),
+});
+export type SisterSummary = z.infer<typeof SisterSchema>;
+
 /**
  * Schema for token count params.
  */
@@ -432,7 +441,25 @@ export const chatContracts = {
       createdAt: z.date(),
       chatMode: NullableChatModeSchema,
       isFavorite: z.boolean(),
+      sisterId: z.string().nullable().optional(),
     }),
+  }),
+
+  listSisters: defineContract({
+    channel: "house:list-sisters",
+    input: z.void(),
+    output: z.array(SisterSchema),
+  }),
+
+  setChatSister: defineContract({
+    channel: "chat:set-sister",
+    input: z.object({ chatId: z.number(), sisterId: z.string().nullable() }),
+    output: z.object({ sisterId: z.string().nullable() }),
+    invalidates: (input) => [
+      { family: "chats" },
+      { family: "chat", chatId: input.chatId },
+    ],
+    originHandles: () => [{ family: "chats" }],
   }),
 
   claudeCodeModels: defineContract({

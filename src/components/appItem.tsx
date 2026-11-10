@@ -3,6 +3,7 @@ import { ExternalLink, Star } from "lucide-react";
 import { SidebarMenuItem } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { AppAvatar } from "@/components/AppAvatar";
+import { SisterBadge } from "@/components/SisterPicker";
 import type { ListedApp } from "@/ipc/types/app";
 import {
   ContextMenu,
@@ -19,6 +20,8 @@ type AppItemProps = {
   handleAppClick: (id: number) => void;
   selectedAppId: number | null;
   enableMultiWindow: boolean;
+  /** Set when this app is a sister's room: shows her badge. */
+  sister?: { name: string; color: string; initial: string };
 };
 
 export function AppItem({
@@ -26,6 +29,7 @@ export function AppItem({
   handleAppClick,
   selectedAppId,
   enableMultiWindow,
+  sister,
 }: AppItemProps) {
   const { t } = useTranslation("home");
   const appButton = (
@@ -40,7 +44,15 @@ export function AppItem({
         }`}
         data-testid={`app-list-item-${app.name}`}
       >
-        <AppAvatar appId={app.id} name={app.name} />
+        {sister ? (
+          <SisterBadge
+            color={sister.color}
+            initial={sister.initial}
+            size={28}
+          />
+        ) : (
+          <AppAvatar appId={app.id} name={app.name} />
+        )}
         <div className="flex min-w-0 flex-1 flex-col items-start">
           <div className="flex w-full items-center gap-1">
             <span className="truncate">{app.name}</span>

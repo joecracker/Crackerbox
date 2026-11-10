@@ -25,6 +25,12 @@ const updateMemorySchema = z.object({
       'For replace_section: the heading line to replace the body under, for example "## Red batch". Added if it is not there yet. Empty text removes the section.',
     ),
   text: z.string().describe("The text to write."),
+  scope: z
+    .enum(["project", "mine"])
+    .optional()
+    .describe(
+      "Only when you are a sister working in a project: project (default) is this project's shared notes; mine is your own private memory.",
+    ),
 });
 
 export const updateMemoryTool: ToolDefinition<
@@ -49,6 +55,8 @@ Prefer append or replace_section so you never drop what you did not mean to touc
   getConsentPreview: (args) => `Update my memory (${args.file})`,
 
   execute: async (args, ctx: AgentContext) => {
-    return updateMemory(ctx.appId, args);
+    const appId =
+      args.scope === "mine" && ctx.sisterAppId ? ctx.sisterAppId : ctx.appId;
+    return updateMemory(appId, args);
   },
 };

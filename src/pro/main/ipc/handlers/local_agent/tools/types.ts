@@ -80,6 +80,10 @@ export interface AgentContext {
   mutationActivityOwner?: MutationActivityOwner;
   event: IpcMainInvokeEvent;
   appId: number;
+  /** House roster id of the sister in this chat, if any. */
+  sisterId?: string;
+  /** App id holding that sister's private memory when she is working in another app. */
+  sisterAppId?: number;
   appPath: string;
   /**
    * Apps referenced via `@app:Name` in the current turn. Read-only tools

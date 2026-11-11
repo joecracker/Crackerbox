@@ -1,4 +1,4 @@
-﻿import fs from "node:fs";
+import fs from "node:fs";
 import path from "node:path";
 import log from "electron-log";
 import { houseDir, readRoster } from "@/pro/main/ipc/handlers/local_agent/house";
@@ -184,6 +184,7 @@ export interface HouseTriggerPayload {
   sisterId: string;
   prompt: string;
   title: string;
+  thread?: "telegram";
 }
 
 /**

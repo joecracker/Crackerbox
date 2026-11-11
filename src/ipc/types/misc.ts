@@ -543,6 +543,7 @@ export const miscEvents = {
       sisterId: z.string(),
       prompt: z.string(),
       title: z.string(),
+      thread: z.literal("telegram").optional(),
     }),
   }),
 

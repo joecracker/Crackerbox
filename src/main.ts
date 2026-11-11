@@ -20,7 +20,11 @@ import { promisify } from "node:util";
 import { registerIpcHandlers } from "./ipc/ipc_host";
 import "./main/ipc_bridge_registry"; // must load before registerIpcHandlers() below
 import { startPhoneBridgeServer } from "./main/phone_bridge_server";
-import { startHouseScheduler } from "./main/house_schedule";
+import {
+  startHouseScheduler,
+  type HouseTriggerPayload,
+} from "./main/house_schedule";
+import { startTelegramInbound } from "./main/telegram_inbound";
 import { setPhoneMediaHandler } from "./main/phone_bridge_media";
 import dotenv from "dotenv";
 import { updateElectronApp, UpdateSourceType } from "update-electron-app";
@@ -663,17 +667,23 @@ export async function onReady() {
   }
 
   // The house scheduler: starts a chat turn as a sister at set times.
+  const sendToWindow = (payload: HouseTriggerPayload) => {
+    const win = mainWindow;
+    if (!win || win.isDestroyed() || win.webContents.isLoading()) {
+      return false;
+    }
+    win.webContents.send("house:trigger", payload);
+    return true;
+  };
   try {
-    startHouseScheduler((payload) => {
-      const win = mainWindow;
-      if (!win || win.isDestroyed() || win.webContents.isLoading()) {
-        return false;
-      }
-      win.webContents.send("house:trigger", payload);
-      return true;
-    });
+    startHouseScheduler(sendToWindow);
   } catch (error) {
     logger.error("Failed to start house scheduler", error);
+  }
+  try {
+    startTelegramInbound(sendToWindow);
+  } catch (error) {
+    logger.error("Failed to start Telegram inbound", error);
   }
 
   sendTelemetryEvent("runtime_source", {

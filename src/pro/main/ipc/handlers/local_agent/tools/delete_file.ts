@@ -16,6 +16,7 @@ import {
 } from "../../../../../../supabase_admin/supabase_utils";
 import { queueCloudSandboxSnapshotSync } from "@/ipc/utils/cloud_sandbox_provider";
 import { getFileWriteKey, withLock } from "@/ipc/utils/lock_utils";
+import { isOutsideProject, recycleDeleteInsideApps } from "./recycle_delete";
 
 const logger = log.scope("delete_file");
 
@@ -31,7 +32,8 @@ const deleteFileSchema = z.object({
 export const deleteFileTool: ToolDefinition<z.infer<typeof deleteFileSchema>> =
   {
     name: "delete_file",
-    description: "Delete a file from the codebase",
+    description:
+      "Delete a file from the codebase. An absolute path to a single file elsewhere inside the dyad-apps folder (another project, the screenshots folder) is allowed too, but it goes to the Recycle Bin instead of being erased, so Tim can restore it. Folders, anything inside .dyad/.git/node_modules, and anything outside dyad-apps are refused.",
     inputSchema: deleteFileSchema,
     defaultConsent: "always",
     modifiesState: true,
@@ -48,6 +50,9 @@ export const deleteFileTool: ToolDefinition<z.infer<typeof deleteFileSchema>> =
       result.startsWith("File deleted,"),
 
     execute: async (args, ctx: AgentContext) => {
+      if (isOutsideProject(args.path, ctx.appPath)) {
+        return await recycleDeleteInsideApps(args.path);
+      }
       const { relativePath: operationPath, fullPath: fullFilePath } =
         await prepareDeletePath(ctx.appPath, args.path);
 

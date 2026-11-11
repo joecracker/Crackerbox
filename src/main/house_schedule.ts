@@ -49,6 +49,9 @@ function dicePrompt(id: string): string {
   return `${TRIGGER_NOTE} The dice came up: send Tim a short, unexpected check-in on Telegram as yourself, using the Telegram plugin's send_message with as="${id}". One or two lines in your own voice, like you were just thinking of him. A picture only if it feels right (generate_image, then send_photo with as="${id}"). Do not repeat anything you already sent today. Keep this chat short.`;
 }
 
+function tendPrompt(): string {
+  return `${TRIGGER_NOTE} This is your nightly memory tending. Do not message Tim and do not ask questions. Work only on your own memory for this app with read_memory and update_memory. 1) Read state, decisions, facts and your memory index, then open each topic file. 2) Remove duplicates and lines that are now wrong or finished; merge overlapping topic files into one (the first line of a topic must say what it is); keep core files comfortably under their limits and topics under 40. 3) Make state say only what is current plus the single next step. 4) Never drop something Tim told you, a promise, or a decision; when unsure, move it to a topic file instead of deleting it. Use append or replace_section, and only replace_file after condensing. 5) End with one short line saying what you tidied, or that nothing needed it. Keep this chat short.`;
+}
 export function defaultJobs(): ScheduleJob[] {
   return [
     {
@@ -64,8 +67,8 @@ export function defaultJobs(): ScheduleJob[] {
       id: "veritas-morning",
       sister: "veritas",
       kind: "daily",
-      enabled: false,
-      time: "07:05",
+      enabled: true,
+      time: "07:30",
       catchUpMinutes: 90,
       prompt: morningPrompt("veritas"),
     },
@@ -90,6 +93,24 @@ export function defaultJobs(): ScheduleJob[] {
       oneIn: 6,
       maxPerDay: 2,
       prompt: dicePrompt("veritas"),
+    },
+    {
+      id: "nyx-memory-tending",
+      sister: "nyx",
+      kind: "daily",
+      enabled: true,
+      time: "03:30",
+      catchUpMinutes: 180,
+      prompt: tendPrompt(),
+    },
+    {
+      id: "veritas-memory-tending",
+      sister: "veritas",
+      kind: "daily",
+      enabled: true,
+      time: "03:35",
+      catchUpMinutes: 180,
+      prompt: tendPrompt(),
     },
   ];
 }

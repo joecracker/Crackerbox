@@ -25,6 +25,8 @@ import {
   type HouseTriggerPayload,
 } from "./main/house_schedule";
 import { startTelegramInbound } from "./main/telegram_inbound";
+import { startHouseBackup } from "./main/house_backup";
+import { refreshIconsAfterInstall } from "./main/icon_refresh";
 import { setPhoneMediaHandler } from "./main/phone_bridge_media";
 import dotenv from "dotenv";
 import { updateElectronApp, UpdateSourceType } from "update-electron-app";
@@ -685,6 +687,12 @@ export async function onReady() {
   } catch (error) {
     logger.error("Failed to start Telegram inbound", error);
   }
+  try {
+    startHouseBackup();
+  } catch (error) {
+    logger.error("Failed to start house backup", error);
+  }
+  refreshIconsAfterInstall(app.getPath("userData"));
 
   sendTelemetryEvent("runtime_source", {
     runtime_source: settings.customNodePath

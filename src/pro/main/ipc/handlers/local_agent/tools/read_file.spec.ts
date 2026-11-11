@@ -364,6 +364,55 @@ line 5`;
     });
   });
 
+  describe("execute - pictures", () => {
+    const ONE_PIXEL_PNG =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+
+    it("attaches a project picture and reports its true size", async () => {
+      await fs.promises.writeFile(
+        path.join(testDir, "pic.png"),
+        Buffer.from(ONE_PIXEL_PNG, "base64"),
+      );
+
+      const result = await readFileTool.execute(
+        { path: "pic.png" },
+        mockContext,
+      );
+
+      expect(result).toContain("Attached pic.png");
+      expect(result).toContain("1x1 px");
+      expect(mockContext.appendUserMessage).toHaveBeenCalledTimes(1);
+      const parts = (mockContext.appendUserMessage as any).mock.calls[0][0];
+      expect(parts.some((p: any) => p.type === "image-url")).toBe(true);
+      expect(parts.find((p: any) => p.type === "image-url").url).toMatch(
+        /^data:image\/png;base64,/,
+      );
+    });
+
+    it("attaches a picture given by absolute path outside the project", async () => {
+      const outsideDir = await fs.promises.mkdtemp(
+        path.join(os.tmpdir(), "read-file-pic-outside-"),
+      );
+      try {
+        const file = path.join(outsideDir, "outside.png");
+        await fs.promises.writeFile(file, Buffer.from(ONE_PIXEL_PNG, "base64"));
+
+        const result = await readFileTool.execute({ path: file }, mockContext);
+
+        expect(result).toContain("1x1 px");
+        expect(mockContext.appendUserMessage).toHaveBeenCalledTimes(1);
+      } finally {
+        await fs.promises.rm(outsideDir, { recursive: true, force: true });
+      }
+    });
+
+    it("throws not-found for a missing picture", async () => {
+      await expect(
+        readFileTool.execute({ path: "missing.png" }, mockContext),
+      ).rejects.toThrow("File does not exist: missing.png");
+    });
+  });
+
   describe("execute - start_line_one_indexed only", () => {
     it("reads from start line to end of file", async () => {
       const result = await readFileTool.execute(

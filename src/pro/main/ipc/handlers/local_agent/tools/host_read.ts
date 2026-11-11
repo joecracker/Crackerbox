@@ -227,24 +227,32 @@ export function assertHostPathAllowed(target: string): void {
   }
 }
 
-export async function hostReadFile(params: {
-  filePath: string;
-  startLine?: number;
-  endLineInclusive?: number;
-}): Promise<string> {
-  const absolute = path.resolve(params.filePath);
+/** Applies the credential blocklist and returns the real path of a host file. */
+export async function resolveHostFileForRead(
+  filePath: string,
+): Promise<string> {
+  const absolute = path.resolve(filePath);
   assertHostPathAllowed(absolute);
   let real: string;
   try {
     real = await fs.realpath(absolute);
   } catch {
     throw new DyadError(
-      `File does not exist: ${params.filePath}`,
+      `File does not exist: ${filePath}`,
       DyadErrorKind.NotFound,
     );
   }
   // A shortcut or junction must not lead into a credentials folder.
   assertHostPathAllowed(real);
+  return real;
+}
+
+export async function hostReadFile(params: {
+  filePath: string;
+  startLine?: number;
+  endLineInclusive?: number;
+}): Promise<string> {
+  const real = await resolveHostFileForRead(params.filePath);
 
   const result = await readTextFileLines({
     rootPath: path.dirname(real),

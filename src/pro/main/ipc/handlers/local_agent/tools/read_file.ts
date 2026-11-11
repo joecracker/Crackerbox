@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import path from "node:path";
 import { z } from "zod";
 import { ToolDefinition, AgentContext, escapeXmlAttr } from "./types";
 import { safeJoin } from "@/ipc/utils/path_utils";
@@ -15,7 +16,8 @@ import {
   readTextFileLines,
 } from "@/ipc/utils/bounded_text_file";
 import { SANDBOX_READ_FILE_LIMIT_BYTES } from "@/ipc/utils/sandbox/limits";
-import { hostReadFile, isHostPath } from "./host_read";
+import { hostReadFile, isHostPath, resolveHostFileForRead } from "./host_read";
+import { imageMimeForPath, readImageIntoChat } from "./image_read";
 import {
   isDotenvFilePath,
   redactDotenvValues,
@@ -69,7 +71,8 @@ export const readFileTool: ToolDefinition<z.infer<typeof readFileSchema>> = {
   description: `Read the content of a file from the codebase or an attachment path such as attachments:notes.txt.
 
 - Batch independent file reads when several files are concretely likely to be useful.
-- An absolute path (e.g. C:/Users/user/AndroidStudioProjects/SALTINE_FRESH/README.md) reads a file anywhere on this PC, read-only. Passwords, keys and tokens are never shown.`,
+- An absolute path (e.g. C:/Users/user/AndroidStudioProjects/SALTINE_FRESH/README.md) reads a file anywhere on this PC, read-only. Passwords, keys and tokens are never shown.
+- A .png, .jpg, .jpeg, .webp or .gif path returns the picture itself, attached to the next message, with its true pixel size (pictures wider than 1600px are shown scaled down). The model must be able to read images.`,
   inputSchema: readFileSchema,
   defaultConsent: "always",
 
@@ -111,6 +114,13 @@ export const readFileTool: ToolDefinition<z.infer<typeof readFileSchema>> = {
   execute: async (args, ctx: AgentContext) => {
     const targetAppPath = resolveTargetAppPath(ctx, args.app_name);
     if (!args.app_name && isHostPath(args.path, targetAppPath)) {
+      if (imageMimeForPath(args.path)) {
+        return await readImageIntoChat({
+          realPath: await resolveHostFileForRead(args.path),
+          displayPath: args.path,
+          ctx,
+        });
+      }
       return await hostReadFile({
         filePath: args.path,
         startLine: args.start_line_one_indexed,
@@ -150,6 +160,31 @@ export const readFileTool: ToolDefinition<z.infer<typeof readFileSchema>> = {
       canonicalFilePath = await fs.realpath(fullFilePath);
     } catch {
       // The bounded reader below provides the user-facing filesystem error.
+    }
+    if (imageMimeForPath(canonicalFilePath) || imageMimeForPath(fullFilePath)) {
+      const realRoot = await fs
+        .realpath(targetAppPath)
+        .catch(() => targetAppPath);
+      const relative = path.relative(realRoot, canonicalFilePath);
+      if (
+        canonicalFilePath !== fullFilePath &&
+        (relative.startsWith("..") || path.isAbsolute(relative))
+      ) {
+        throw new DyadError(
+          `Path escapes the project: ${displayPath}`,
+          DyadErrorKind.Validation,
+        );
+      }
+      assertDyadInternalAccessAllowed({
+        targetAppPath: realRoot,
+        fullFilePath: canonicalFilePath,
+        appName: args.app_name,
+      });
+      return await readImageIntoChat({
+        realPath: canonicalFilePath,
+        displayPath,
+        ctx,
+      });
     }
     const shouldRedactDotenv =
       isDotenvFilePath(args.path) || isDotenvFilePath(canonicalFilePath);

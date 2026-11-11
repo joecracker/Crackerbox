@@ -268,7 +268,7 @@ export function ChatHeader({
             data-testid="toggle-preview-panel-button"
             aria-pressed={isPreviewOpen}
             onClick={onTogglePreview}
-            className="cursor-pointer p-2 hover:bg-(--background-lightest) rounded-md"
+            className="flex min-h-11 min-w-11 cursor-pointer items-center justify-center p-2 hover:bg-(--background-lightest) rounded-md"
           >
             {isPreviewOpen ? (
               <PanelRightClose size={20} />

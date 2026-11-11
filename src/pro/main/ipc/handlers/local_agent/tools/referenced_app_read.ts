@@ -7,6 +7,7 @@ import {
   appOperationCoordinator,
   readAppResource,
 } from "@/ipc/services/app_operation_coordinator";
+import { readRoster } from "../house";
 import type { AgentContext } from "./types";
 
 const REFERENCED_READ_TOOLS = new Set([
@@ -27,7 +28,14 @@ export async function withReferencedAppRead<T>(
 ): Promise<T> {
   const key = args.app_name?.toLowerCase();
   if (!key || !REFERENCED_READ_TOOLS.has(name)) return invoke(ctx);
-  const appId = ctx.referencedAppIds?.get(key);
+  // A sister can address a housemate by name (nyx / veritas) with no @app: mention.
+  const housemate =
+    ctx.sisterId !== undefined
+      ? readRoster().find(
+          (s) => s.id.toLowerCase() === key || s.name.toLowerCase() === key,
+        )
+      : undefined;
+  const appId = ctx.referencedAppIds?.get(key) ?? housemate?.appId;
   if (appId === undefined) {
     // Legacy contexts may contain names/paths but cannot safely bind identity.
     throw new DyadError(

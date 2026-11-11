@@ -64,6 +64,7 @@ import { sendEmailTool } from "./tools/send_email";
 import { githubReposTool } from "./tools/github_repos";
 import { viewPreviewTool } from "./tools/view_preview";
 import { previewPanelTool } from "./tools/preview_panel";
+import { pluginCallTool } from "./tools/plugin_call";
 import { phoneScreenshotTool } from "./tools/phone_screenshot";
 import { generateTestAssertionsTool } from "./tools/generate_test_assertions";
 import {
@@ -235,6 +236,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinition[] = [
   githubReposTool,
   viewPreviewTool,
   previewPanelTool,
+  pluginCallTool,
   phoneScreenshotTool,
   runTestsTool,
   generateTestAssertionsTool,

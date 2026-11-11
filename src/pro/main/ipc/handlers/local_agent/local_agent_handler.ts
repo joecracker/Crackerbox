@@ -32,6 +32,7 @@ import {
 } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { mcpManager } from "@/ipc/utils/mcp_manager";
+import { closeWokenPlugins } from "./plugin_wake";
 import { ClaudeCodeModel } from "@/ipc/services/claude_code/model";
 import { requireMcpToolConsent } from "@/ipc/utils/mcp_consent";
 import { buildMcpAutoApprove } from "./mcp_auto_consent";
@@ -2594,6 +2595,7 @@ export async function handleLocalAgentStream(
       .catch((error) => logger.error("Claude admission cleanup failed", error));
     await persistCompactionFallback();
     await switchOffIdleAutoOffPlugins(chat.id);
+    await closeWokenPlugins(chat.id);
     endTurnFinalization(mutationTurnId);
     // If an in-progress tool's XML preview was overlaid in the renderer
     // and the stream tore down before onXmlComplete could commit and

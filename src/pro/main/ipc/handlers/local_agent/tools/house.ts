@@ -13,6 +13,7 @@ import {
 import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
 import { readSchedule, readState, writeSchedule } from "@/main/house_schedule";
 import { readSettings } from "@/main/settings";
+import { runningApps } from "@/ipc/utils/process_manager";
 import { db } from "@/db";
 import { mcpServers } from "@/db/schema";
 
@@ -30,9 +31,10 @@ const houseSchema = z.object({
       "schedule_set",
       "plugins_status",
       "scheduler_status",
+      "app_status",
     ])
     .describe(
-      "roster: who lives here. send_mail: write a letter (to, subject, body). inbox: list your letters. read_mail: open one (file). shared_list / shared_read (file) / shared_write (file, text, mode): the household's shared files. plugins_status: read-only list of which plugins are on or off (no secrets). scheduler_status: read-only, your scheduled jobs with when each last fired.",
+      "roster: who lives here. send_mail: write a letter (to, subject, body). inbox: list your letters. read_mail: open one (file). shared_list / shared_read (file) / shared_write (file, text, mode): the household's shared files. plugins_status: read-only list of which plugins are on or off (no secrets). scheduler_status: read-only, your scheduled jobs with when each last fired. app_status: whether your app is running and the localhost URL/port it serves on (give this URL to Playwright).",
     ),
   to: z.string().optional().describe("send_mail: a sister's id, or tim."),
   subject: z.string().optional().describe("send_mail: short subject."),
@@ -156,6 +158,11 @@ export const houseTool: ToolDefinition<z.infer<typeof houseSchema>> = {
             )
             .join("\n") || "No plugins."
         );
+      }
+      case "app_status": {
+        const info = runningApps.get(ctx.appId);
+        if (!info) return "Your app is not running. Start it with run_app, then ask again.";
+        return `Running. Local URL (use this for Playwright): ${info.originalUrl ?? "unknown"}. Preview proxy URL: ${info.proxyUrl ?? "none"}.`;
       }
       case "scheduler_status": {
         const state = readState();

@@ -15,6 +15,8 @@ import { useChats } from "@/hooks/useChats";
 import { selectedAppIdAtom } from "@/atoms/appAtoms";
 import { selectedChatIdAtom } from "@/atoms/chatAtoms";
 import { ipc } from "@/ipc/types";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { ChevronLeft } from "lucide-react";
 
 const DEFAULT_CHAT_PANEL_SIZE = 50;
 
@@ -51,6 +53,7 @@ export default function ChatPage() {
   );
   const setSelectedChatId = useSetAtom(selectedChatIdAtom);
   const [isResizing, setIsResizing] = useState(false);
+  const isMobile = useIsMobile();
   const selectedAppId = useAtomValue(selectedAppIdAtom);
   const setSelectedAppId = useSetAtom(selectedAppIdAtom);
   const { chats, loading } = useChats(selectedAppId);
@@ -134,7 +137,8 @@ export default function ChatPage() {
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
-      if (isPreviewOpen) {
+      // On a phone the preview is a full-screen sheet (below), never a split.
+      if (isPreviewOpen && !isMobile) {
         ref.current?.expand();
         ref.current?.resize(readPreviewPanelSize());
       } else {
@@ -142,7 +146,7 @@ export default function ChatPage() {
       }
     });
     return () => cancelAnimationFrame(frame);
-  }, [isPreviewOpen]);
+  }, [isPreviewOpen, isMobile]);
   const ref = useRef<ImperativePanelHandle>(null);
   const chatPanelRef = useRef<ImperativePanelHandle>(null);
 
@@ -250,8 +254,27 @@ export default function ChatPage() {
         minSize={MIN_PREVIEW_PANEL_SIZE}
         className={cn(!isResizing && "transition-all duration-100 ease-in-out")}
       >
-        <PreviewPanel />
+        {!isMobile && <PreviewPanel />}
       </Panel>
+      {isMobile && isPreviewOpen && (
+        <div
+          data-testid="mobile-preview-sheet"
+          className="fixed inset-0 z-50 flex flex-col bg-background"
+        >
+          <button
+            type="button"
+            data-testid="mobile-preview-close"
+            onClick={() => setIsPreviewOpen(false)}
+            className="flex min-h-14 w-full shrink-0 items-center gap-2 border-b border-border px-4 text-base font-medium active:bg-(--background-lightest)"
+          >
+            <ChevronLeft size={24} />
+            Back to chat
+          </button>
+          <div className="min-h-0 flex-1">
+            <PreviewPanel />
+          </div>
+        </div>
+      )}
     </PanelGroup>
   );
 }

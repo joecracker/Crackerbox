@@ -105,6 +105,33 @@ export function resolveWindowsExeName(
   return command;
 }
 
+/**
+ * `cmd /c <line>` needs its command line passed through untouched: Node would
+ * escape any quotes in an argument as \" which cmd.exe does not understand, so
+ * `cmd /c git commit -m "two words"` reached git as separate words. Rebuild it
+ * as one verbatim line (spawnStreaming sends `/d /s /c` lines verbatim): args
+ * that already hold quotes are kept as written, args with spaces get quoted.
+ */
+export function normalizeCmdInvocation(
+  command: string,
+  args: string[],
+  platform: NodeJS.Platform = process.platform,
+): { command: string; args: string[] } {
+  if (
+    platform !== "win32" ||
+    !/^cmd(\.exe)?$/i.test(command) ||
+    args.length < 2 ||
+    args[0].toLowerCase() !== "/c"
+  ) {
+    return { command, args };
+  }
+  const line = args
+    .slice(1)
+    .map((a) => (/\s/.test(a) && !a.includes('"') ? `"${a}"` : a))
+    .join(" ");
+  return { command: "cmd.exe", args: ["/d", "/s", "/c", line] };
+}
+
 function resolveAbsoluteCwd(cwd: string | undefined): string | undefined {
   if (!cwd || !path.isAbsolute(cwd)) return undefined;
   const resolved = path.resolve(cwd);
@@ -203,9 +230,10 @@ The command runs with the current user's permissions, starting in the app's proj
 
     let result;
     try {
+      const launch = normalizeCmdInvocation(args.command, args.args ?? []);
       result = await spawnStreaming({
-        command: resolveWindowsExeName(args.command),
-        args: args.args ?? [],
+        command: resolveWindowsExeName(launch.command),
+        args: launch.args,
         cwd,
         env: args.env ? { ...process.env, ...args.env } : undefined,
         signal: ctx.abortSignal,

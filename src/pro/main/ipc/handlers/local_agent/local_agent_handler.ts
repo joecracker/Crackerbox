@@ -2990,6 +2990,10 @@ function shouldRunTodoFollowUpPass(params: {
  */
 // Plugin ids that ran a tool during the current turn, per chat.
 const pluginsUsedThisTurn = new Map<number, Set<number>>();
+// Plugin ids that were already on when the turn began, per chat. A plugin that
+// the agent switches on during a turn must survive that turn, or it would be
+// switched off before the agent could ever use it.
+const pluginsOnAtTurnStart = new Map<number, Set<number>>();
 function markPluginUsed(chatId: number, serverId: number) {
   let set = pluginsUsedThisTurn.get(chatId);
   if (!set) pluginsUsedThisTurn.set(chatId, (set = new Set()));
@@ -3005,10 +3009,13 @@ function markPluginUsed(chatId: number, serverId: number) {
 async function switchOffIdleAutoOffPlugins(chatId: number): Promise<void> {
   const used = pluginsUsedThisTurn.get(chatId);
   pluginsUsedThisTurn.delete(chatId);
+  const onAtStart = pluginsOnAtTurnStart.get(chatId);
+  pluginsOnAtTurnStart.delete(chatId);
   try {
     const ids = readSettings().autoOffPluginIds ?? [];
     for (const id of ids) {
       if (used?.has(id)) continue;
+      if (!onAtStart?.has(id)) continue; // switched on during this turn: give it one turn to be used
       const rows = await db
         .select({ enabled: mcpServers.enabled })
         .from(mcpServers)
@@ -3037,6 +3044,7 @@ async function getMcpTools(
       .select()
       .from(mcpServers)
       .where(eq(mcpServers.enabled, true as any));
+    pluginsOnAtTurnStart.set(ctx.chatId, new Set(servers.map((s) => s.id)));
 
     for (const s of servers) {
       // One bad server (e.g. unconnected OAuth) must not strip tools

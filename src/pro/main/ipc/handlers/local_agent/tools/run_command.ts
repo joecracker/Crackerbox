@@ -7,6 +7,7 @@ import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
 import { spawnStreaming } from "@/ipc/utils/spawn_streaming";
 import { execGit } from "@/ipc/utils/git_utils";
 import { resolveDirectoryWithinAppPath } from "./path_safety";
+import { assertSisterCommandAllowed } from "./data_folder_guard";
 import {
   AgentContext,
   ToolDefinition,
@@ -180,6 +181,11 @@ The command runs with the current user's permissions, starting in the app's proj
       : `<dyad-status title="Running: ${escapeXmlAttr(args.command ?? "")}"></dyad-status>`,
 
   execute: async (args: RunCommandArgs, ctx: AgentContext) => {
+    const { sisterForApp } = await import("./house_lookup");
+    assertSisterCommandAllowed(
+      ctx.sisterAppId !== undefined || !!sisterForApp(ctx.appId),
+      [args.command, ...(args.args ?? []), args.cwd, ...Object.values(args.env ?? {})],
+    );
     const absoluteCwd = resolveAbsoluteCwd(args.cwd);
     const relativeCwd = absoluteCwd
       ? "."

@@ -123,7 +123,7 @@ export function buildTelegramPrompt(name: string, m: IncomingMessage): string {
     m.kind === "photo"
       ? `Tim sent you a photo on Telegram${m.text ? ` with the caption: "${m.text}"` : ""}. You cannot see Telegram photos yet, so say so warmly and ask him to describe it or drop it in your room.`
       : `Tim just texted you on Telegram:\n\n${m.text}`;
-  return `${said}\n\nAnswer him ON TELEGRAM: call the Telegram plugin's send_message with as="${name.toLowerCase()}". Reply like a text message, in your own voice, short unless he asked for more. Anything you write only in this chat does not reach him, so always send the reply through the tool.`;
+  return `${said}\n\nThis message came from Telegram, so answer THIS message on Telegram: call the Telegram plugin's send_message with as="${name.toLowerCase()}". Reply like a text message, in your own voice, short unless he asked for more. Anything you write only in this chat does not reach him, so send this reply through the tool. Later messages in this chat that do NOT begin with "Tim just texted you on Telegram" are Tim typing to you in the app: answer those normally in the chat and do not use Telegram for them.`;
 }
 
 async function tg(token: string, method: string, body: unknown, ms: number) {

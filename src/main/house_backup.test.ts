@@ -17,6 +17,7 @@ import {
   pruneSnapshots,
   restoreTarget,
   runBackup,
+  runBackupEverywhere,
   type BackupCtx,
 } from "./house_backup";
 
@@ -75,6 +76,14 @@ describe("house backup", () => {
     fs.rmSync(path.join(folder, "docs"), { recursive: true });
     fs.rmSync(path.join(folder, ".env"));
     await runBackup({ ...ctx, now: new Date(2026, 10, 12, 4, 0) });
+    expect(fs.existsSync(path.join(ctx.root, "mirror", "veritas", "docs", "me.md"))).toBe(true);
+  });
+
+  it("writes a second copy when one is set", async () => {
+    const { ctx, base } = setup();
+    const also = path.join(base, "drive", "sisters");
+    expect((await runBackupEverywhere({ ...ctx, also })).also).toBe(true);
+    expect(fs.existsSync(path.join(also, "mirror", "veritas", "docs", "me.md"))).toBe(true);
     expect(fs.existsSync(path.join(ctx.root, "mirror", "veritas", "docs", "me.md"))).toBe(true);
   });
 

@@ -25,6 +25,8 @@ export interface BackupTarget {
 
 export interface BackupCtx {
   root: string;
+  /** Optional second copy, for example a folder on the Google Drive drive. */
+  also?: string;
   targets: BackupTarget[];
   houseDir: string;
   extraFiles: string[];
@@ -140,6 +142,26 @@ export async function runBackup(ctx: BackupCtx): Promise<void> {
   pruneSnapshots(ctx.root);
 }
 
+/**
+ * Runs the backup into the main folder and, when set, a second copy (skipped
+ * with a warning if that drive is not there, for example Drive signed out).
+ */
+export async function runBackupEverywhere(ctx: BackupCtx): Promise<{ also: boolean }> {
+  await runBackup(ctx);
+  if (!ctx.also) return { also: false };
+  if (!exists(path.parse(ctx.also).root)) {
+    logger.warn(`second backup location ${ctx.also} is not available, skipped`);
+    return { also: false };
+  }
+  try {
+    await runBackup({ ...ctx, root: ctx.also, also: undefined });
+    return { also: true };
+  } catch (error) {
+    logger.warn("second backup failed", error);
+    return { also: false };
+  }
+}
+
 /** Puts a sister's folder (and, if lost, her private memory) back. Returns false if there is nothing to restore from. */
 export async function restoreTarget(ctx: BackupCtx, t: BackupTarget): Promise<boolean> {
   const mirror = path.join(ctx.root, "mirror", t.id);
@@ -179,14 +201,17 @@ function buildCtx(): BackupCtx {
   const documents =
     getElectron()?.app.getPath("documents") ?? path.join(dataDir, "..", "Documents");
   let root = path.join(documents, "cb-backups", "nightly");
+  let also: string | undefined;
   try {
     const cfg = JSON.parse(fs.readFileSync(path.join(houseDir(), "backup.json"), "utf8"));
     if (typeof cfg.dir === "string" && cfg.dir) root = cfg.dir;
+    if (typeof cfg.also === "string" && cfg.also) also = cfg.also;
   } catch {
     // default
   }
   return {
     root,
+    also,
     targets: readRoster().map((s) => ({
       id: s.id,
       folder: getDyadAppPath(s.id),
@@ -235,7 +260,7 @@ export function startHouseBackup(): () => void {
       const noMirror = ctx.targets.some((t) => !exists(path.join(ctx.root, "mirror", t.id)));
       const today = dayKey(ctx.now);
       if (last !== today && (ctx.now.getHours() >= 4 || noMirror)) {
-        await runBackup(ctx);
+        await runBackupEverywhere(ctx);
         fs.mkdirSync(ctx.root, { recursive: true });
         fs.writeFileSync(statePath(ctx.root), JSON.stringify({ lastRun: today, at: new Date().toISOString() }));
         logger.info("nightly backup done");

@@ -31,7 +31,12 @@ export function refreshIconsAfterInstall(userDataDir: string): void {
       path.join(home, "AppData", "Roaming", "Microsoft", "Internet Explorer", "Quick Launch", "User Pinned", "TaskBar", "Crackerbox (2).lnk"),
     ].filter((p) => fs.existsSync(p));
     const list = paths.map((p) => `'${p.replace(/'/g, "''")}'`).join(",");
+    const lnkList = paths.filter((p) => p.endsWith(".lnk")).map((p) => `'${p.replace(/'/g, "''")}'`).join(",");
+    const exeQ = `'${process.execPath.replace(/'/g, "''")}'`;
     const script = [
+      "Start-Sleep -Seconds 45",
+      "$sh=New-Object -ComObject WScript.Shell",
+      `foreach($p in @(${lnkList})){ try{ $l=$sh.CreateShortcut($p); $l.TargetPath=${exeQ}; $l.WorkingDirectory=(Split-Path ${exeQ}); $l.IconLocation=${exeQ}+",0"; $l.Save() }catch{} }`,
       "Add-Type -Namespace W -Name N -MemberDefinition '[System.Runtime.InteropServices.DllImport(\"shell32.dll\",CharSet=System.Runtime.InteropServices.CharSet.Unicode)] public static extern void SHChangeNotify(int e,int f,string a,string b); [System.Runtime.InteropServices.DllImport(\"shell32.dll\")] public static extern void SHChangeNotify(int e,int f,System.IntPtr a,System.IntPtr b);'",
       `foreach($p in @(${list})){ [W.N]::SHChangeNotify(0x2000,0x5,$p,$null) }`,
       "[W.N]::SHChangeNotify(0x08000000,0,[IntPtr]::Zero,[IntPtr]::Zero)",

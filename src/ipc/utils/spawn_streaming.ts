@@ -122,9 +122,22 @@ export async function spawnStreaming({
     // child (notably `npm install`) block forever if it ever tries to prompt —
     // e.g. a registry auth prompt or an ERESOLVE confirmation. Giving it EOF
     // makes those reads fail fast instead of hanging the whole flow.
-    const child = spawn(invocation.command, invocation.args, {
+    // The cmd.exe path hands over one pre-quoted command string. Node would
+    // re-escape its quotes (turning "" into \"), so pass it verbatim, wrapped
+    // in the outer quotes that `/s` strips.
+    const viaCmd =
+      process.platform === "win32" &&
+      invocation.args.length === 4 &&
+      invocation.args[0] === "/d" &&
+      invocation.args[1] === "/s" &&
+      invocation.args[2] === "/c";
+    const spawnArgs = viaCmd
+      ? [...invocation.args.slice(0, 3), `"${invocation.args[3]}"`]
+      : invocation.args;
+    const child = spawn(invocation.command, spawnArgs, {
       cwd,
       shell: false,
+      windowsVerbatimArguments: viaCmd,
       stdio: ["ignore", "pipe", "pipe"],
       env: spawnEnv,
     });

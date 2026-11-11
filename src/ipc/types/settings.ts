@@ -95,6 +95,11 @@ export const settingsContracts = {
     input: z.void(),
     output: z.object({ configured: z.boolean(), connected: z.boolean() }),
   }),
+  getGmailHealth: defineContract({
+    channel: "gmail:health",
+    input: z.void(),
+    output: z.object({ ok: z.boolean(), problem: z.string().optional() }),
+  }),
   importGmailCredentials: defineContract({
     channel: "gmail:import-credentials",
     input: z.void(),

@@ -46,6 +46,7 @@ function load(): GmailCredentials | undefined {
 }
 
 function save(credentials: GmailCredentials) {
+  healthCache = undefined;
   requireEncryption();
   const target = credentialPath();
   fs.mkdirSync(path.dirname(target), { recursive: true });
@@ -179,28 +180,94 @@ export async function connectGmail(): Promise<void> {
   save({ ...credentials, refreshToken: tokens.refresh_token });
 }
 
+const GoogleErrorBody = z.object({
+  error: z.string().optional(),
+  error_description: z.string().optional(),
+});
+
+/** Plain-English reason for a refused token refresh. Google's error codes hold no secrets. */
+function explainRefreshFailure(status: number, body: unknown): string {
+  const parsed = GoogleErrorBody.safeParse(body);
+  const code = parsed.success ? parsed.data.error : undefined;
+  const detail = parsed.success ? parsed.data.error_description : undefined;
+  if (code === "invalid_grant") {
+    return "Google no longer accepts the saved Gmail login (invalid_grant). The usual cause is the Google app still being in Testing mode, where logins expire after 7 days; removing Crackerbox's access in the Google account does the same. Publish the app to production in Google Cloud Console, then Disconnect and Connect Gmail again in Settings.";
+  }
+  if (code === "invalid_client") {
+    return "Google does not recognise the saved Google credentials (invalid_client). Remove setup in Settings and import the Google JSON again.";
+  }
+  return `Google refused the Gmail login (HTTP ${status}${code ? `, ${code}` : ""}${detail ? `: ${detail}` : ""}). Reconnect Gmail in Settings.`;
+}
+
 async function getAccessToken(): Promise<string> {
   const credentials = load();
   if (!credentials?.refreshToken) {
     throw new Error("Connect Gmail in Settings before sending email.");
   }
-  const response = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: credentials.clientId,
-      client_secret: credentials.clientSecret,
-      refresh_token: credentials.refreshToken,
-      grant_type: "refresh_token",
-    }),
-  });
-  if (!response.ok)
+  let response: Response;
+  try {
+    response = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: credentials.clientId,
+        client_secret: credentials.clientSecret,
+        refresh_token: credentials.refreshToken,
+        grant_type: "refresh_token",
+      }),
+    });
+  } catch {
     throw new Error(
-      "Gmail authorization expired. Reconnect Gmail in Settings.",
+      "Could not reach Google to check the Gmail login (network problem). Try again in a moment.",
     );
+  }
+  if (!response.ok) {
+    const body = await response.json().catch(() => undefined);
+    throw new Error(explainRefreshFailure(response.status, body));
+  }
   return z
     .object({ access_token: z.string().min(1) })
     .parse(await response.json()).access_token;
+}
+
+let healthCache:
+  | { at: number; result: { ok: boolean; problem?: string } }
+  | undefined;
+
+/**
+ * Asks Google whether the saved Gmail login still works. `connected` alone only
+ * means a token is stored, so this is what tells a working login from a dead one.
+ */
+export async function checkGmailHealth(): Promise<{
+  ok: boolean;
+  problem?: string;
+}> {
+  if (!getGmailStatus().connected) return { ok: false };
+  if (healthCache && Date.now() - healthCache.at < 30_000) {
+    return healthCache.result;
+  }
+  let result: { ok: boolean; problem?: string };
+  try {
+    await getAccessToken();
+    result = { ok: true };
+  } catch (error) {
+    result = {
+      ok: false,
+      problem: error instanceof Error ? error.message : String(error),
+    };
+  }
+  healthCache = { at: Date.now(), result };
+  return result;
+}
+
+/** Plain-English reason for a failed send, using Google's own message. */
+async function explainSendFailure(response: Response): Promise<string> {
+  const body = await response.json().catch(() => undefined);
+  const parsed = z
+    .object({ error: z.object({ message: z.string().optional() }) })
+    .safeParse(body);
+  const message = parsed.success ? parsed.data.error.message : undefined;
+  return `Gmail could not send the message (HTTP ${response.status}${message ? `: ${message}` : ""}).`;
 }
 
 function encodeHeader(value: string) {
@@ -222,7 +289,9 @@ export async function sendGmailMessage(input: {
     ...(input.cc ?? []),
     ...(input.bcc ?? []),
     input.subject,
-    ...(input.attachments ?? []).flatMap((a) => (a.filename ? [a.filename] : [])),
+    ...(input.attachments ?? []).flatMap((a) =>
+      a.filename ? [a.filename] : [],
+    ),
   ];
   if (headerValues.some((value) => /[\r\n]/.test(value))) {
     throw new Error("Email fields cannot contain line breaks.");
@@ -303,6 +372,6 @@ export async function sendGmailMessage(input: {
       body: JSON.stringify({ raw }),
     },
   );
-  if (!response.ok) throw new Error("Gmail could not send the message.");
+  if (!response.ok) throw new Error(await explainSendFailure(response));
   return z.object({ id: z.string() }).parse(await response.json()).id;
 }

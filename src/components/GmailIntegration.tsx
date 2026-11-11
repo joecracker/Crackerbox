@@ -9,8 +9,14 @@ type GmailStatus = { configured: boolean; connected: boolean };
 export function GmailIntegration() {
   const [status, setStatus] = useState<GmailStatus>();
   const [busy, setBusy] = useState(false);
+  const [health, setHealth] = useState<{ ok: boolean; problem?: string }>();
 
-  const refresh = async () => setStatus(await ipc.settings.getGmailStatus());
+  const refresh = async () => {
+    const next = await ipc.settings.getGmailStatus();
+    setStatus(next);
+    setHealth(undefined);
+    if (next.connected) setHealth(await ipc.settings.getGmailHealth());
+  };
   useEffect(() => {
     void refresh();
   }, []);
@@ -34,12 +40,25 @@ export function GmailIntegration() {
         <div className="flex items-center gap-2">
           <Mail className="h-4 w-4" />
           <h3 className="text-sm font-medium">Gmail</h3>
-          {status?.connected && (
+          {status?.connected && health?.ok && (
             <span className="text-xs font-medium text-green-600 dark:text-green-400">
               Connected
             </span>
           )}
+          {status?.connected && !health && (
+            <span className="text-xs text-muted-foreground">Checking...</span>
+          )}
+          {status?.connected && health && !health.ok && (
+            <span className="text-xs font-medium text-red-600 dark:text-red-400">
+              Needs reconnecting
+            </span>
+          )}
         </div>
+        {status?.connected && health && !health.ok && health.problem && (
+          <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+            {health.problem}
+          </p>
+        )}
         <p className="mt-1 text-xs text-muted-foreground">
           Send email after you approve it. Crackerbox cannot read or delete your
           mail.
@@ -86,6 +105,17 @@ export function GmailIntegration() {
               Remove setup
             </Button>
           </>
+        )}
+        {status?.connected && health && !health.ok && (
+          <Button
+            size="sm"
+            disabled={busy}
+            onClick={() =>
+              run(() => ipc.settings.connectGmail(), "Gmail reconnected.")
+            }
+          >
+            Reconnect
+          </Button>
         )}
         {status?.connected && (
           <Button

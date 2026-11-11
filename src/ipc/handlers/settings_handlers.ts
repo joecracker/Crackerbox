@@ -12,6 +12,7 @@ import { app, dialog } from "electron";
 import fs from "node:fs";
 import path from "node:path";
 import {
+  checkGmailHealth,
   connectGmail,
   disconnectGmail,
   forgetGmailCredentials,
@@ -56,6 +57,9 @@ export function registerSettingsHandlers() {
 
   createTypedHandler(settingsContracts.getGmailStatus, async () =>
     getGmailStatus(),
+  );
+  createTypedHandler(settingsContracts.getGmailHealth, async () =>
+    checkGmailHealth(),
   );
   createTypedHandler(settingsContracts.importGmailCredentials, async () => {
     const downloads = app.getPath("downloads");

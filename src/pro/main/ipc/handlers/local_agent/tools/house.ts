@@ -1,4 +1,4 @@
-﻿import { z } from "zod";
+import { z } from "zod";
 import { ToolDefinition, AgentContext } from "./types";
 import {
   listMail,
@@ -11,7 +11,10 @@ import {
   writeShared,
 } from "../house";
 import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
-import { readSchedule, writeSchedule } from "@/main/house_schedule";
+import { readSchedule, readState, writeSchedule } from "@/main/house_schedule";
+import { readSettings } from "@/main/settings";
+import { db } from "@/db";
+import { mcpServers } from "@/db/schema";
 
 const houseSchema = z.object({
   action: z
@@ -25,9 +28,11 @@ const houseSchema = z.object({
       "shared_write",
       "schedule_list",
       "schedule_set",
+      "plugins_status",
+      "scheduler_status",
     ])
     .describe(
-      "roster: who lives here. send_mail: write a letter (to, subject, body). inbox: list your letters. read_mail: open one (file). shared_list / shared_read (file) / shared_write (file, text, mode): the household's shared files.",
+      "roster: who lives here. send_mail: write a letter (to, subject, body). inbox: list your letters. read_mail: open one (file). shared_list / shared_read (file) / shared_write (file, text, mode): the household's shared files. plugins_status: read-only list of which plugins are on or off (no secrets). scheduler_status: read-only, your scheduled jobs with when each last fired.",
     ),
   to: z.string().optional().describe("send_mail: a sister's id, or tim."),
   subject: z.string().optional().describe("send_mail: short subject."),
@@ -137,6 +142,36 @@ export const houseTool: ToolDefinition<z.infer<typeof houseSchema>> = {
         }
         writeSchedule(jobs);
         return `Saved ${job.id}.`;
+      }
+      case "plugins_status": {
+        const auto = new Set(readSettings().autoOffPluginIds ?? []);
+        const rows = await db
+          .select({ id: mcpServers.id, name: mcpServers.name, enabled: mcpServers.enabled })
+          .from(mcpServers);
+        return (
+          rows
+            .map(
+              (r) =>
+                `${r.name}: ${r.enabled ? "ON" : "off"}${auto.has(r.id) ? " (switches itself off after a turn that does not use it)" : ""}`,
+            )
+            .join("\n") || "No plugins."
+        );
+      }
+      case "scheduler_status": {
+        const state = readState();
+        return (
+          readSchedule()
+            .filter((j) => j.sister === me.id)
+            .map((j) => {
+              const last =
+                j.kind === "daily"
+                  ? state.fired[j.id]
+                  : state.counts[j.id]?.date;
+              return `${j.id}: ${j.enabled ? "ON" : "off"}, last fired ${last ?? "never"}`;
+            })
+            .join("\n") +
+          "\nJobs only fire while Crackerbox is open; missed ones catch up when it opens."
+        );
       }
       case "shared_write":
         return `Saved ${writeShared(need(args.file, "file"), need(args.text, "text"), args.mode ?? "append")}.`;

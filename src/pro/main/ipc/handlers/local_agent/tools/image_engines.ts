@@ -143,6 +143,8 @@ const VENICE_TIMEOUT_MS = 120_000;
 const SIRAY_SUBMIT_TIMEOUT_MS = 60_000;
 const SIRAY_POLL_MS = 3_000;
 const SIRAY_GIVE_UP_MS = 240_000;
+// Editing a picture (keeps her face) gives up sooner so the sister can retry or tell Tim.
+const SIRAY_I2I_GIVE_UP_MS = 120_000;
 const BLANK_MEAN = 8;
 const BLANK_RETRIES = 2;
 // ----------------------------------------------------------------------------
@@ -402,7 +404,9 @@ async function callSiray(
     const taskId: string | undefined = sj?.data?.task_id ?? sj?.task_id;
     if (!taskId) throw new EngineError("Siray returned no task id.");
 
-    const deadline = Date.now() + SIRAY_GIVE_UP_MS;
+    const giveUpMs =
+      row.kind === "image-to-image" ? SIRAY_I2I_GIVE_UP_MS : SIRAY_GIVE_UP_MS;
+    const deadline = Date.now() + giveUpMs;
     while (Date.now() < deadline) {
       await req.sleep(SIRAY_POLL_MS);
       if (req.signal?.aborted) throw req.signal.reason ?? new Error("aborted");
@@ -435,7 +439,7 @@ async function callSiray(
       }
     }
     throw new EngineError(
-      `Siray timed out after ${SIRAY_GIVE_UP_MS / 1000} seconds.`,
+      `Siray timed out after ${giveUpMs / 1000} seconds. Try again, or tell Tim; a text-only engine would not keep her face.`,
     );
   } catch (err) {
     return asEngineError(err, req.signal);

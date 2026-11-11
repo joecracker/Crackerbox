@@ -17,6 +17,12 @@ const viewPreviewSchema = z.object({
     .describe(
       "Scroll to this many pixels from the top of the page before looking. Ignored if scroll is given.",
     ),
+  quiet: z
+    .boolean()
+    .optional()
+    .describe(
+      "Set true to look WITHOUT opening or switching the Preview panel: if it is not already showing, take the picture from a hidden window instead (a fresh copy of the page). Use preview_panel to open or close the panel itself.",
+    ),
 });
 
 type ViewPreviewArgs = z.infer<typeof viewPreviewSchema>;
@@ -75,7 +81,7 @@ export interface PanelState {
   togglePressed: boolean | null;
 }
 
-async function readPanelState(
+export async function readPanelState(
   win: BrowserWindow,
   appId: number,
 ): Promise<PanelState | null> {
@@ -103,7 +109,7 @@ async function readPanelState(
   }
 }
 
-async function clickControl(
+export async function clickControl(
   win: BrowserWindow,
   testId: string,
 ): Promise<boolean> {
@@ -118,6 +124,15 @@ async function clickControl(
   } catch {
     return false;
   }
+}
+
+/** True when some Crackerbox window is showing this app's preview frame. */
+export async function panelShowing(appId: number): Promise<boolean> {
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (win.isDestroyed() || win.isMinimized() || !win.isVisible()) continue;
+    if ((await readPanelState(win, appId))?.rect) return true;
+  }
+  return false;
 }
 
 type OpenOutcome =
@@ -356,7 +371,9 @@ export const viewPreviewTool: ToolDefinition<ViewPreviewArgs> = {
     let position = "";
 
     if (!source) {
-      const outcome = await showPreview(ctx.appId);
+      const outcome: OpenOutcome = args.quiet && !(await panelShowing(ctx.appId))
+        ? { kind: "no-window" }
+        : await showPreview(ctx.appId);
       if (outcome.kind === "no-window" || outcome.kind === "no-controls") {
         // Crackerbox's own window can't show it (minimized, or on another
         // page): look at the running app from a hidden window instead.

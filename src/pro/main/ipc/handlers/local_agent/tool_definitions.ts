@@ -63,6 +63,7 @@ import { haRestartTool } from "./tools/ha_restart";
 import { sendEmailTool } from "./tools/send_email";
 import { githubReposTool } from "./tools/github_repos";
 import { viewPreviewTool } from "./tools/view_preview";
+import { previewPanelTool } from "./tools/preview_panel";
 import { phoneScreenshotTool } from "./tools/phone_screenshot";
 import { generateTestAssertionsTool } from "./tools/generate_test_assertions";
 import {
@@ -233,6 +234,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinition[] = [
   sendEmailTool,
   githubReposTool,
   viewPreviewTool,
+  previewPanelTool,
   phoneScreenshotTool,
   runTestsTool,
   generateTestAssertionsTool,

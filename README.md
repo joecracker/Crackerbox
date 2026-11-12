@@ -1,14 +1,23 @@
 # Crackerbox
 
-Crackerbox is a local, open-source AI app builder: chat with an AI and it builds the app. It is a heavily remixed fork of [Dyad](https://github.com/dyad-sh/dyad), with thanks to its makers. Free beta for Windows.
+**A vibe-coding workshop where your AI crew has personality.**
 
-## 🚀 Features
+Crackerbox is a local, open-source harness for building software with a team of AI entities. Describe what you want, they build it, and you enjoy the ride. It is made for people who want creating software to feel good, not like a corporate IDE. Free beta for Windows, remixed from [Dyad](https://github.com/dyad-sh/dyad), with thanks to its makers.
 
-- ⚡️ **Local**: Fast, private and no lock-in.
-- 🛠 **Bring your own keys**: Use your own AI API keys — no vendor lock-in.
-- **Windows**: built and tested on Windows only for now.
-- **Plugins**: add MCP servers (docs lookup, GitHub, your own tools); the assistant can ask you to switch one on when she needs it.
-- **Images**: several image engines with fallback, plus image-to-image from a base picture.
+## What makes it different
+
+- **Pick your crew.** Every entity has its own room, memory and voice. Keep them blank and sterile, with a different model doing each job. Or go wild: three monsters who build for you, a professor in a library, a grumpy foreman, pieces of your family. They can work separate projects or share one, and you decide who is on which job.
+- **They talk to each other.** Entities pass notes back and forth and share a common folder for files. Hand a job to one, let her leave instructions for another, and watch a working group form. It is a little silly, and it completes the circle.
+- **Jobs are tabs.** Every chat is a job. Each tab shows who is on it, and you can swap the entity on a job at any time.
+- **They reach you.** Entities can text you on Telegram, send mail, run on a schedule and keep their own memory. A front door lets outside messages in when you open it.
+- **Bring your own keys.** Use the AI providers you already have, with no lock-in.
+- **Extend it.** Add plugins (MCP servers: docs lookup, GitHub, your own tools). The assistant can ask you to switch one on when it needs it.
+- **Images.** Several image engines with fallback, plus image-to-image from a base picture.
+- **Local and private.** Your projects and your entities' memory stay on your PC. Windows only for now.
+
+## Straight talk
+
+Crackerbox is built to fit how I work. Feedback is welcome and I read it, but if an idea does not fit the vision, it does not go in.
 
 ## Documentation
 

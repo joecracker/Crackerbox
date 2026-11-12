@@ -10,6 +10,17 @@ import {
 } from "@/components/ui/select";
 import { ipc } from "@/ipc/types";
 
+/** Dark letters on light badge colors (moon white, amber), white on dark ones. */
+function badgeTextColor(hex: string): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return "#ffffff";
+  const n = parseInt(m[1], 16);
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  return 0.299 * r + 0.587 * g + 0.114 * b > 160 ? "#1f2937" : "#ffffff";
+}
+
 export function SisterBadge({
   color,
   initial,
@@ -21,9 +32,10 @@ export function SisterBadge({
 }) {
   return (
     <span
-      className="inline-flex shrink-0 items-center justify-center rounded-full font-semibold text-white"
+      className="inline-flex shrink-0 items-center justify-center rounded-full font-semibold"
       style={{
         backgroundColor: color,
+        color: badgeTextColor(color),
         width: size,
         height: size,
         fontSize: Math.round(size * 0.55),

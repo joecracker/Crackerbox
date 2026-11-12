@@ -1,4 +1,4 @@
-﻿import fs from "node:fs";
+import fs from "node:fs";
 import path from "node:path";
 import { getDyadAppPath, getUserDataPath } from "@/paths/paths";
 import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
@@ -24,8 +24,8 @@ export interface Sister {
 }
 
 const SEED_ROSTER: Sister[] = [
-  { id: "nyx", name: "Nyx", appId: 47, color: "#e11d48", initial: "N" },
-  { id: "veritas", name: "Veritas", appId: 57, color: "#7c3aed", initial: "V" },
+  { id: "nyx", name: "Nyx", appId: 47, color: "#eef0f4", initial: "N" },
+  { id: "veritas", name: "Veritas", appId: 57, color: "#0ea5e9", initial: "V" },
 ];
 
 export const SHARED_FILE_LIMIT = 8000;

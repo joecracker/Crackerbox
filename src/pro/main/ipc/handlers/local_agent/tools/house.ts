@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { ToolDefinition, AgentContext } from "./types";
 import {
+  doorReceive,
+  doorSend,
   listMail,
   listShared,
   readMail,
@@ -32,9 +34,11 @@ const houseSchema = z.object({
       "plugins_status",
       "scheduler_status",
       "app_status",
+      "door_check",
+      "door_send",
     ])
     .describe(
-      "roster: who lives here. send_mail: write a letter (to, subject, body). inbox: list your letters. read_mail: open one (file). shared_list / shared_read (file) / shared_write (file, text, mode): the household's shared files. plugins_status: read-only list of which plugins are on or off (no secrets). scheduler_status: read-only, your scheduled jobs with when each last fired. app_status: whether your app is running and the localhost URL/port it serves on (give this URL to Playwright).",
+      "roster: who lives here. send_mail: write a letter (to, subject, body). inbox: list your letters. read_mail: open one (file). shared_list / shared_read (file) / shared_write (file, text, mode): the household's shared files. plugins_status: read-only list of which plugins are on or off (no secrets). scheduler_status: read-only, your scheduled jobs with when each last fired. app_status: whether your app is running and the localhost URL/port it serves on (give this URL to Playwright). door_check: read new letters from outside the house (only works while Tim has the front door open). door_send (subject, body): leave a reply for the outsider at the door.",
     ),
   to: z.string().optional().describe("send_mail: a sister's id, or tim."),
   subject: z.string().optional().describe("send_mail: short subject."),
@@ -44,13 +48,46 @@ const houseSchema = z.object({
     .optional()
     .describe("read_mail / shared_read / shared_write: file name."),
   text: z.string().optional().describe("shared_write: the text."),
-  job: z.string().optional().describe("schedule_set: the job id (from schedule_list)."),
-  enabled: z.boolean().optional().describe("schedule_set: turn the job on or off."),
-  time: z.string().optional().describe("schedule_set, daily jobs: HH:MM local time."),
-  one_in: z.number().int().min(1).max(100).optional().describe("schedule_set, dice jobs: fires on a 1 in N chance each hour."),
-  max_per_day: z.number().int().min(1).max(10).optional().describe("schedule_set, dice jobs: most times it may fire per day."),
-  window_start: z.number().int().min(0).max(23).optional().describe("schedule_set, dice jobs: first local hour."),
-  window_end: z.number().int().min(1).max(24).optional().describe("schedule_set, dice jobs: local hour it stops (exclusive)."),
+  job: z
+    .string()
+    .optional()
+    .describe("schedule_set: the job id (from schedule_list)."),
+  enabled: z
+    .boolean()
+    .optional()
+    .describe("schedule_set: turn the job on or off."),
+  time: z
+    .string()
+    .optional()
+    .describe("schedule_set, daily jobs: HH:MM local time."),
+  one_in: z
+    .number()
+    .int()
+    .min(1)
+    .max(100)
+    .optional()
+    .describe("schedule_set, dice jobs: fires on a 1 in N chance each hour."),
+  max_per_day: z
+    .number()
+    .int()
+    .min(1)
+    .max(10)
+    .optional()
+    .describe("schedule_set, dice jobs: most times it may fire per day."),
+  window_start: z
+    .number()
+    .int()
+    .min(0)
+    .max(23)
+    .optional()
+    .describe("schedule_set, dice jobs: first local hour."),
+  window_end: z
+    .number()
+    .int()
+    .min(1)
+    .max(24)
+    .optional()
+    .describe("schedule_set, dice jobs: local hour it stops (exclusive)."),
   mode: z
     .enum(["append", "replace"])
     .optional()
@@ -133,13 +170,15 @@ export const houseTool: ToolDefinition<z.infer<typeof houseSchema>> = {
         }
         if (args.enabled !== undefined) job.enabled = args.enabled;
         if (args.time !== undefined && job.kind === "daily") {
-          if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(args.time)) return "time must be HH:MM.";
+          if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(args.time))
+            return "time must be HH:MM.";
           job.time = args.time;
         }
         if (job.kind === "dice") {
           if (args.one_in !== undefined) job.oneIn = args.one_in;
           if (args.max_per_day !== undefined) job.maxPerDay = args.max_per_day;
-          if (args.window_start !== undefined) job.windowStart = args.window_start;
+          if (args.window_start !== undefined)
+            job.windowStart = args.window_start;
           if (args.window_end !== undefined) job.windowEnd = args.window_end;
         }
         writeSchedule(jobs);
@@ -148,7 +187,11 @@ export const houseTool: ToolDefinition<z.infer<typeof houseSchema>> = {
       case "plugins_status": {
         const auto = new Set(readSettings().autoOffPluginIds ?? []);
         const rows = await db
-          .select({ id: mcpServers.id, name: mcpServers.name, enabled: mcpServers.enabled })
+          .select({
+            id: mcpServers.id,
+            name: mcpServers.name,
+            enabled: mcpServers.enabled,
+          })
           .from(mcpServers);
         return (
           rows
@@ -161,7 +204,8 @@ export const houseTool: ToolDefinition<z.infer<typeof houseSchema>> = {
       }
       case "app_status": {
         const info = runningApps.get(ctx.appId);
-        if (!info) return "Your app is not running. Start it with run_app, then ask again.";
+        if (!info)
+          return "Your app is not running. Start it with run_app, then ask again.";
         return `Running. Local URL (use this for Playwright): ${info.originalUrl ?? "unknown"}. Preview proxy URL: ${info.proxyUrl ?? "none"}.`;
       }
       case "scheduler_status": {
@@ -180,6 +224,14 @@ export const houseTool: ToolDefinition<z.infer<typeof houseSchema>> = {
           "\nJobs only fire while Crackerbox is open; missed ones catch up when it opens."
         );
       }
+      case "door_check":
+        return doorReceive();
+      case "door_send":
+        return doorSend(
+          me.name,
+          need(args.subject, "subject"),
+          need(args.body, "body"),
+        );
       case "shared_write":
         return `Saved ${writeShared(need(args.file, "file"), need(args.text, "text"), args.mode ?? "append")}.`;
     }

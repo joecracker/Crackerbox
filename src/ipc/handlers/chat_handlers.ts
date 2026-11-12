@@ -1,3 +1,4 @@
+import { readAvatarDataUrl } from "@/main/avatar_file";
 import { markChatSilent, readSilentChats } from "@/main/silent_chats";
 import {
   claudeStatus,
@@ -306,12 +307,13 @@ export function registerChatHandlers() {
   });
 
   createTypedHandler(chatContracts.listSisters, async () =>
-    readRoster().map(({ id, name, appId, color, initial }) => ({
+    readRoster().map(({ id, name, appId, color, initial, avatar }) => ({
       id,
       name,
       appId,
       color,
       initial,
+      avatarUrl: readAvatarDataUrl(avatar),
     })),
   );
 

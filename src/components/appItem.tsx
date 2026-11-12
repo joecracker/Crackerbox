@@ -21,7 +21,7 @@ type AppItemProps = {
   selectedAppId: number | null;
   enableMultiWindow: boolean;
   /** Set when this app is a sister's room: shows her badge. */
-  sister?: { name: string; color: string; initial: string };
+  sister?: { name: string; color: string; initial: string; avatarUrl?: string };
 };
 
 export function AppItem({
@@ -48,6 +48,7 @@ export function AppItem({
           <SisterBadge
             color={sister.color}
             initial={sister.initial}
+            avatarUrl={sister.avatarUrl}
             size={28}
           />
         ) : (

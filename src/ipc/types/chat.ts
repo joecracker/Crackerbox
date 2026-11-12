@@ -365,6 +365,7 @@ export const SisterSchema = z.object({
   appId: z.number(),
   color: z.string(),
   initial: z.string(),
+  avatarUrl: z.string().optional(),
 });
 export type SisterSummary = z.infer<typeof SisterSchema>;
 

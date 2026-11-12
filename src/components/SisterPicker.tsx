@@ -25,11 +25,23 @@ export function SisterBadge({
   color,
   initial,
   size = 18,
+  avatarUrl,
 }: {
   color: string;
   initial: string;
   size?: number;
+  avatarUrl?: string;
 }) {
+  if (avatarUrl) {
+    return (
+      <img
+        src={avatarUrl}
+        alt=""
+        className="inline-block shrink-0 rounded-full object-cover"
+        style={{ width: size, height: size, boxShadow: `0 0 0 1.5px ${color}` }}
+      />
+    );
+  }
   return (
     <span
       className="inline-flex shrink-0 items-center justify-center rounded-full font-semibold"
@@ -104,7 +116,11 @@ export function SisterPicker() {
         <SelectValue>
           {current ? (
             <span className="flex items-center gap-1.5">
-              <SisterBadge color={current.color} initial={current.initial} />
+              <SisterBadge
+                color={current.color}
+                initial={current.initial}
+                avatarUrl={current.avatarUrl}
+              />
               {current.name}
             </span>
           ) : (
@@ -121,7 +137,11 @@ export function SisterPicker() {
           .map((s) => (
             <SelectItem key={s.id} value={s.id}>
               <span className="flex items-center gap-1.5">
-                <SisterBadge color={s.color} initial={s.initial} />
+                <SisterBadge
+                  color={s.color}
+                  initial={s.initial}
+                  avatarUrl={s.avatarUrl}
+                />
                 {s.name}
               </span>
             </SelectItem>

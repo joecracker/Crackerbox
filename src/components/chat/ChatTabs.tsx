@@ -1727,6 +1727,7 @@ export function ChatTabs({ selectedChatId }: ChatTabsProps) {
                         <SisterBadge
                           color={sister.color}
                           initial={sister.initial}
+                          avatarUrl={sister.avatarUrl}
                           size={16}
                         />
                       ) : (
@@ -1905,6 +1906,7 @@ export function ChatTabs({ selectedChatId }: ChatTabsProps) {
                       <SisterBadge
                         color={sister.color}
                         initial={sister.initial}
+                        avatarUrl={sister.avatarUrl}
                         size={20}
                       />
                     ) : (

@@ -372,7 +372,12 @@ function SisterRail({ isExpanded }: { isExpanded: boolean }) {
                 isExpanded ? "top-1" : "top-1/2 -translate-y-1/2",
               )}
             >
-              <SisterBadge color={s.color} initial={s.initial} size={28} />
+              <SisterBadge
+                color={s.color}
+                initial={s.initial}
+                avatarUrl={s.avatarUrl}
+                size={28}
+              />
             </span>
             <span
               className={cn(

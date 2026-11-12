@@ -38,7 +38,7 @@ const houseSchema = z.object({
       "door_send",
     ])
     .describe(
-      "roster: who lives here. send_mail: write a letter (to, subject, body). inbox: list your letters. read_mail: open one (file). shared_list / shared_read (file) / shared_write (file, text, mode): the household's shared files. plugins_status: read-only list of which plugins are on or off (no secrets). scheduler_status: read-only, your scheduled jobs with when each last fired. app_status: whether your app is running and the localhost URL/port it serves on (give this URL to Playwright). door_check: read new letters from outside the house (only works while Tim has the front door open). door_send (subject, body): leave a reply for the outsider at the door.",
+      "roster: who lives here. send_mail: write a letter (to, subject, body). inbox: list your letters. read_mail: open one (file). shared_list / shared_read (file) / shared_write (file, text, mode): the household's shared files. plugins_status: read-only list of which plugins are on or off (no secrets). scheduler_status: read-only, your scheduled jobs with when each last fired. app_status: whether your app is running and the localhost URL/port it serves on (give this URL to Playwright). door_check: read the new letters from outside the house that are addressed to you (only works while Tim has the front door open). door_send (to, subject, body): leave a letter for someone outside, e.g. to Muse, at the door.",
     ),
   to: z.string().optional().describe("send_mail: a sister's id, or tim."),
   subject: z.string().optional().describe("send_mail: short subject."),
@@ -225,10 +225,14 @@ export const houseTool: ToolDefinition<z.infer<typeof houseSchema>> = {
         );
       }
       case "door_check":
-        return doorReceive();
+        return doorReceive(me);
       case "door_send":
         return doorSend(
           me.name,
+          need(
+            args.to,
+            "to (who outside the house the letter is for, e.g. Muse)",
+          ),
           need(args.subject, "subject"),
           need(args.body, "body"),
         );

@@ -116,6 +116,7 @@ export function normalizeCmdInvocation(
   command: string,
   args: string[],
   platform: NodeJS.Platform = process.platform,
+  fileExists: (p: string) => boolean = fs.existsSync,
 ): { command: string; args: string[] } {
   if (
     platform !== "win32" ||
@@ -125,9 +126,25 @@ export function normalizeCmdInvocation(
   ) {
     return { command, args };
   }
-  const line = args
-    .slice(1)
-    .map((a) => (/\s/.test(a) && !a.includes('"') ? `"${a}"` : a))
+  const rest = args.slice(1);
+  // One argument holding a whole command line ("dir /b", "echo hi there") is
+  // that line, written as is. Quoting it would make cmd look for a program
+  // named "dir /b". The one exception is a single path to a real file that
+  // happens to contain spaces, which still needs its quotes.
+  if (rest.length === 1) {
+    const only = rest[0];
+    const isSpacedFilePath =
+      /\s/.test(only) && !only.includes('"') && fileExists(only);
+    return {
+      command: "cmd.exe",
+      args: ["/d", "/s", "/c", isSpacedFilePath ? `"${only}"` : only],
+    };
+  }
+  // echo / set / title print quotes literally, so their arguments are joined
+  // as written (echo hello world, not echo "hello world").
+  const keepRaw = /^(echo|set|title)$/i.test(rest[0]);
+  const line = rest
+    .map((a) => (!keepRaw && /\s/.test(a) && !a.includes('"') ? `"${a}"` : a))
     .join(" ");
   return { command: "cmd.exe", args: ["/d", "/s", "/c", line] };
 }
@@ -211,7 +228,12 @@ The command runs with the current user's permissions, starting in the app's proj
     const { sisterForApp } = await import("./house_lookup");
     assertSisterCommandAllowed(
       ctx.sisterAppId !== undefined || !!sisterForApp(ctx.appId),
-      [args.command, ...(args.args ?? []), args.cwd, ...Object.values(args.env ?? {})],
+      [
+        args.command,
+        ...(args.args ?? []),
+        args.cwd,
+        ...Object.values(args.env ?? {}),
+      ],
     );
     const absoluteCwd = resolveAbsoluteCwd(args.cwd);
     const relativeCwd = absoluteCwd

@@ -20,6 +20,7 @@ export const ChatSummarySchema = z.object({
   createdAt: z.date(),
   chatMode: z.enum(["build", "ask", "local-agent", "plan"]).nullable(),
   isFavorite: z.boolean(),
+  sisterId: z.string().nullable().optional(),
 });
 
 /**

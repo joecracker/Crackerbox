@@ -65,6 +65,8 @@ import { useReopenClosedTab } from "@/hooks/useReopenClosedTab";
 import { useStreamFinished } from "@/chat_stream/ChatStreamProvider";
 import { cn } from "@/lib/utils";
 import { AppAvatar } from "@/components/AppAvatar";
+import { SisterBadge } from "@/components/SisterPicker";
+import { useQuery } from "@tanstack/react-query";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -531,6 +533,16 @@ export function ChatTabs({ selectedChatId }: ChatTabsProps) {
   const { t } = useTranslation("chat");
   const { chats, loading } = useChats(null);
   const { apps } = useLoadApps();
+  const sistersQuery = useQuery({
+    queryKey: ["house", "sisters"],
+    queryFn: () => ipc.chat.listSisters(),
+  });
+  // The AI on a job: the one picked for the chat, else the one whose room it is.
+  const sisterForChat = (chat: ChatSummary) =>
+    sistersQuery.data?.find(
+      (s) =>
+        s.id === chat.sisterId || (!chat.sisterId && s.appId === chat.appId),
+    );
   const { settings } = useSettings();
   const enableMultiWindow = !!settings?.enableMultiWindow;
   const store = useStore();
@@ -1107,10 +1119,8 @@ export function ChatTabs({ selectedChatId }: ChatTabsProps) {
       closedChatIds,
       sessionOpenedChatIds,
     );
-    const onePerApp = keepOneChatTabPerApp(base, chatsById, selectedChatId);
-    // When grouping is enabled, re-bucket by app on every render so newly
-    // opened chats automatically join their app's existing group.
-    return groupTabsByApp ? groupChatIdsByApp(onePerApp, chatsById) : onePerApp;
+    // Every job (chat) gets its own tab; the AI on it is shown as a badge.
+    return groupTabsByApp ? groupChatIdsByApp(base, chatsById) : base;
   }, [
     recentViewedChatIds,
     chats,
@@ -1576,6 +1586,7 @@ export function ChatTabs({ selectedChatId }: ChatTabsProps) {
             const title = chat.title?.trim() || t("newChat");
             const app = appById.get(chat.appId);
             const appName = app?.name ?? `App ${chat.appId}`;
+            const sister = sisterForChat(chat);
             const titleExcerpt = getChatTitleExcerpt(title);
             const isDragging = draggingChatId === chat.id;
 
@@ -1712,11 +1723,19 @@ export function ChatTabs({ selectedChatId }: ChatTabsProps) {
                         />
                       }
                     >
-                      <AppAvatar
-                        appId={chat.appId}
-                        name={appName}
-                        className="h-4 w-4 rounded-sm text-[8px]"
-                      />
+                      {sister ? (
+                        <SisterBadge
+                          color={sister.color}
+                          initial={sister.initial}
+                          size={16}
+                        />
+                      ) : (
+                        <AppAvatar
+                          appId={chat.appId}
+                          name={appName}
+                          className="h-4 w-4 rounded-sm text-[8px]"
+                        />
+                      )}
                       <ChatTabActivity
                         chatId={chat.id}
                         notified={notifiedChatIds.has(chat.id)}
@@ -1743,7 +1762,7 @@ export function ChatTabs({ selectedChatId }: ChatTabsProps) {
                                 : "font-medium text-foreground/60",
                             )}
                           >
-                            {appName}
+                            {title}
                           </span>
                           <span
                             className={cn(
@@ -1753,7 +1772,7 @@ export function ChatTabs({ selectedChatId }: ChatTabsProps) {
                                 : "text-muted-foreground/70",
                             )}
                           >
-                            {title}
+                            {sister?.name ?? appName}
                           </span>
                         </div>
                       </button>
@@ -1869,6 +1888,7 @@ export function ChatTabs({ selectedChatId }: ChatTabsProps) {
                 const title = chat.title?.trim() || t("newChat");
                 const appName =
                   appById.get(chat.appId)?.name ?? `App ${chat.appId}`;
+                const sister = sisterForChat(chat);
                 return (
                   <DropdownMenuItem
                     key={chat.id}
@@ -1881,20 +1901,30 @@ export function ChatTabs({ selectedChatId }: ChatTabsProps) {
                     }}
                     className="flex items-center gap-2"
                   >
-                    <AppAvatar
-                      appId={chat.appId}
-                      name={appName}
-                      className="h-5 w-5 rounded text-[9px]"
-                    />
+                    {sister ? (
+                      <SisterBadge
+                        color={sister.color}
+                        initial={sister.initial}
+                        size={20}
+                      />
+                    ) : (
+                      <AppAvatar
+                        appId={chat.appId}
+                        name={appName}
+                        className="h-5 w-5 rounded text-[9px]"
+                      />
+                    )}
                     <ChatTabActivity
                       chatId={chat.id}
                       notified={notifiedChatIds.has(chat.id)}
                     />
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-xs leading-3.5 font-bold">
-                        {appName}
+                        {title}
                       </div>
-                      <div className="truncate text-xs leading-4">{title}</div>
+                      <div className="truncate text-xs leading-4">
+                        {sister?.name ?? appName}
+                      </div>
                     </div>
                     <button
                       type="button"

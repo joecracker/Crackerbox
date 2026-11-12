@@ -1,4 +1,4 @@
-﻿import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouterState } from "@tanstack/react-router";
 import { toast } from "sonner";
 import {
@@ -72,6 +72,7 @@ export function SisterPicker() {
       await queryClient.invalidateQueries({
         queryKey: ["chat-sister", chatId],
       });
+      await queryClient.invalidateQueries({ queryKey: ["chats"] });
       toast.success(
         next === "none"
           ? "Back to this app's own assistant. Takes effect on your next message."

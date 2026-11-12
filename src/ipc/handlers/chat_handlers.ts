@@ -344,6 +344,7 @@ export function registerChatHandlers() {
             appId: true,
             chatMode: true,
             isFavorite: true,
+            sisterId: true,
           },
           orderBy: [desc(chats.createdAt)],
         })
@@ -355,6 +356,7 @@ export function registerChatHandlers() {
             appId: true,
             chatMode: true,
             isFavorite: true,
+            sisterId: true,
           },
           orderBy: [desc(chats.createdAt)],
         });

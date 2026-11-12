@@ -451,6 +451,14 @@ export const chatContracts = {
     output: z.array(SisterSchema),
   }),
 
+  markChatSilent: defineContract({
+    channel: "chat:mark-silent",
+    input: z.object({ chatId: z.number() }),
+    output: z.void(),
+    invalidates: () => [{ family: "chats" }],
+    originHandles: () => [{ family: "chats" }],
+  }),
+
   setChatSister: defineContract({
     channel: "chat:set-sister",
     input: z.object({ chatId: z.number(), sisterId: z.string().nullable() }),

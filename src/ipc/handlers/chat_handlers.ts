@@ -1,3 +1,4 @@
+import { markChatSilent, readSilentChats } from "@/main/silent_chats";
 import {
   claudeStatus,
   listClaudeModels,
@@ -314,6 +315,10 @@ export function registerChatHandlers() {
     })),
   );
 
+  createTypedHandler(chatContracts.markChatSilent, async (_, params) => {
+    markChatSilent(params.chatId);
+  });
+
   createTypedHandler(chatContracts.setChatSister, async (_, params) => {
     if (
       params.sisterId !== null &&
@@ -361,7 +366,8 @@ export function registerChatHandlers() {
           orderBy: [desc(chats.createdAt)],
         });
 
-    const allChats = await query;
+    const silent = readSilentChats();
+    const allChats = (await query).filter((c) => !silent.has(c.id));
     return allChats.map((chat) => ({
       ...chat,
       chatMode: normalizeStoredChatMode(chat.chatMode),

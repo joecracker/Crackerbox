@@ -40,10 +40,12 @@ export function HouseTriggerListener() {
     return ipc.events.misc.onHouseTrigger((payload) => {
       queue = queue.then(async () => {
         try {
-          const chatId =
-            payload.thread === "telegram"
-              ? await telegramChatId(payload.appId, payload.sisterId)
-              : await ipc.chat.createChat({ appId: payload.appId });
+          const isTelegram = payload.thread === "telegram";
+          const chatId = isTelegram
+            ? await telegramChatId(payload.appId, payload.sisterId)
+            : await ipc.chat.createChat({ appId: payload.appId });
+          // Scheduled jobs run quietly: kept, but hidden from the chat lists.
+          if (!isTelegram) await ipc.chat.markChatSilent({ chatId });
           await streamMessage({
             prompt: payload.prompt,
             chatId,

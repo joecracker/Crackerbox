@@ -1,6 +1,5 @@
 import {
   PanelRightOpen,
-  History,
   PlusCircle,
   GitBranch,
   Info,
@@ -10,7 +9,6 @@ import { PanelRightClose } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useAtom, useAtomValue } from "jotai";
 import { selectedAppIdAtom } from "@/atoms/appAtoms";
-import { useVersions } from "@/hooks/useVersions";
 import { Button } from "../ui/button";
 import {
   Tooltip,
@@ -47,11 +45,9 @@ export function ChatHeader({
   isVersionPaneOpen,
   isPreviewOpen,
   onTogglePreview,
-  onVersionClick,
 }: ChatHeaderProps) {
   const { t } = useTranslation("chat");
   const appId = useAtomValue(selectedAppIdAtom);
-  const { versions, loading: versionsLoading } = useVersions(appId);
   const { navigate } = useRouter();
   const [selectedChatId] = useAtom(selectedChatIdAtom);
   const [terminalOpenByChatId, setTerminalOpenByChatId] = useAtom(
@@ -106,9 +102,6 @@ export function ChatHeader({
       navigate({ to: "/" });
     }
   };
-
-  // REMINDER: KEEP UP TO DATE WITH app_handlers.ts
-  const versionPostfix = versions.length === 100_000 ? `+` : "";
 
   const isNotMainBranch = branchInfo && branchInfo.branch !== "main";
 
@@ -223,19 +216,9 @@ export function ChatHeader({
             <PlusCircle size={16} />
             <span>{t("newChat")}</span>
           </Button>
-          <Button
-            onClick={onVersionClick}
-            variant="ghost"
-            className="hidden @6xs:flex cursor-pointer items-center gap-1 text-sm px-2 py-1 rounded-md"
-          >
-            <History size={16} />
-            {versionsLoading
-              ? "..."
-              : `${t("header.versionCount", { count: versions.length })}${versionPostfix}`}
-          </Button>
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 pr-[max(0.75rem,env(safe-area-inset-right))]">
           <VeniceBalanceChip isStreaming={isStreaming} />
           <TooltipProvider>
             <Tooltip>

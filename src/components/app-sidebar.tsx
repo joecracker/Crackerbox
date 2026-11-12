@@ -16,6 +16,10 @@ import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { dropdownOpenAtom } from "@/atoms/uiAtoms";
 import { selectedAppIdAtom } from "@/atoms/appAtoms";
 import { selectedChatIdAtom } from "@/atoms/chatAtoms";
+import { useQuery } from "@tanstack/react-query";
+import { ipc } from "@/ipc/types";
+import { useOpenApp } from "@/hooks/useOpenApp";
+import { SisterBadge } from "./SisterPicker";
 
 import {
   Sidebar,
@@ -329,6 +333,65 @@ export function AppSidebar() {
   );
 }
 
+function SisterRail({ isExpanded }: { isExpanded: boolean }) {
+  const sisters = useQuery({
+    queryKey: ["house", "sisters"],
+    queryFn: () => ipc.chat.listSisters(),
+  });
+  const selectedAppId = useAtomValue(selectedAppIdAtom);
+  const openApp = useOpenApp();
+
+  if (!sisters.data || sisters.data.length === 0) return null;
+
+  return (
+    <div
+      className="mt-1 flex flex-col items-start border-t border-sidebar-border pt-2"
+      data-testid="sister-rail"
+    >
+      {sisters.data.map((s) => {
+        const isActive = selectedAppId === s.appId;
+        return (
+          <button
+            key={s.id}
+            type="button"
+            aria-label={s.name}
+            title={s.name}
+            data-testid={`sister-rail-${s.id}`}
+            onClick={() => openApp(s.appId)}
+            className={cn(
+              "relative mb-1 flex h-12 items-center justify-center rounded-xl outline-none transition-[width,background-color] duration-200 ease-linear focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+              isExpanded ? "w-14" : "w-10",
+              isActive
+                ? "bg-primary/15"
+                : "hover:bg-sidebar-accent active:bg-sidebar-accent",
+            )}
+          >
+            <span
+              className={cn(
+                "absolute left-1/2 -translate-x-1/2 transition-[top] duration-200 ease-linear",
+                isExpanded ? "top-1" : "top-1/2 -translate-y-1/2",
+              )}
+            >
+              <SisterBadge color={s.color} initial={s.initial} size={28} />
+            </span>
+            <span
+              className={cn(
+                "pointer-events-none absolute bottom-0.5 left-1/2 max-w-[calc(100%-0.5rem)] -translate-x-1/2 truncate text-[10px] leading-3 transition-opacity duration-200 ease-linear",
+                isExpanded ? "opacity-100" : "opacity-0",
+                isActive
+                  ? "font-medium text-primary"
+                  : "text-sidebar-foreground/80",
+              )}
+            >
+              {s.name}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function AppIcons({
   onHoverChange,
   isExpanded,
@@ -378,6 +441,7 @@ function AppIcons({
             );
           })}
         </SidebarMenu>
+        <SisterRail isExpanded={isExpanded} />
       </SidebarGroupContent>
     </SidebarGroup>
   );

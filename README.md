@@ -19,6 +19,14 @@ Crackerbox is a local, open-source harness for building software with a team of 
 
 Crackerbox is built to fit how I work. Feedback is welcome and I read it, but if an idea does not fit the vision, it does not go in.
 
+## Screenshots
+
+Your crew lives in the left rail as avatar circles; the tabs along the top are jobs.
+
+![Crew and jobs](docs/screenshots/crew-and-jobs-foreman.png)
+
+![Another job](docs/screenshots/crew-and-jobs-skritch.png)
+
 ## Documentation
 
 - [Getting started](docs/getting-started.md): first run, plugins (MCP servers), image generation and image-to-image, long chats, known limits.

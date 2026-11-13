@@ -4,9 +4,15 @@ import { ipc } from "@/ipc/types";
 import { cn } from "@/lib/utils";
 
 /** A front door with a mail slot. Open: slot lit, letter poking out. Locked: padlock. */
-function DoorIcon({ open }: { open: boolean }) {
+export function DoorIcon({
+  open,
+  size = 26,
+}: {
+  open: boolean;
+  size?: number;
+}) {
   return (
-    <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden>
+    <svg width={size} height={size} viewBox="0 0 26 26" fill="none" aria-hidden>
       <rect
         x="5"
         y="2"
@@ -59,7 +65,14 @@ function timeLeft(expiresAt: number, now: number): string {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
-export function DoorButton({ isExpanded }: { isExpanded: boolean }) {
+export function DoorButton({
+  isExpanded,
+  variant = "rail",
+}: {
+  isExpanded: boolean;
+  /** "bar" is the phone bottom-bar slot: same door, laid out like its neighbors. */
+  variant?: "rail" | "bar";
+}) {
   const queryClient = useQueryClient();
   const [now, setNow] = useState(() => Date.now());
   const door = useQuery({
@@ -81,6 +94,29 @@ export function DoorButton({ isExpanded }: { isExpanded: boolean }) {
   const title = open
     ? `Front door: open${expiresAt ? `, locks in ${timeLeft(expiresAt, now)}` : ""}. Click to lock.`
     : "Front door: locked. Click to open for 3 hours.";
+
+  if (variant === "bar") {
+    return (
+      <button
+        type="button"
+        aria-label={title}
+        title={title}
+        aria-pressed={open}
+        data-testid="door-button"
+        onClick={() => toggle.mutate(!open)}
+        disabled={toggle.isPending}
+        className={cn(
+          "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-[10px] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sidebar-ring",
+          open
+            ? "text-sidebar-foreground"
+            : "text-sidebar-foreground/70 active:text-sidebar-foreground",
+        )}
+      >
+        <DoorIcon open={open} size={20} />
+        <span>{open && expiresAt ? timeLeft(expiresAt, now) : "Door"}</span>
+      </button>
+    );
+  }
 
   return (
     <button

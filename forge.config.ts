@@ -316,11 +316,13 @@ const config: ForgeConfig = {
             iconUrl:
               "https://raw.githubusercontent.com/joecracker/Crackerbox/main/assets/icon/logo.ico",
             setupIcon: "./assets/icon/logo.ico",
+            loadingGif: "./assets/installer-loading.gif",
           }
         : {
             iconUrl:
               "https://raw.githubusercontent.com/joecracker/Crackerbox/main/assets/icon/logo.ico",
             setupIcon: "./assets/icon/logo.ico",
+            loadingGif: "./assets/installer-loading.gif",
           },
     ),
     new MakerZIP({}, ["darwin"]),

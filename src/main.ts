@@ -981,10 +981,8 @@ const createWindow = ({
     titleBarOverlay:
       process.platform === "win32"
         ? {
-            color: nativeTheme.shouldUseDarkColors ? "#181818" : "#f1f0f7",
-            symbolColor: nativeTheme.shouldUseDarkColors
-              ? "#ffffff"
-              : "#000000",
+            color: "#181818",
+            symbolColor: "#ffffff",
             height: 36,
           }
         : false,
@@ -999,7 +997,8 @@ const createWindow = ({
       // transparent: true,
     },
     icon: path.join(app.getAppPath(), "assets/icon/logo.png"),
-    // backgroundColor: "#00000001",
+    // Dark from the first frame, so a new install never flashes white.
+    backgroundColor: "#181f1a",
     // frame: false,
   });
   if (openMinimized) {

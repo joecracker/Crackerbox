@@ -420,15 +420,6 @@ export function writeShared(
 }
 
 /** The block added to a sister's rules at the start of every turn. */
-export function housePromptSection(appId: number): string {
-  try {
-    const me = readRoster().find((s) => s.appId === appId);
-    return me ? housePromptForSister(me) : "";
-  } catch {
-    return "";
-  }
-}
-
 export function housePromptForSister(me: Sister): string {
   let roster: Sister[];
   try {

@@ -10,7 +10,6 @@ vi.mock("@/paths/paths", () => ({
 }));
 
 import {
-  housePromptSection,
   listMail,
   readMail,
   readRoster,
@@ -71,13 +70,5 @@ describe("house", () => {
     expect(readShared("household")).toBe("one\ntwo\n");
     expect(() => writeShared("big", "x".repeat(9000), "replace")).toThrow();
     expect(listShared()).toEqual(["household.md"]);
-  });
-
-  it("builds a prompt block only for sisters, with unread count", () => {
-    sendMail("Nyx", "veritas", "hello", "hi");
-    expect(housePromptSection(999)).toBe("");
-    const block = housePromptSection(57);
-    expect(block).toContain("You are Veritas");
-    expect(block).toContain("1 unread letter");
   });
 });

@@ -12,10 +12,10 @@ Hey all. I'm not a coder. I'm an ideas guy who builds with AI, and I remixed Dya
 
 What's different:
 
-- **Entities.** Your AI helpers are avatar circles in the left bar. Each has her own room (a project), her own memory and her own personality. Click one and you're talking to her.
+- **Entities.** Your AI helpers are avatar circles in the left bar. Each has its own room (a project), its own memory and its own personality. Click one and you're talking to it.
 - **Jobs as tabs.** The tabs along the top are jobs, each tagged with whoever is doing it.
 - **They pass notes.** Entities can leave each other notes and share a few common notes, so the one writing copy can learn what the one writing code decided.
-- **Phone and schedule.** Give an entity her own Telegram bot and message her from your phone. Set daily check-ins that run quietly in the background.
+- **Phone and schedule.** Give an entity its own Telegram bot and message it from your phone. Set daily check-ins that run quietly in the background.
 - **Plugins.** The usual plugin (MCP) tools work.
 - **Bring your own keys.** Nothing is locked to one provider.
 

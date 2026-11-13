@@ -1,5 +1,6 @@
 import { readAvatarDataUrl } from "@/main/avatar_file";
 import { markChatSilent, readSilentChats } from "@/main/silent_chats";
+import { addEntity } from "@/main/house_entity";
 import {
   claudeStatus,
   listClaudeModels,
@@ -316,6 +317,17 @@ export function registerChatHandlers() {
       avatarUrl: readAvatarDataUrl(avatar),
     })),
   );
+
+  createTypedHandler(chatContracts.addEntity, async (_, params) => {
+    const s = await addEntity(params);
+    return {
+      id: s.id,
+      name: s.name,
+      appId: s.appId,
+      color: s.color,
+      initial: s.initial,
+    };
+  });
 
   createTypedHandler(chatContracts.markChatSilent, async (_, params) => {
     markChatSilent(params.chatId);

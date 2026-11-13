@@ -452,6 +452,18 @@ export const chatContracts = {
     output: z.array(SisterSchema),
   }),
 
+  addEntity: defineContract({
+    channel: "house:add-entity",
+    input: z.object({
+      name: z.string(),
+      color: z.string().optional(),
+      personality: z.string().optional(),
+    }),
+    output: SisterSchema,
+    invalidates: () => [{ family: "chats" }, { family: "apps" }],
+    originHandles: () => [{ family: "chats" }],
+  }),
+
   markChatSilent: defineContract({
     channel: "chat:mark-silent",
     input: z.object({ chatId: z.number() }),

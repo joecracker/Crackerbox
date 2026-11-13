@@ -20,6 +20,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ipc } from "@/ipc/types";
 import { useOpenApp } from "@/hooks/useOpenApp";
 import { SisterBadge } from "./SisterPicker";
+import { AddEntityButton } from "./AddEntityDialog";
 
 import {
   Sidebar,
@@ -341,13 +342,18 @@ function SisterRail({ isExpanded }: { isExpanded: boolean }) {
   const selectedAppId = useAtomValue(selectedAppIdAtom);
   const openApp = useOpenApp();
 
-  if (!sisters.data || sisters.data.length === 0) return null;
+  if (!sisters.data) return null;
 
   return (
     <div
       className="mt-1 flex flex-col items-start border-t border-sidebar-border pt-2"
       data-testid="sister-rail"
     >
+      {sisters.data.length === 0 && (
+        <p className="mb-1 w-full px-1 text-center text-[10px] leading-tight text-sidebar-foreground/60">
+          Your crew
+        </p>
+      )}
       {sisters.data.map((s) => {
         const isActive = selectedAppId === s.appId;
         return (
@@ -393,6 +399,7 @@ function SisterRail({ isExpanded }: { isExpanded: boolean }) {
           </button>
         );
       })}
+      <AddEntityButton isExpanded={isExpanded} />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-﻿import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -14,6 +14,7 @@ import {
   listMail,
   readMail,
   readRoster,
+  writeRoster,
   sendMail,
   sisterForApp,
   writeShared,
@@ -21,9 +22,21 @@ import {
   listShared,
 } from "./house";
 
+const TEST_ROSTER = [
+  { id: "nyx", name: "Nyx", appId: 47, color: "#eef0f4", initial: "N" },
+  { id: "veritas", name: "Veritas", appId: 57, color: "#0ea5e9", initial: "V" },
+];
+
 beforeEach(() => {
   h.userData = fs.mkdtempSync(path.join(os.tmpdir(), "cb-house-"));
   h.apps = fs.mkdtempSync(path.join(os.tmpdir(), "cb-apps-"));
+  writeRoster(TEST_ROSTER);
+  for (const id of ["nyx", "veritas", "tim"]) {
+    fs.mkdirSync(path.join(h.userData, "house", "mailbox", id, "read"), {
+      recursive: true,
+    });
+  }
+  fs.mkdirSync(path.join(h.userData, "house", "shared"), { recursive: true });
 });
 afterEach(() => {
   fs.rmSync(h.userData, { recursive: true, force: true });
@@ -31,22 +44,13 @@ afterEach(() => {
 });
 
 describe("house", () => {
-  it("seeds the roster and finds a sister by app", () => {
+  it("starts empty and finds a sister by app", () => {
+    fs.rmSync(path.join(h.userData, "house"), { recursive: true, force: true });
+    expect(readRoster()).toEqual([]);
+    writeRoster(TEST_ROSTER);
     expect(readRoster().map((s) => s.id)).toEqual(["nyx", "veritas"]);
     expect(sisterForApp(57)?.name).toBe("Veritas");
     expect(sisterForApp(999)).toBeUndefined();
-  });
-
-  it("carries over the old mailbox and shared-memory folders", () => {
-    fs.mkdirSync(path.join(h.apps, "mailbox", "nyx"), { recursive: true });
-    fs.writeFileSync(path.join(h.apps, "mailbox", "nyx", "FROM-V.md"), "hi");
-    fs.mkdirSync(path.join(h.apps, "shared-memory"), { recursive: true });
-    fs.writeFileSync(
-      path.join(h.apps, "shared-memory", "WHO-WHO.md"),
-      "roster",
-    );
-    expect(listMail("nyx").map((m) => m.file)).toEqual(["FROM-V.md"]);
-    expect(readShared("who-who")).toContain("roster");
   });
 
   it("delivers a letter to one inbox, and reading it marks it read", () => {

@@ -23,10 +23,8 @@ export interface Sister {
   avatar?: string;
 }
 
-const SEED_ROSTER: Sister[] = [
-  { id: "nyx", name: "Nyx", appId: 47, color: "#eef0f4", initial: "N" },
-  { id: "veritas", name: "Veritas", appId: 57, color: "#0ea5e9", initial: "V" },
-];
+// A fresh install starts with an empty house; the user adds their own entities.
+const SEED_ROSTER: Sister[] = [];
 
 export const SHARED_FILE_LIMIT = 8000;
 export const MAX_SHARED_FILES = 30;

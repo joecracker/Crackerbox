@@ -3,8 +3,7 @@
 // code is left in place and untouched; this just stops it from mounting or
 // making background network calls to academy.dyad.sh / OpenAI.
 //
-// This is intentionally a flag-off, not a deletion: see
-// claude/crackerbox-pro-billing-followup.md for the full-removal plan.
+// This is intentionally a flag-off, not a deletion.
 export const PRO_BILLING_FEATURES_ENABLED = false;
 
 // Kill switch for features that only work through Dyad's paid cloud service

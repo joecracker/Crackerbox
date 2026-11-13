@@ -322,12 +322,10 @@ export const queryKeys = {
     status: ["freeModelQuotaStatus"] as const,
   },
 
-  // OpenRouter account balance (header chip)
   openRouterBalance: {
     status: ["openRouterBalance"] as const,
   },
 
-  // Venice account balance (header chip)
   veniceBalance: {
     status: ["veniceBalance"] as const,
   },

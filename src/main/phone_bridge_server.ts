@@ -1,11 +1,10 @@
-// Milestone 1 of Step 10 (phone access): a LAN-only HTTP + WebSocket server
-// that lets a plain phone browser load Crackerbox's renderer and drive it
-// exactly like the desktop window does, by replaying the same
-// window.electron.ipcRenderer contract preload.ts exposes -- but over a
-// WebSocket instead of Electron's real contextBridge/IPC.
+// Phone access: an HTTP + WebSocket server that lets a plain phone browser
+// load Crackerbox's renderer and drive it exactly like the desktop window
+// does, by replaying the same window.electron.ipcRenderer contract preload.ts
+// exposes -- but over a WebSocket instead of Electron's real contextBridge/IPC.
 //
-// No login yet (LAN only, trusted network assumed). Milestone 2 puts this
-// behind Cloudflare Access before it's reachable from the open internet.
+// No login of its own (a trusted local network is assumed). Reaching it from
+// the open internet goes through Cloudflare Access.
 import { EventEmitter } from "node:events";
 import * as http from "node:http";
 import * as fs from "node:fs";
@@ -75,18 +74,14 @@ function isValidSendChannel(channel: string): boolean {
 
 // ---------------------------------------------------------------------------
 // Per-connection fake sender/event, standing in for a real WebContents.
-// Originally scoped to chat_stream_handlers.ts's needs (just `.send(...)` --
-// see SafeSender in src/ipc/utils/safe_sender.ts), but other main-process
-// code now treats event.sender as a real WebContents too -- e.g.
-// first_prompt_creation_service.ts's `.once("destroyed", ...)` /
-// `.once("render-process-gone", ...)`/`.removeListener(...)` calls, used to
-// cancel/clean up an in-flight "New app" creation if its owning window goes
-// away. Without a real EventEmitter here that threw synchronously the moment
-// a phone client created a new app (`sender.once is not a function`) --
-// caught by createTypedHandler and surfaced as a normal error, not a hang,
-// but it still broke "New app" from the phone. Fixed: a real EventEmitter,
-// firing "destroyed"/"render-process-gone" when the socket closes so a phone
-// disconnect mid-creation cancels/cleans up like a closed window would.
+// Main-process code treats event.sender as a real WebContents, not just
+// something with `.send(...)` -- e.g. first_prompt_creation_service.ts calls
+// `.once("destroyed", ...)` / `.once("render-process-gone", ...)` /
+// `.removeListener(...)` to cancel an in-flight "New app" creation if its
+// owning window goes away. So this needs a real EventEmitter, firing those two
+// events when the socket closes, so a phone disconnect mid-creation cleans up
+// like a closed window would (without it, "New app" from the phone threw
+// `sender.once is not a function`).
 // ---------------------------------------------------------------------------
 // Electron WebContents IDs are positive integers. Keep browser-backed phone
 // connections in a separate ID space so registering a phone stream can never
@@ -197,8 +192,8 @@ class PhoneConnection {
 
   fakeEvent(): IpcMainInvokeEvent & IpcMainEvent {
     // See renderer_security.ts: this is the sole, explicit, auditable
-    // exception to the real-renderer trust check, scoped to LAN-only
-    // Milestone 1. Nothing else can set this Symbol-keyed property.
+    // exception to the real-renderer trust check, scoped to the phone bridge.
+    // Nothing else can set this Symbol-keyed property.
     return {
       sender: this.sender,
       senderFrame: null,
@@ -298,8 +293,8 @@ export const PHONE_SHIM_SCRIPT = `(function () {
 
   // Insecure (plain-http, non-localhost) contexts don't expose
   // crypto.randomUUID -- it's spec-restricted to secure contexts. The phone
-  // bridge is deliberately plain HTTP for Milestone 1 (LAN-only, no login
-  // yet), so polyfill just this one method using crypto.getRandomValues,
+  // bridge is deliberately plain HTTP on the local network, so polyfill just
+  // this one method using crypto.getRandomValues,
   // which IS available in insecure contexts. RFC 4122 v4 UUID.
   if (
     typeof crypto !== "undefined" &&
@@ -829,7 +824,6 @@ function proxyToDevServer(
             Buffer.concat(chunks).toString("utf-8"),
           );
           const headers = { ...proxyRes.headers };
-          delete headers["content-length"];
           headers["content-length"] = Buffer.byteLength(html).toString();
           res.writeHead(proxyRes.statusCode ?? 200, headers);
           res.end(html);
@@ -925,7 +919,6 @@ function proxyPhonePreview(
               )
             : base + previewRouteShim + previewWebSocketShim + html;
           const headers = { ...proxyRes.headers };
-          delete headers["content-length"];
           delete headers["content-encoding"];
           delete headers["transfer-encoding"];
           headers["content-length"] = Buffer.byteLength(html).toString();
@@ -946,7 +939,6 @@ function proxyPhonePreview(
             Buffer.concat(chunks).toString("utf-8"),
           );
           const headers = { ...proxyRes.headers };
-          delete headers["content-length"];
           delete headers["content-encoding"];
           delete headers["transfer-encoding"];
           headers["content-length"] = Buffer.byteLength(script).toString();

@@ -62,10 +62,6 @@ export const DEFAULT_SETTINGS: UserSettings = {
   selectedChatMode: "build",
   enableAppBlueprint: true,
   enableTestingForNewApps: DEFAULT_ENABLE_TESTING_FOR_NEW_APPS,
-  // Disabled: this points at upstream dyad-sh/dyad's release feed, not
-  // Tim's fork. Re-enable once Step 11 (installer) wires it to Tim's own
-  // GitHub releases instead -- until then this would silently try to
-  // overwrite Crackerbox with stock Dyad.
   enableAutoUpdate: true,
   startMinimized: true,
   releaseChannel: "stable",

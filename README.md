@@ -27,6 +27,10 @@ Your crew lives in the left rail as avatar circles; the tabs along the top are j
 
 ![Another job](docs/screenshots/crew-and-jobs-skritch.png)
 
+## How the crew works
+
+See [Entities and the house](docs/entities-and-the-house.md).
+
 ## Documentation
 
 - [Getting started](docs/getting-started.md): first run, plugins (MCP servers), image generation and image-to-image, long chats, known limits.

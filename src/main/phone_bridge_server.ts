@@ -770,7 +770,7 @@ const STATIC_CONTENT_TYPES: Record<string, string> = {
   ".woff2": "font/woff2",
 };
 
-function serveStaticProd(
+export function serveStaticProd(
   rendererRoot: string,
   res: http.ServerResponse,
   pathname: string,
@@ -778,8 +778,22 @@ function serveStaticProd(
   const relative =
     pathname === "/" ? "index.html" : pathname.replace(/^\//, "");
   let filePath = path.join(rendererRoot, relative);
+  // A file outside the renderer folder is never served, whatever the address
+  // looked like. It gets the same answer as any unknown address (below).
+  const fromRoot = path.relative(
+    path.resolve(rendererRoot),
+    path.resolve(filePath),
+  );
+  const insideRoot =
+    fromRoot !== ".." &&
+    !fromRoot.startsWith(`..${path.sep}`) &&
+    !path.isAbsolute(fromRoot);
   // SPA fallback: anything without a file extension is a client route.
-  if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+  if (
+    !insideRoot ||
+    !fs.existsSync(filePath) ||
+    fs.statSync(filePath).isDirectory()
+  ) {
     filePath = path.join(rendererRoot, "index.html");
   }
   fs.readFile(filePath, (err, data) => {

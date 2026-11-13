@@ -27,6 +27,11 @@ export interface ScheduleJob {
   oneIn?: number;
   maxPerDay?: number;
   prompt: string;
+  /**
+   * Instead of `prompt`: a file inside the house `prompts` folder whose text is
+   * the prompt. If it is missing, the job quietly does not run.
+   */
+  promptFile?: string;
 }
 
 export interface ScheduleState {
@@ -71,6 +76,21 @@ export function defaultJobs(): ScheduleJob[] {
       time: "07:30",
       catchUpMinutes: 90,
       prompt: morningPrompt("veritas"),
+    },
+    {
+      // A dice roll in a morning window rather than a fixed clock time: at most
+      // one drop a day, at a different hour each day. Its prompt lives in a
+      // local file in the house data folder, not in the code.
+      id: "dextra-morning",
+      sister: "dextra",
+      kind: "dice",
+      enabled: true,
+      windowStart: 6,
+      windowEnd: 10,
+      oneIn: 2,
+      maxPerDay: 1,
+      prompt: "",
+      promptFile: "prompts/dextra-morning.md",
     },
     {
       id: "nyx-surprise",
@@ -126,7 +146,19 @@ export function readSchedule(): ScheduleJob[] {
   readRoster(); // makes sure the house folder exists
   try {
     const parsed = JSON.parse(fs.readFileSync(scheduleFile(), "utf8"));
-    if (Array.isArray(parsed.jobs)) return parsed.jobs as ScheduleJob[];
+    if (Array.isArray(parsed.jobs)) {
+      const jobs = parsed.jobs as ScheduleJob[];
+      // A job added to the defaults after this file was first written (a new
+      // sister, a new line) still lands, without wiping anyone's own settings.
+      const present = new Set(jobs.map((j) => j.id));
+      const missing = defaultJobs().filter((j) => !present.has(j.id));
+      if (missing.length) {
+        const merged = [...jobs, ...missing];
+        writeSchedule(merged);
+        return merged;
+      }
+      return jobs;
+    }
   } catch {
     // missing or unreadable: write the defaults
   }
@@ -200,6 +232,27 @@ export function pickDue(
   return { due, state: next };
 }
 
+const PROMPT_FILE_MAX_CHARS = 20_000;
+
+/**
+ * The prompt for a job. A job with a `promptFile` reads it from the house
+ * `prompts` folder; the path must stay inside that folder. Returns null when
+ * the file is missing, empty, too long or outside the folder, and the job then
+ * does not run.
+ */
+export function readJobPrompt(job: ScheduleJob): string | null {
+  if (!job.promptFile) return job.prompt;
+  const root = path.resolve(houseDir(), "prompts");
+  const file = path.resolve(houseDir(), job.promptFile);
+  if (!file.startsWith(root + path.sep)) return null;
+  try {
+    const text = fs.readFileSync(file, "utf8").trim();
+    return text && text.length <= PROMPT_FILE_MAX_CHARS ? text : null;
+  } catch {
+    return null;
+  }
+}
+
 export interface HouseTriggerPayload {
   appId: number;
   sisterId: string;
@@ -229,27 +282,36 @@ export function startHouseScheduler(
       }
       const roster = readRoster();
       let finalState = next;
+      const unmark = (id: string) => {
+        finalState = {
+          ...finalState,
+          fired: { ...finalState.fired, [id]: state.fired[id] },
+          counts: { ...finalState.counts, [id]: state.counts[id] },
+        };
+        if (state.fired[id] === undefined) delete finalState.fired[id];
+        if (state.counts[id] === undefined) delete finalState.counts[id];
+      };
       for (const job of due) {
         const sister = roster.find((s) => s.id === job.sister);
+        const prompt = readJobPrompt(job);
+        if (prompt === null) {
+          // No prompt file: this job stays quiet and does not use up its turn.
+          unmark(job.id);
+          continue;
+        }
         const ok =
           !!sister &&
           send({
             appId: sister.appId,
             sisterId: sister.id,
-            prompt: job.prompt,
+            prompt,
             title: `${sister.name}: ${job.kind === "daily" ? "morning" : "surprise"} ${dateKey(new Date())}`,
           });
         if (ok) {
           logger.info(`Fired ${job.id}`);
         } else {
           // undo the mark so the next tick retries
-          finalState = {
-            ...finalState,
-            fired: { ...finalState.fired, [job.id]: state.fired[job.id] },
-            counts: { ...finalState.counts, [job.id]: state.counts[job.id] },
-          };
-          if (state.fired[job.id] === undefined) delete finalState.fired[job.id];
-          if (state.counts[job.id] === undefined) delete finalState.counts[job.id];
+          unmark(job.id);
           logger.warn(`Could not hand ${job.id} to the window; will retry`);
         }
       }

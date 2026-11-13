@@ -33,7 +33,11 @@ import {
   BACKEND_SWITCH_MESSAGE,
 } from "@/shared/execution_backend";
 import { createChatForApp } from "../utils/chat_creation_utils";
-import { readRoster } from "@/pro/main/ipc/handlers/local_agent/house";
+import {
+  listMail,
+  readMail,
+  readRoster,
+} from "@/pro/main/ipc/handlers/local_agent/house";
 import {
   getReferencedAppsForDisplay,
   readStoredReferencedAppIds,
@@ -316,6 +320,19 @@ export function registerChatHandlers() {
       initial,
       avatarUrl: readAvatarDataUrl(avatar),
     })),
+  );
+
+  createTypedHandler(chatContracts.houseMailbox, async () =>
+    listMail("tim").map(({ file, from, subject, unread }) => ({
+      file,
+      from,
+      subject,
+      unread,
+    })),
+  );
+
+  createTypedHandler(chatContracts.houseReadLetter, async (_, params) =>
+    readMail("tim", params.file),
   );
 
   createTypedHandler(chatContracts.addEntity, async (_, params) => {

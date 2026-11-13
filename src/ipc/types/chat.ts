@@ -452,6 +452,25 @@ export const chatContracts = {
     output: z.array(SisterSchema),
   }),
 
+  houseMailbox: defineContract({
+    channel: "house:mailbox",
+    input: z.void(),
+    output: z.array(
+      z.object({
+        file: z.string(),
+        from: z.string(),
+        subject: z.string(),
+        unread: z.boolean(),
+      }),
+    ),
+  }),
+
+  houseReadLetter: defineContract({
+    channel: "house:read-letter",
+    input: z.object({ file: z.string() }),
+    output: z.string(),
+  }),
+
   addEntity: defineContract({
     channel: "house:add-entity",
     input: z.object({

@@ -21,6 +21,7 @@ import { ipc } from "@/ipc/types";
 import { useOpenApp } from "@/hooks/useOpenApp";
 import { SisterBadge } from "./SisterPicker";
 import { AddEntityButton } from "./AddEntityDialog";
+import { MailboxButton } from "./Mailbox";
 
 import {
   Sidebar,
@@ -399,6 +400,7 @@ function SisterRail({ isExpanded }: { isExpanded: boolean }) {
           </button>
         );
       })}
+      <MailboxButton isExpanded={isExpanded} />
       <AddEntityButton isExpanded={isExpanded} />
     </div>
   );

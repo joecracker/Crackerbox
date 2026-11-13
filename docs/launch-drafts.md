@@ -19,7 +19,7 @@ What's different:
 - **Plugins.** The usual plugin (MCP) tools work.
 - **Bring your own keys.** Nothing is locked to one provider.
 
-Straight talk: this is built around my taste. Feedback is welcome, but an idea only goes in if it fits what Crackerbox is for.
+Straight talk: I built this for myself, not for anybody else. I'm not selling anything, not trying to show off and not trying to talk anyone into using it. I'm just putting it out there in case somebody can get some use out of it. It's built around my taste, so feedback is welcome, but an idea only goes in if it fits what Crackerbox is for.
 
 Screenshots and a one-page guide to how the crew works are in the repo. Repo: https://github.com/joecracker/Crackerbox
 

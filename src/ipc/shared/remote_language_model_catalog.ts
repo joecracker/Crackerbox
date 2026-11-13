@@ -379,7 +379,7 @@ async function fetchRemoteCatalog(): Promise<BuiltinLanguageModelCatalog | null>
   // Crackerbox always uses the local fallback catalog (below) instead of
   // phoning home to api.dyad.sh -- it already has real, complete provider
   // and model data for OpenAI/Anthropic/Google/OpenRouter/etc, and Tim
-  // doesn't use Dyad's remotely-curated "Auto" mode (see Step 2).
+  // doesn't use Dyad's remotely-curated "Auto" mode.
   return null;
 
   const controller = new AbortController();

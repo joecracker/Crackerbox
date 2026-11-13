@@ -71,7 +71,7 @@ export const readFileTool: ToolDefinition<z.infer<typeof readFileSchema>> = {
   description: `Read the content of a file from the codebase or an attachment path such as attachments:notes.txt.
 
 - Batch independent file reads when several files are concretely likely to be useful.
-- An absolute path (e.g. C:/Users/user/AndroidStudioProjects/SALTINE_FRESH/README.md) reads a file anywhere on this PC, read-only. Passwords, keys and tokens are never shown.
+- An absolute path (e.g. C:/Users/you/Projects/my-app/README.md) reads a file anywhere on this PC, read-only. Passwords, keys and tokens are never shown.
 - A .png, .jpg, .jpeg, .webp or .gif path returns the picture itself, attached to the next message, with its true pixel size (pictures wider than 1600px are shown scaled down). The model must be able to read images.`,
   inputSchema: readFileSchema,
   defaultConsent: "always",

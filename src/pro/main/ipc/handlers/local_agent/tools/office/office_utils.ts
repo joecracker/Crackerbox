@@ -116,10 +116,6 @@ export function decodeXmlEntities(s: string): string {
     .replace(/&amp;/g, "&");
 }
 
-export function encodeXmlText(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
 // ---------------------------------------------------------------------------
 // LibreOffice (headless) — used for legacy formats and format conversion
 // ---------------------------------------------------------------------------

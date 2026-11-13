@@ -129,16 +129,6 @@ export function isHostPath(input: string, appPath: string): boolean {
   );
 }
 
-/** For an absolute path inside the project, the project-relative form. */
-export function relativeInsideProject(
-  input: string,
-  appPath: string,
-): string | undefined {
-  if (!input || !path.isAbsolute(input)) return undefined;
-  if (isHostPath(input, appPath)) return undefined;
-  return path.relative(path.resolve(appPath), path.resolve(input)) || ".";
-}
-
 export function isBlockedHostFile(filePath: string): boolean {
   const name = path.basename(filePath).toLowerCase();
   return BLOCKED_FILE_NAMES.some((pattern) => pattern.test(name));

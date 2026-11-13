@@ -15,7 +15,6 @@ export const IMAGE_ASPECTS = [
   "3:2",
   "2:3",
 ] as const;
-export type ImageAspect = (typeof IMAGE_ASPECTS)[number];
 
 /** Tried in this order when the caller does not name a model. */
 const PREFERRED_MODELS = ["z-image-turbo", "qwen-image-2", "venice-sd35"];

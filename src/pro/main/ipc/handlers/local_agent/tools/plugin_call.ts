@@ -1,5 +1,4 @@
 import { asSchema } from "ai";
-import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { mcpServers } from "@/db/schema";

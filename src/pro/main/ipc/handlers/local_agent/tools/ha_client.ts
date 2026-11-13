@@ -61,7 +61,7 @@ export async function haRestFetch(
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
-        ...(init?.headers ?? {}),
+        ...init?.headers,
       },
     });
   } catch (error) {

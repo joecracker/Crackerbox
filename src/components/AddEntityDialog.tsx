@@ -59,8 +59,8 @@ export function AddEntityDialog({
         <DialogHeader>
           <DialogTitle>Add an entity</DialogTitle>
           <DialogDescription>
-            An entity is an AI crew member with her or his own room, memory and
-            personality. She shows up in the left bar; click her to talk.
+            An entity is an AI crew member with its own room, memory and
+            personality. It shows up in the left bar; click it to talk.
           </DialogDescription>
         </DialogHeader>
         <div className="flex items-center gap-3">

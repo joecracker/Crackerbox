@@ -359,6 +359,12 @@ export const SetChatFavoriteResultSchema = z.object({
   isFavorite: z.boolean(),
 });
 
+export const DoorStatusSchema = z.object({
+  configured: z.boolean(),
+  open: z.boolean(),
+  expiresAt: z.number().nullable(),
+});
+
 export const SisterSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -452,25 +458,17 @@ export const chatContracts = {
     output: z.array(SisterSchema),
   }),
 
-  houseMailbox: defineContract({
-    channel: "house:mailbox",
+  houseDoor: defineContract({
+    channel: "house:door",
     input: z.void(),
-    output: z.array(
-      z.object({
-        file: z.string(),
-        from: z.string(),
-        subject: z.string(),
-        unread: z.boolean(),
-      }),
-    ),
+    output: DoorStatusSchema,
   }),
 
-  houseReadLetter: defineContract({
-    channel: "house:read-letter",
-    input: z.object({ file: z.string() }),
-    output: z.string(),
+  houseSetDoor: defineContract({
+    channel: "house:set-door",
+    input: z.object({ open: z.boolean() }),
+    output: DoorStatusSchema,
   }),
-
   addEntity: defineContract({
     channel: "house:add-entity",
     input: z.object({

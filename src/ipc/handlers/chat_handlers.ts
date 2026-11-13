@@ -34,9 +34,9 @@ import {
 } from "@/shared/execution_backend";
 import { createChatForApp } from "../utils/chat_creation_utils";
 import {
-  listMail,
-  readMail,
+  doorStatus,
   readRoster,
+  setDoorOpen,
 } from "@/pro/main/ipc/handlers/local_agent/house";
 import {
   getReferencedAppsForDisplay,
@@ -322,19 +322,11 @@ export function registerChatHandlers() {
     })),
   );
 
-  createTypedHandler(chatContracts.houseMailbox, async () =>
-    listMail("tim").map(({ file, from, subject, unread }) => ({
-      file,
-      from,
-      subject,
-      unread,
-    })),
-  );
+  createTypedHandler(chatContracts.houseDoor, async () => doorStatus());
 
-  createTypedHandler(chatContracts.houseReadLetter, async (_, params) =>
-    readMail("tim", params.file),
+  createTypedHandler(chatContracts.houseSetDoor, async (_, params) =>
+    setDoorOpen(params.open),
   );
-
   createTypedHandler(chatContracts.addEntity, async (_, params) => {
     const s = await addEntity(params);
     return {

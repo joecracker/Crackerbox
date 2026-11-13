@@ -229,6 +229,40 @@ export function doorIsOpen(now = Date.now()): boolean {
   }
 }
 
+export type DoorStatus = {
+  configured: boolean;
+  open: boolean;
+  expiresAt: number | null;
+};
+
+export function doorStatus(now = Date.now()): DoorStatus {
+  const configured = !!doorPath();
+  try {
+    const st = fs.statSync(path.join(houseDir(), "door-open"));
+    if (now - st.mtimeMs < DOOR_OPEN_MAX_MS) {
+      return {
+        configured,
+        open: true,
+        expiresAt: Math.round(st.mtimeMs + DOOR_OPEN_MAX_MS),
+      };
+    }
+  } catch {
+    // no switch file: locked
+  }
+  return { configured, open: false, expiresAt: null };
+}
+
+export function setDoorOpen(open: boolean): DoorStatus {
+  const file = path.join(houseDir(), "door-open");
+  if (open) {
+    fs.mkdirSync(houseDir(), { recursive: true });
+    fs.writeFileSync(file, new Date().toISOString());
+  } else {
+    fs.rmSync(file, { force: true });
+  }
+  return doorStatus();
+}
+
 function doorRoot(): { root: string } | { error: string } {
   const root = doorPath();
   if (!root) return { error: "There is no front door set up." };

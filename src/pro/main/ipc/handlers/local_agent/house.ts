@@ -21,6 +21,11 @@ export interface Sister {
   initial: string;
   /** Optional path (relative to the house folder) of a small face picture. */
   avatar?: string;
+  /**
+   * Optional temperament as a model temperature (0 to 2). When set it replaces
+   * the model's default for this entity's turns; older rosters have none.
+   */
+  temperature?: number;
 }
 
 // A fresh install starts with an empty house; the user adds their own entities.

@@ -14,6 +14,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ipc } from "@/ipc/types";
 import { useOpenApp } from "@/hooks/useOpenApp";
+import { useSettings } from "@/hooks/useSettings";
+import {
+  DEFAULT_TEMPERAMENT_INDEX,
+  modelIgnoresTemperament,
+  TEMPERAMENT_PRESETS,
+  temperatureForPresetIndex,
+} from "@/shared/temperament";
 import { SisterBadge } from "@/components/SisterPicker";
 import { cn } from "@/lib/utils";
 
@@ -38,16 +45,29 @@ export function AddEntityDialog({
   const [name, setName] = useState("");
   const [color, setColor] = useState(COLORS[0]);
   const [personality, setPersonality] = useState("");
+  const [temperamentIndex, setTemperamentIndex] = useState(
+    DEFAULT_TEMPERAMENT_INDEX,
+  );
+  const { settings } = useSettings();
   const queryClient = useQueryClient();
   const openApp = useOpenApp();
 
   const create = useMutation({
-    mutationFn: () => ipc.chat.addEntity({ name, color, personality }),
+    mutationFn: () => {
+      const temperature = temperatureForPresetIndex(temperamentIndex);
+      return ipc.chat.addEntity({
+        name,
+        color,
+        personality,
+        ...(temperature === undefined ? {} : { temperature }),
+      });
+    },
     onSuccess: async (sister) => {
       await queryClient.invalidateQueries({ queryKey: ["house", "sisters"] });
       await queryClient.invalidateQueries({ queryKey: ["apps"] });
       setName("");
       setPersonality("");
+      setTemperamentIndex(DEFAULT_TEMPERAMENT_INDEX);
       onOpenChange(false);
       openApp(sister.appId);
     },
@@ -100,6 +120,52 @@ export function AddEntityDialog({
           onChange={(e) => setPersonality(e.target.value)}
           data-testid="add-entity-personality"
         />
+        <div className="space-y-1" data-testid="add-entity-temperament">
+          <div className="flex items-baseline justify-between">
+            <label
+              htmlFor="add-entity-temperament-slider"
+              className="text-sm font-medium"
+            >
+              Temperament
+            </label>
+            <span
+              className="text-sm text-muted-foreground"
+              data-testid="add-entity-temperament-label"
+            >
+              {TEMPERAMENT_PRESETS[temperamentIndex].label}
+            </span>
+          </div>
+          <input
+            id="add-entity-temperament-slider"
+            data-testid="add-entity-temperament-slider"
+            type="range"
+            min={0}
+            max={TEMPERAMENT_PRESETS.length - 1}
+            step={1}
+            value={temperamentIndex}
+            aria-valuetext={TEMPERAMENT_PRESETS[temperamentIndex].label}
+            onChange={(e) => setTemperamentIndex(Number(e.target.value))}
+            className="w-full accent-primary"
+          />
+          <div className="flex justify-between text-[11px] text-muted-foreground">
+            <span>Straight-laced</span>
+            <span>Wild</span>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            How wild or straight-laced this entity is. Default leaves it to the
+            model.
+          </p>
+          {settings && modelIgnoresTemperament(settings.selectedModel) && (
+            <p
+              className="text-xs text-amber-600 dark:text-amber-400"
+              data-testid="add-entity-temperament-note"
+            >
+              The model selected right now ({settings.selectedModel.name})
+              ignores temperament, so this will not change how this entity
+              sounds until it is on a different model.
+            </p>
+          )}
+        </div>
         {create.error && (
           <p className="text-sm text-red-500">{String(create.error.message)}</p>
         )}

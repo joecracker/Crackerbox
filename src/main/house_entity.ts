@@ -6,6 +6,7 @@ import { apps } from "@/db/schema";
 import { getDyadAppPath } from "@/paths/paths";
 import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
 import { readSettings, writeSettings } from "@/main/settings";
+import { normalizeTemperature } from "@/shared/temperament";
 import {
   houseDir,
   readRoster,
@@ -54,6 +55,7 @@ export async function addEntity(input: {
   name: string;
   color?: string;
   personality?: string;
+  temperature?: number;
 }): Promise<Sister> {
   const name = input.name.trim().slice(0, 30);
   if (!name) {
@@ -124,6 +126,9 @@ export async function addEntity(input: {
     color,
     initial: name.charAt(0).toUpperCase(),
   };
+  // Only written when it is a usable number, so the roster stays as before for "Default".
+  const temperature = normalizeTemperature(input.temperature);
+  if (temperature !== undefined) sister.temperature = temperature;
   writeRoster([...roster, sister]);
 
   const settings = readSettings();

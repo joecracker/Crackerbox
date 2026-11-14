@@ -73,6 +73,8 @@ import {
   CLOCK_SYSTEM_SENTENCE,
   withClockOnNewestMessage,
 } from "@/main/house_clock";
+import { entityTemperatureForChat } from "@/main/house_temperament";
+import { chooseTemperature } from "@/shared/temperament";
 import type { ChatStreamParams } from "@/ipc/types";
 import type { ChatStreamInvocationRef } from "@/chat_stream/invocation";
 import { resolveRootDatabasePromptState } from "@/shared/database_provider";
@@ -2605,7 +2607,11 @@ This conversation includes one or more image attachments. When the user uploads 
               dyadRequestId,
             }),
             maxOutputTokens: await getMaxTokens(settings.selectedModel),
-            temperature: await getTemperature(settings.selectedModel),
+            temperature: chooseTemperature({
+              modelDefault: await getTemperature(settings.selectedModel),
+              entityTemperature: entityTemperatureForChat(updatedChat),
+              model: selectedModel,
+            }),
             maxRetries: 2,
             model: modelClient.model,
             stopWhen: [stepCountIs(20), hasToolCall("edit-code")],

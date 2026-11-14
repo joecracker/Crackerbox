@@ -58,6 +58,8 @@ import {
   clockLine,
   previousUserMessageTime,
 } from "@/main/house_clock";
+import { entityTemperatureForChat } from "@/main/house_temperament";
+import { chooseTemperature } from "@/shared/temperament";
 import { getDyadAppPath } from "@/paths/paths";
 import { markAppBusy, clearAppBusy } from "@/ipc/utils/process_manager";
 import { detectFrameworkType } from "@/ipc/utils/framework_utils";
@@ -1339,7 +1341,13 @@ export async function handleLocalAgentStream(
     let compactionFailedMidTurn = false;
 
     const maxOutputTokens = await getMaxTokens(settings.selectedModel);
-    const temperature = await getTemperature(settings.selectedModel);
+    // An entity's temperament, when it has one, replaces the model's default
+    // (except on models that cannot take a custom temperature).
+    const temperature = chooseTemperature({
+      modelDefault: await getTemperature(settings.selectedModel),
+      entityTemperature: entityTemperatureForChat(chat),
+      model: selectedModel,
+    });
 
     // Run one or more generation passes. If the model emits a chat message while
     // there are still incomplete todos, we append a reminder and do another pass.

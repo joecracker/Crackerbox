@@ -475,6 +475,7 @@ export const chatContracts = {
       name: z.string(),
       color: z.string().optional(),
       personality: z.string().optional(),
+      temperature: z.number().min(0).max(2).optional(),
     }),
     output: SisterSchema,
     invalidates: () => [{ family: "chats" }, { family: "apps" }],

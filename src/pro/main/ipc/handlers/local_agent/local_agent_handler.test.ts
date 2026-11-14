@@ -242,6 +242,13 @@ vi.mock("@/db", () => ({
   },
 }));
 
+const mockEntityTemperature = vi.hoisted(() => ({
+  value: undefined as number | undefined,
+}));
+vi.mock("@/main/house_temperament", () => ({
+  entityTemperatureForChat: () => mockEntityTemperature.value,
+}));
+
 let mockSettings: ReturnType<typeof buildTestSettings> = buildTestSettings();
 
 vi.mock("@/main/settings", () => ({
@@ -1734,6 +1741,42 @@ describe("handleLocalAgentStream", () => {
               (update) => update.data.model === "Auto · resolved-model",
             ),
           ).toBe(true);
+        }
+      },
+    );
+
+    it.each([
+      // [model, the entity's temperament, the temperature that should be sent]
+      ["a model that takes one", "anthropic", "claude-sonnet-4-6", 1.3, 1.3],
+      ["no temperament set", "anthropic", "claude-sonnet-4-6", undefined, 0.7],
+      ["a model that requires its own", "openai", "gpt-5", 1.3, 0.7],
+    ] as const)(
+      "sends the right temperature: %s",
+      async (_label, provider, name, entityTemperature, expected) => {
+        const { event } = createFakeEvent();
+        mockSettings = buildTestSettings({ enableDyadPro: true });
+        mockChatData = buildTestChat();
+        mockEntityTemperature.value = entityTemperature;
+        mockStreamResult = createFakeStream([
+          { type: "text-delta", text: "ok" },
+        ]);
+        try {
+          await handleLocalAgentStream(
+            event,
+            { chatId: 1, prompt: "hi" },
+            new AbortController(),
+            {
+              placeholderMessageId: 10,
+              systemPrompt: "You are helpful",
+              dyadRequestId,
+              modelSelectionOverride: { provider, name, effortLevel: "medium" },
+            },
+          );
+          expect(vi.mocked(streamText).mock.calls[0][0].temperature).toBe(
+            expected,
+          );
+        } finally {
+          mockEntityTemperature.value = undefined;
         }
       },
     );

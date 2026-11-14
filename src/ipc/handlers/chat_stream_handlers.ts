@@ -69,6 +69,10 @@ import {
   readRoster,
 } from "@/pro/main/ipc/handlers/local_agent/house";
 import { buildDyadMediaUrl } from "../../lib/dyadMediaUrl";
+import {
+  CLOCK_SYSTEM_SENTENCE,
+  withClockOnNewestMessage,
+} from "@/main/house_clock";
 import type { ChatStreamParams } from "@/ipc/types";
 import type { ChatStreamInvocationRef } from "@/chat_stream/invocation";
 import { resolveRootDatabasePromptState } from "@/shared/database_provider";
@@ -2450,6 +2454,10 @@ This conversation includes one or more image attachments. When the user uploads 
 `;
         }
 
+        // Fixed text, so the system prompt stays cacheable; the changing clock
+        // line itself rides on the newest message (see house_clock.ts).
+        systemPrompt += `\n\n${CLOCK_SYSTEM_SENTENCE}`;
+
         const codebasePrefix = isEngineEnabled
           ? // No codebase prefix if engine is set, we will take of it there.
             []
@@ -2608,7 +2616,10 @@ This conversation includes one or more image attachments. When the user uploads 
             providerOptions,
             system: systemPromptOverride,
             tools,
-            messages: chatMessages.filter((m) => m.content),
+            messages: withClockOnNewestMessage(
+              chatMessages.filter((m) => m.content),
+              updatedChat.messages,
+            ),
             onFinish: async (response) => {
               const actualModel =
                 modelClient.getRuntimeModel?.() ?? selectedModel;

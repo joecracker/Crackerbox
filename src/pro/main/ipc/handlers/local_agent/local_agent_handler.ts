@@ -53,6 +53,11 @@ import {
 import type { SqlConsentMetadata } from "@/shared/sqlConsentMetadata";
 import { isFreeProModel } from "@/lib/freeProModel";
 import { readSettings } from "@/main/settings";
+import {
+  addClockToLatestUserMessage,
+  clockLine,
+  previousUserMessageTime,
+} from "@/main/house_clock";
 import { getDyadAppPath } from "@/paths/paths";
 import { markAppBusy, clearAppBusy } from "@/ipc/utils/process_manager";
 import { detectFrameworkType } from "@/ipc/utils/framework_utils";
@@ -1321,6 +1326,14 @@ export async function handleLocalAgentStream(
       });
     }
 
+    // The clock goes on the end of Tim's newest message, in this copy only: it
+    // is never saved to the chat history. Turns run on a supplied summary
+    // (messageOverride) are not Tim's messages, so they get none.
+    const clockText = messageOverride
+      ? null
+      : clockLine(new Date(), previousUserMessageTime(chat.messages));
+    if (clockText) addClockToLatestUserMessage(messageHistory, clockText);
+
     let compactBeforeNextStep = false;
     let compactedMidTurn = false;
     let compactionFailedMidTurn = false;
@@ -1534,6 +1547,13 @@ export async function handleLocalAgentStream(
                           agentTools.spawn_agent != undefined,
                         registeredToolNames,
                       },
+                    );
+                  }
+                  // Same for the clock line.
+                  if (clockText) {
+                    addClockToLatestUserMessage(
+                      compactedMessageHistory,
+                      clockText,
                     );
                   }
                   if (persistedTodoNotice && hasIncompleteTodos(ctx.todos)) {

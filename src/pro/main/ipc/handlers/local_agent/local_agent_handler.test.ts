@@ -2526,8 +2526,35 @@ describe("handleLocalAgentStream", () => {
           content:
             '<dyad-compaction title="Conversation compacted" state="finished">refreshed summary</dyad-compaction>',
         },
-        { role: "user", content: "current task" },
+        {
+          role: "user",
+          // the quiet clock line rides on the newest message
+          content: expect.stringMatching(/^current task\n\n\[Clock: .+\]$/),
+        },
       ]);
+    });
+
+    it("sends the clock line to the model but leaves the saved chat without it", async () => {
+      const { event } = createFakeEvent();
+      mockSettings = buildTestSettings({ enableDyadPro: true });
+      mockChatData = buildTestChat();
+      mockStreamResult = createFakeStream([{ type: "text-delta", text: "ok" }]);
+
+      await handleLocalAgentStream(
+        event,
+        { chatId: 1, prompt: "what now" },
+        new AbortController(),
+        {
+          placeholderMessageId: 10,
+          systemPrompt: "You are helpful",
+          dyadRequestId,
+        },
+      );
+
+      const sent = vi.mocked(streamText).mock.calls[0][0].messages!;
+      const lastUser = [...sent].reverse().find((m) => m.role === "user")!;
+      expect(JSON.stringify(lastUser.content)).toContain("[Clock: ");
+      expect(JSON.stringify(mockChatData)).not.toContain("Clock:");
     });
 
     it("should not run pending compaction when context compaction is disabled", async () => {

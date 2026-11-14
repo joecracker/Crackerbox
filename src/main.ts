@@ -11,7 +11,6 @@ import {
   crashReporter,
   Tray,
   type Event as ElectronEvent,
-  nativeTheme,
 } from "electron";
 import * as path from "node:path";
 import { randomUUID } from "node:crypto";
@@ -25,6 +24,7 @@ import {
   type HouseTriggerPayload,
 } from "./main/house_schedule";
 import { startTelegramInbound } from "./main/telegram_inbound";
+import { startMailWake } from "./main/house_mail_wake";
 import { startHouseBackup } from "./main/house_backup";
 import { refreshIconsAfterInstall } from "./main/icon_refresh";
 import { setPhoneMediaHandler } from "./main/phone_bridge_media";
@@ -681,6 +681,11 @@ export async function onReady() {
     startHouseScheduler(sendToWindow);
   } catch (error) {
     logger.error("Failed to start house scheduler", error);
+  }
+  try {
+    startMailWake(sendToWindow);
+  } catch (error) {
+    logger.error("Failed to start mail wake", error);
   }
   try {
     startTelegramInbound(sendToWindow);

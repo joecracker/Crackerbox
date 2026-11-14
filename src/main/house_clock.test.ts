@@ -45,10 +45,10 @@ describe("clockLine", () => {
   it("mentions the gap once it is past 30 minutes", () => {
     const now = at("2026-11-13T20:34:00");
     expect(clockLine(now, at("2026-11-13T20:00:00"), NY)).toContain(
-      "About 34 minutes since Tim's last message.",
+      "About 34 minutes since the user's last message.",
     );
     expect(clockLine(now, at("2026-11-13T17:34:00"), NY)).toContain(
-      "About 3 hours since Tim's last message.",
+      "About 3 hours since the user's last message.",
     );
     expect(clockLine(now, at("2026-11-13T19:34:00"), NY)).toContain(
       "About 1 hour since",
@@ -198,7 +198,7 @@ describe("withClockOnNewestMessage", () => {
     );
     expect(stamped).not.toBe(toModel);
     expect(stamped[2].content).toMatch(/^morning\n\n\[Clock: .+\]$/);
-    expect(stamped[2].content).toContain("since Tim's last message");
+    expect(stamped[2].content).toContain("since the user's last message");
     expect(toModel[2].content).toBe("morning");
     expect(stamped[0]).toBe(toModel[0]);
   });

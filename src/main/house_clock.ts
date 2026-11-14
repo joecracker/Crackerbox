@@ -1,7 +1,7 @@
 import type { ModelMessage } from "ai";
 
 // The clock for the entities. One quiet line that tells the model what time it
-// is, added to the copy of Tim's newest message that goes to the model. It is
+// is, added to the copy of the user's newest message that goes to the model. It is
 // never saved to the chat history and never shown in the chat window.
 
 /**
@@ -9,7 +9,7 @@ import type { ModelMessage } from "ai";
  * not disturbed (the changing clock line rides on the newest message instead).
  */
 export const CLOCK_SYSTEM_SENTENCE =
-  "A clock line appears at the end of Tim's newest message. Treat it as background. Do not mention the time or date unless it matters (a greeting at the start of a conversation, plans, deadlines, or when asked). Never open or close a reply with the time. Do not say things like 'it's late' or 'all night' unless the clock line supports it.";
+  "A clock line appears at the end of the user's newest message. Treat it as background. Do not mention the time or date unless it matters (a greeting at the start of a conversation, plans, deadlines, or when asked). Never open or close a reply with the time. Do not say things like 'it's late' or 'all night' unless the clock line supports it.";
 
 /** More than this since the last message, and the line says so. */
 const GAP_WORTH_MENTIONING_MS = 30 * 60 * 1000;
@@ -65,9 +65,9 @@ function describeGap(ms: number): string {
 
 /**
  * The one line for the model, for example:
- * `[Clock: Friday, November 13, 2026, 8:34 PM, evening, America/New_York. About 3 hours since Tim's last message. A new day began since then.]`
+ * `[Clock: Friday, November 13, 2026, 8:34 PM, evening, America/New_York. About 3 hours since the user's last message. A new day began since then.]`
  *
- * `previousUserMessageAt` is when Tim's message BEFORE the newest one was sent
+ * `previousUserMessageAt` is when the user's message BEFORE the newest one was sent
  * (leave it out for the first message of a chat).
  */
 export function clockLine(
@@ -95,7 +95,7 @@ export function clockLine(
   if (previousUserMessageAt) {
     const gap = now.getTime() - previousUserMessageAt.getTime();
     if (gap > GAP_WORTH_MENTIONING_MS) {
-      line += ` About ${describeGap(gap)} since Tim's last message.`;
+      line += ` About ${describeGap(gap)} since the user's last message.`;
       const before = localParts(previousUserMessageAt, timeZone);
       if (before.day !== nowParts.day) {
         const slept =
@@ -112,7 +112,7 @@ export function clockLine(
 }
 
 /**
- * When Tim's message before the newest one was sent, from a chat's messages
+ * When the user's message before the newest one was sent, from a chat's messages
  * (oldest first, newest user message last). Undefined for a first message.
  */
 export function previousUserMessageTime(
@@ -151,7 +151,7 @@ export function addClockToLatestUserMessage(
 /**
  * A copy of `messages` with the clock line on the newest user message, for
  * sending to the model. `chatMessages` is the saved chat (oldest first), used
- * only to find when Tim's previous message was sent. The input is not changed.
+ * only to find when the user's previous message was sent. The input is not changed.
  */
 export function withClockOnNewestMessage(
   messages: ModelMessage[],

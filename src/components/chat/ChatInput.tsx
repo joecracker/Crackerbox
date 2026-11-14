@@ -1127,42 +1127,60 @@ export function ChatInput({ chatId }: { chatId?: number }) {
               ))}
 
             {isStreaming ? (
-              // Cancelling is not instant — an in-flight tool has to unwind
-              // first. Confirm the click here (the banner above carries the
-              // reason) and refuse a second one, which would only re-abort an
-              // already-aborted controller.
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <button
-                      onClick={handleCancel}
-                      disabled={isCancellationRequested}
-                      aria-label={
-                        isCancellationRequested
-                          ? t("stoppingGeneration", "Stopping…")
-                          : t("cancelGeneration")
-                      }
-                      className={cn(
-                        "px-2 py-2 mb-0.5 mr-1 rounded-lg transition-colors duration-150",
-                        isCancellationRequested
-                          ? "text-amber-600 dark:text-amber-500 cursor-default"
-                          : "text-muted-foreground hover:text-destructive cursor-pointer",
-                      )}
-                    />
-                  }
-                >
-                  {isCancellationRequested ? (
-                    <Loader2 size={20} className="animate-spin" />
-                  ) : (
-                    <StopCircleIcon size={20} />
-                  )}
-                </TooltipTrigger>
-                <TooltipContent>
-                  {isCancellationRequested
-                    ? t("stoppingGeneration", "Stopping…")
-                    : t("cancelGeneration")}
-                </TooltipContent>
-              </Tooltip>
+              <>
+                {hasComposerPayload && !disableSendButton && (
+                  <div className="mr-1 flex items-center self-center">
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <button
+                            onClick={() => handleSubmit()}
+                            aria-label={t("sendMessage")}
+                            className="flex items-center gap-2 rounded-lg bg-[color-mix(in_srgb,var(--primary)_72%,black)] px-4 py-2.5 text-white shadow-sm transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--primary)_85%,black)] cursor-pointer"
+                          />
+                        }
+                      >
+                        <SendHorizontalIcon size={22} />
+                        <span className="text-sm font-semibold">Queue</span>
+                      </TooltipTrigger>
+                      <TooltipContent>Queue this message</TooltipContent>
+                    </Tooltip>
+                  </div>
+                )}
+                {/* Cancelling is not instant: an in-flight tool has to unwind first. Confirm the click (the banner above carries the reason) and refuse a second one. */}
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <button
+                        onClick={handleCancel}
+                        disabled={isCancellationRequested}
+                        aria-label={
+                          isCancellationRequested
+                            ? t("stoppingGeneration", "Stopping…")
+                            : t("cancelGeneration")
+                        }
+                        className={cn(
+                          "px-2 py-2 mb-0.5 mr-1 rounded-lg transition-colors duration-150",
+                          isCancellationRequested
+                            ? "text-amber-600 dark:text-amber-500 cursor-default"
+                            : "text-muted-foreground hover:text-destructive cursor-pointer",
+                        )}
+                      />
+                    }
+                  >
+                    {isCancellationRequested ? (
+                      <Loader2 size={20} className="animate-spin" />
+                    ) : (
+                      <StopCircleIcon size={20} />
+                    )}
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {isCancellationRequested
+                      ? t("stoppingGeneration", "Stopping…")
+                      : t("cancelGeneration")}
+                  </TooltipContent>
+                </Tooltip>
+              </>
             ) : (
               <div className="mr-1 flex items-center self-center">
                 <Tooltip>

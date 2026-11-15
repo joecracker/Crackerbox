@@ -398,12 +398,12 @@ describe("editing a base picture", () => {
       sleep: noSleep,
       sampler: goodSampler,
     });
-    expect(r.images[0].engine).toBe("siray-seedream-5-5-i2i");
+    expect(r.images[0].engine).toBe("siray-seedream-5-pro-i2i");
     expect(r.images[0].notes.join(" ")).toMatch(/input image rejected/);
     expect(r.images[0].notes.join(" ")).not.toMatch(/timed out/);
   });
 
-  it("a Siray-only user gets the 5.5 array form as the second try", async () => {
+  it("a Siray-only user gets the 5.0 Pro array form as the second try", async () => {
     const { fetchImpl, calls } = fakeFetch({
       sirayFailModels: ["bytedance/seedream-4.5-i2i-spicy"],
     });
@@ -415,8 +415,10 @@ describe("editing a base picture", () => {
       sleep: noSleep,
       sampler: goodSampler,
     });
-    expect(r.images[0].engine).toBe("siray-seedream-5-5-i2i");
-    expect(calls.sirayBodies[1].model).toBe("bytedance/seedream-5.5-i2i-spicy");
+    expect(r.images[0].engine).toBe("siray-seedream-5-pro-i2i");
+    expect(calls.sirayBodies[1].model).toBe(
+      "bytedance/seedream-5.0-pro-i2i-spicy",
+    );
     const body = calls.sirayBodies[1];
     expect(body.images).toEqual([
       `data:image/png;base64,${PNG.toString("base64")}`,

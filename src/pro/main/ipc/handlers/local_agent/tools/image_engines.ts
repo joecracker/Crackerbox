@@ -107,22 +107,22 @@ export const ENGINES: EngineRow[] = [
     kind: "image-to-image",
   },
   {
-    // Newest Seedream edit line (Siray, Nov 2026): images array of 1 to 10, same size list as 1K tier.
-    name: "siray-seedream-5-5-i2i",
-    service: "siray",
-    modelId: "bytedance/seedream-5.5-i2i-spicy",
-    style: "realistic",
-    sizeRule: "pixels",
-    imageField: "images",
-    kind: "image-to-image",
-  },
-  {
     name: "siray-seedream-5-pro-i2i",
     service: "siray",
     modelId: "bytedance/seedream-5.0-pro-i2i-spicy",
     style: "realistic",
     sizeRule: "pixels",
     outputFormat: "jpg",
+    imageField: "images",
+    kind: "image-to-image",
+  },
+  {
+    // Last on purpose: its output filter rejects many of the pictures asked of it ("1200 Task failed"), so it only runs when everything else has failed.
+    name: "siray-seedream-5-5-i2i",
+    service: "siray",
+    modelId: "bytedance/seedream-5.5-i2i-spicy",
+    style: "realistic",
+    sizeRule: "pixels",
     imageField: "images",
     kind: "image-to-image",
   },

@@ -6,6 +6,7 @@ import {
   reserveAttempt,
   resetAttemptLog,
   resolveChain,
+  resolveI2iChain,
   sniffExtension,
   statsLookBlank,
   type PixelSampler,
@@ -32,6 +33,7 @@ const MODELS = {
 
 interface Calls {
   veniceBodies: any[];
+  veniceEditBodies: any[];
   sirayBodies: any[];
 }
 
@@ -39,8 +41,17 @@ function fakeFetch(opts: {
   veniceStatus?: number;
   veniceImage?: string;
   sirayImage?: Buffer;
+  veniceEditStatus?: number;
+  sirayFailModels?: string[];
+  /** Per-model poll answer that is a failure status. */
+  sirayPollFail?: Record<string, { status: string; reason: string }>;
 }): { fetchImpl: typeof fetch; calls: Calls } {
-  const calls: Calls = { veniceBodies: [], sirayBodies: [] };
+  const calls: Calls = {
+    veniceBodies: [],
+    veniceEditBodies: [],
+    sirayBodies: [],
+  };
+  const taskModel = new Map<string, string>();
   const fetchImpl = (async (url: string, init?: any) => {
     const u = String(url);
     if (u.includes("/models")) return Response.json(MODELS);
@@ -52,11 +63,33 @@ function fakeFetch(opts: {
         images: [opts.veniceImage ?? PNG.toString("base64")],
       });
     }
-    if (u.endsWith("/images/generations/async") && init?.method === "POST") {
-      calls.sirayBodies.push(JSON.parse(init.body));
-      return Response.json({ data: { task_id: "t1" } });
+    if (u.includes("venice.ai") && u.includes("/image/edit")) {
+      calls.veniceEditBodies.push(JSON.parse(init.body));
+      const status = opts.veniceEditStatus ?? 200;
+      if (status !== 200) return new Response("nope", { status });
+      return new Response(new Uint8Array(PNG), {
+        headers: { "content-type": "image/png" },
+      });
     }
-    if (u.includes("/images/generations/async/t1")) {
+    if (u.endsWith("/images/generations/async") && init?.method === "POST") {
+      const sent = JSON.parse(init.body);
+      calls.sirayBodies.push(sent);
+      if (opts.sirayFailModels?.includes(sent.model)) {
+        return new Response("down", { status: 503 });
+      }
+      taskModel.set(`t${calls.sirayBodies.length}`, sent.model);
+      return Response.json({
+        data: { task_id: `t${calls.sirayBodies.length}` },
+      });
+    }
+    if (u.includes("/images/generations/async/t")) {
+      const failWith =
+        opts.sirayPollFail?.[taskModel.get(u.split("/").pop()!) ?? ""];
+      if (failWith) {
+        return Response.json({
+          data: { status: failWith.status, fail_reason: failWith.reason },
+        });
+      }
       return Response.json({
         data: { status: "SUCCESS", outputs: ["https://files.example/x.jpg"] },
       });
@@ -234,7 +267,7 @@ describe("editing a base picture", () => {
       prompt: "sitting on a sofa",
       aspect: "2:3",
       baseImage: base,
-      keys: { venice: "k", siray: "s" },
+      keys: { siray: "s" },
       fetchImpl,
       sleep: noSleep,
       sampler: goodSampler,
@@ -250,20 +283,145 @@ describe("editing a base picture", () => {
     expect(body.prompt).toBe("sitting on a sofa");
   });
 
-  it("never falls back to a text-only picture", async () => {
-    const { fetchImpl, calls } = fakeFetch({});
+  it("never makes a text-only picture on its own, and offers one when all fail", async () => {
+    const { fetchImpl, calls } = fakeFetch({
+      veniceEditStatus: 503,
+      sirayFailModels: [
+        "bytedance/seedream-4.5-i2i-spicy",
+        "bytedance/seedream-5.5-i2i-spicy",
+        "bytedance/seedream-5.0-pro-i2i-spicy",
+      ],
+    });
     const r = await generateImages({
       prompt: "x",
       baseImage: base,
-      keys: { venice: "k" },
+      keys: { venice: "k", siray: "s" },
       fetchImpl,
       sleep: noSleep,
       sampler: goodSampler,
     });
     expect(r.images).toHaveLength(0);
+    expect(r.textOnlyOffer).toBe(true);
+    expect(calls.veniceBodies).toHaveLength(0); // no text-only generate calls
+    expect(calls.sirayBodies.every((b) => b.model.includes("i2i"))).toBe(true);
+    expect(calls.veniceEditBodies).toHaveLength(1); // the uncensored Venice edit engine tried
+    expect(r.failures[0]).toMatch(/seedream-4-5-i2i/);
+  });
+
+  it("with no keys at all, skips every engine and still offers", async () => {
+    const { fetchImpl } = fakeFetch({});
+    const r = await generateImages({
+      prompt: "x",
+      baseImage: base,
+      keys: {},
+      fetchImpl,
+      sleep: noSleep,
+      sampler: goodSampler,
+    });
+    expect(r.images).toHaveLength(0);
+    expect(r.textOnlyOffer).toBe(true);
     expect(r.failures[0]).toMatch(/no siray key/);
-    expect(calls.veniceBodies).toHaveLength(0);
+    expect(r.failures[0]).toMatch(/no venice key/);
+  });
+
+  it("has an i2i chain of at least three engines on both services", () => {
+    const chain = resolveI2iChain(undefined);
+    expect(chain.length).toBeGreaterThanOrEqual(3);
+    expect(new Set(chain.map((e) => e.service))).toEqual(
+      new Set(["siray", "venice"]),
+    );
+    expect(chain.every((e) => e.kind === "image-to-image")).toBe(true);
+    // Only uncensored engines belong in her chain.
+    expect(
+      chain.every(
+        (e) => /spicy/.test(e.modelId) || /uncensored/.test(e.modelId),
+      ),
+    ).toBe(true);
+    const named = resolveI2iChain("venice-qwen-edit").map((e) => e.name);
+    expect(named[0]).toBe("venice-qwen-edit");
+    expect(named).toHaveLength(chain.length);
+  });
+
+  it("tries Venice first and never touches Siray when Venice works", async () => {
+    const { fetchImpl, calls } = fakeFetch({});
+    const r = await generateImages({
+      prompt: "sitting on a sofa",
+      aspect: "2:3",
+      baseImage: base,
+      keys: { venice: "k", siray: "s" },
+      fetchImpl,
+      sleep: noSleep,
+      sampler: goodSampler,
+    });
+    expect(r.images).toHaveLength(1);
+    expect(r.images[0].engine).toBe("venice-qwen-edit");
+    expect(r.images[0].fellBack).toBe(false);
+    expect(r.textOnlyOffer).toBe(false);
     expect(calls.sirayBodies).toHaveLength(0);
+    const body = calls.veniceEditBodies[0];
+    expect(body.model).toBe("qwen-edit-uncensored");
+    expect(body.image).toBe(PNG.toString("base64"));
+    expect(body.aspect_ratio).toBe("2:3");
+    expect(body.safe_mode).toBe(false);
+  });
+
+  it("falls to Siray as the backup when Venice fails, with no offer", async () => {
+    const { fetchImpl, calls } = fakeFetch({ veniceEditStatus: 503 });
+    const r = await generateImages({
+      prompt: "x",
+      baseImage: base,
+      keys: { venice: "k", siray: "s" },
+      fetchImpl,
+      sleep: noSleep,
+      sampler: goodSampler,
+    });
+    expect(r.images[0].engine).toBe("siray-seedream-4-5-i2i");
+    expect(r.images[0].fellBack).toBe(true);
+    expect(r.textOnlyOffer).toBe(false);
+    expect(calls.sirayBodies).toHaveLength(1);
+  });
+
+  it("reads Siray's FAILURE status as a real failure, not a timeout", async () => {
+    const { fetchImpl } = fakeFetch({
+      sirayPollFail: {
+        "bytedance/seedream-4.5-i2i-spicy": {
+          status: "FAILURE",
+          reason: "input image rejected",
+        },
+      },
+    });
+    const r = await generateImages({
+      prompt: "x",
+      baseImage: base,
+      keys: { siray: "s" },
+      fetchImpl,
+      sleep: noSleep,
+      sampler: goodSampler,
+    });
+    expect(r.images[0].engine).toBe("siray-seedream-5-5-i2i");
+    expect(r.images[0].notes.join(" ")).toMatch(/input image rejected/);
+    expect(r.images[0].notes.join(" ")).not.toMatch(/timed out/);
+  });
+
+  it("a Siray-only user gets the 5.5 array form as the second try", async () => {
+    const { fetchImpl, calls } = fakeFetch({
+      sirayFailModels: ["bytedance/seedream-4.5-i2i-spicy"],
+    });
+    const r = await generateImages({
+      prompt: "x",
+      baseImage: base,
+      keys: { siray: "s" },
+      fetchImpl,
+      sleep: noSleep,
+      sampler: goodSampler,
+    });
+    expect(r.images[0].engine).toBe("siray-seedream-5-5-i2i");
+    expect(calls.sirayBodies[1].model).toBe("bytedance/seedream-5.5-i2i-spicy");
+    const body = calls.sirayBodies[1];
+    expect(body.images).toEqual([
+      `data:image/png;base64,${PNG.toString("base64")}`,
+    ]);
+    expect(body.image).toBeUndefined();
   });
 
   it("does not run the i2i engine without a base picture", async () => {

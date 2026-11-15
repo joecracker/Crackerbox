@@ -15,11 +15,13 @@ import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
 import { readSettings } from "@/main/settings";
 import { safeJoin } from "@/ipc/utils/path_utils";
 import { findSirayApiKey, findVeniceApiKey } from "./venice_api";
+import { entityImageEngine } from "@/main/house_temperament";
 import {
   ENGINE_NAMES,
   IMAGE_ASPECT_LIST,
   IMAGE_STYLES,
   MAX_COUNT,
+  TEXT_ONLY_OFFER,
   generateImages,
 } from "./image_engines";
 
@@ -68,7 +70,7 @@ const generateImageSchema = z.object({
     .string()
     .optional()
     .describe(
-      "Path to a picture IN THIS PROJECT that shows who the subject is (for example public/library/nyx/nyx-field-nude-01.png or .dyad/media/<file>). Use it when the user wants the same woman or character again. It shows who she is; the pose, setting and everything else come from what the user asks for in the prompt. Needs a Siray key; if it fails, say so and do not fall back to a text-only picture. aspect_ratio should match the shape the user wants.",
+      "Path to a picture IN THIS PROJECT that shows who the subject is (for example public/library/nyx/nyx-field-nude-01.png or .dyad/media/<file>). Use it when the user wants the same woman or character again. It shows who she is; the pose, setting and everything else come from what the user asks for in the prompt. Needs a Siray or Venice key. If every engine fails you get the notes and an offer of a text-only picture; only make one if the user says yes, because it will be a different woman. aspect_ratio should match the shape the user wants.",
     ),
   model: z
     .string()
@@ -81,7 +83,7 @@ const generateImageSchema = z.object({
 const DESCRIPTION = `Generate 1 to 4 pictures from a text prompt using the user's own Venice and Siray accounts. Venice is tried first; if it refuses, times out or fails, Siray engines are tried automatically. Pictures are saved to the project's .dyad/media directory and filed under a section (default "generated") on the Media page, with the prompt and engine remembered.
 
 ### Same subject, new picture (base_image)
-Pass base_image when the user wants the same woman or character in a new picture. The base picture shows who she is; the pose and everything else follow what the user asks for. Do what the user says. If the result is not what they wanted, they will tell you and you try again. Only image-to-image engines run, with no text-only fallback, because a text-only picture would be a stranger. The pictures are sent to the user's Siray account.
+Pass base_image when the user wants the same woman or character in a new picture. The base picture shows who she is; the pose and everything else follow what the user asks for. Do what the user says. If the result is not what they wanted, they will tell you and you try again. Only image-to-image engines run (Siray and Venice, tried in turn, so one service being down does not stop it). A text-only picture is never made on its own, because it would be a stranger; if every engine fails you get the notes and an offer, and you make a text-only picture only if the user says yes. The base picture is sent to the user's Siray and Venice accounts.
 
 ### When to Use
 - The user asks for a picture, illustration, character, icon, hero image or any visual asset
@@ -199,18 +201,37 @@ export const generateImageTool: ToolDefinition<
         baseImage = await loadPicture(args.base_image, "base_image");
       }
 
+      // A girl can have a favorite face engine that she starts with when editing a
+      // base picture; the rest stay behind it as backups. A named engine wins.
+      const rosterEngine = baseImage
+        ? entityImageEngine(ctx.sisterId, ctx.appId)
+        : undefined;
+      const model =
+        args.model ??
+        (rosterEngine && ENGINE_NAMES.includes(rosterEngine)
+          ? rosterEngine
+          : undefined);
+
       const batch = await generateImages({
         prompt: args.prompt,
         baseImage,
         count: args.count,
         aspect: args.aspect_ratio,
         style: args.style,
-        model: args.model,
+        model,
         negativePrompt: args.negative_prompt,
         keys: k,
         signal: ctx.abortSignal,
       });
 
+      if (batch.images.length === 0 && batch.textOnlyOffer) {
+        ctx.onXmlComplete(emptyCard);
+        return [
+          "No picture was made with her face.",
+          ...batch.failures.map((f) => `note: ${f}`),
+          TEXT_ONLY_OFFER,
+        ].join("\n");
+      }
       if (batch.images.length === 0) {
         ctx.onXmlComplete(emptyCard);
         throw new DyadError(

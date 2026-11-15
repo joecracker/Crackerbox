@@ -73,7 +73,10 @@ import {
   CLOCK_SYSTEM_SENTENCE,
   withClockOnNewestMessage,
 } from "@/main/house_clock";
-import { entityTemperatureForChat } from "@/main/house_temperament";
+import {
+  entityModelSelectionForChat,
+  entityTemperatureForChat,
+} from "@/main/house_temperament";
 import { chooseTemperature } from "@/shared/temperament";
 import type { ChatStreamParams } from "@/ipc/types";
 import type { ChatStreamInvocationRef } from "@/chat_stream/invocation";
@@ -1175,12 +1178,26 @@ export function registerChatStreamHandlers() {
       setSentinelActiveChat(req.chatId);
 
       let baseSettings = readSettings();
+      // Order: the chat's own pick, then the speaking entity's roster model, then
+      // the global default. A roster model on a different execution backend than
+      // the chat is skipped, so an unattended turn never throws on a backend switch.
+      const rosterModel = chat.modelSelection
+        ? undefined
+        : entityModelSelectionForChat(chat);
+      const usableRosterModel =
+        rosterModel &&
+        executionBackendForModel(rosterModel) ===
+          (chat.executionBackend ?? "dyad")
+          ? rosterModel
+          : undefined;
       let selectedModel = chat.modelSelection
         ? await normalizeModelSelection(chat.modelSelection)
-        : await resolveDefaultModelSelection({
-            ...baseSettings,
-            selectedModel: modelForChatBackend(chat, baseSettings),
-          });
+        : usableRosterModel
+          ? await normalizeModelSelection(usableRosterModel)
+          : await resolveDefaultModelSelection({
+              ...baseSettings,
+              selectedModel: modelForChatBackend(chat, baseSettings),
+            });
       let { settings: storedSettings, mode: selectedChatMode } =
         await resolveChatModeForTurn({
           storedChatMode: chat.chatMode,

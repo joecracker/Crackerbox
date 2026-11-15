@@ -3,6 +3,7 @@ import { apps, chats } from "../../db/schema";
 import { eq } from "drizzle-orm";
 import log from "electron-log";
 import { initialChatExecution } from "./chat_execution_selection";
+import { entityModelSelectionForApp } from "@/main/house_temperament";
 import type { ModelSelection } from "@/lib/schemas";
 import type { ChatMode } from "../../lib/schemas";
 import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
@@ -62,7 +63,11 @@ export async function createChatForApp({
       }
 
       const chatMode = await getInitialChatModeForNewChat(initialChatMode);
-      const execution = await initialChatExecution(modelSelection);
+      // A girl's room starts new chats on her own model, so scheduled, Telegram and
+      // mail-wake chats use it too. An explicit pick from the caller still wins.
+      const execution = await initialChatExecution(
+        modelSelection ?? entityModelSelectionForApp(appId),
+      );
       const [chat] = await db
         .insert(chats)
         .values({

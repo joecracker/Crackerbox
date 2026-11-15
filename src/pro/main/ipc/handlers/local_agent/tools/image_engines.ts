@@ -30,6 +30,10 @@ export interface EngineRow {
   outputFormat?: string;
   /** image-to-image engines edit a base picture; they never run without one. */
   kind: "text-to-image" | "image-to-image";
+  /** Siray i2i only: Seedream 4.5 takes a fixed list of big sizes. */
+  sizeTable?: "seedream-4.5";
+  /** Siray i2i only: how the base picture is passed (one string, or an array). */
+  imageField?: "image" | "images";
 }
 
 export const ENGINES: EngineRow[] = [
@@ -80,12 +84,46 @@ export const ENGINES: EngineRow[] = [
     sizeRule: "pixels",
     kind: "text-to-image",
   },
+  // ---- Image-to-image: edit a base picture and keep her face. Tried in this
+  // order: Venice first (the main account), Siray only as the paid backup. EVERY row here must be an uncensored / "spicy" engine: a filtered one
+  // just refuses and wastes the attempt. Siray's -spicy lines and Venice's
+  // qwen-edit-uncensored qualify; Venice's default firered-image-edit is not
+  // documented as uncensored, so it is deliberately left out.
+  {
+    name: "venice-qwen-edit",
+    service: "venice",
+    modelId: "qwen-edit-uncensored",
+    style: "realistic",
+    kind: "image-to-image",
+  },
   {
     name: "siray-seedream-4-5-i2i",
     service: "siray",
     modelId: "bytedance/seedream-4.5-i2i-spicy",
     style: "realistic",
     sizeRule: "pixels",
+    sizeTable: "seedream-4.5",
+    imageField: "image",
+    kind: "image-to-image",
+  },
+  {
+    // Newest Seedream edit line (Siray, Nov 2026): images array of 1 to 10, same size list as 1K tier.
+    name: "siray-seedream-5-5-i2i",
+    service: "siray",
+    modelId: "bytedance/seedream-5.5-i2i-spicy",
+    style: "realistic",
+    sizeRule: "pixels",
+    imageField: "images",
+    kind: "image-to-image",
+  },
+  {
+    name: "siray-seedream-5-pro-i2i",
+    service: "siray",
+    modelId: "bytedance/seedream-5.0-pro-i2i-spicy",
+    style: "realistic",
+    sizeRule: "pixels",
+    outputFormat: "jpg",
+    imageField: "images",
     kind: "image-to-image",
   },
 ];
@@ -144,7 +182,7 @@ const SIRAY_SUBMIT_TIMEOUT_MS = 60_000;
 const SIRAY_POLL_MS = 3_000;
 const SIRAY_GIVE_UP_MS = 240_000;
 // Editing a picture (keeps her face) gives up sooner so the sister can retry or tell Tim.
-const SIRAY_I2I_GIVE_UP_MS = 120_000;
+const SIRAY_I2I_GIVE_UP_MS = 180_000;
 const BLANK_MEAN = 8;
 const BLANK_RETRIES = 2;
 // ----------------------------------------------------------------------------
@@ -182,11 +220,11 @@ export function sniffExtension(bytes: Buffer): ".png" | ".jpg" | ".webp" {
   return ".png";
 }
 
-/** Edit-a-base-picture engines. A named one goes alone; otherwise all of them. */
+/** Edit-a-base-picture engines. A named one goes first, then the rest in table order. */
 export function resolveI2iChain(model: string | undefined): EngineRow[] {
   const all = ENGINES.filter((e) => e.kind === "image-to-image");
   const named = model ? all.find((e) => e.name === model) : undefined;
-  return named ? [named] : all;
+  return named ? [named, ...all.filter((e) => e !== named)] : all;
 }
 
 /** Seedream 4.5 sizes by shape (its size field is a fixed list). */
@@ -288,6 +326,8 @@ interface CallRequest {
   negativePrompt?: string;
   /** Base picture as a data: URI, for image-to-image engines. */
   baseImageUri?: string;
+  /** Same picture as plain base64, for Venice's edit endpoint. */
+  baseImageB64?: string;
   signal?: AbortSignal;
   fetchImpl: typeof fetch;
   sleep: (ms: number) => Promise<void>;
@@ -358,6 +398,57 @@ async function callVenice(
   }
 }
 
+async function callVeniceEdit(
+  row: EngineRow,
+  req: CallRequest,
+  key: string,
+): Promise<Buffer> {
+  try {
+    const send = (withAspect: boolean) => {
+      const body: Record<string, unknown> = {
+        model: row.modelId,
+        prompt: fitPrompt(req.prompt, VENICE_DEFAULT_PROMPT_CAP),
+        image: req.baseImageB64,
+        output_format: "png",
+        safe_mode: false,
+      };
+      if (withAspect) body.aspect_ratio = req.aspect;
+      return req.fetchImpl(`${VENICE_API_BASE}/image/edit`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+        signal: withTimeout(req.signal, VENICE_TIMEOUT_MS),
+      });
+    };
+    let resp = await send(true);
+    // Not every edit model takes every shape; retry once and let it match the picture.
+    if (resp.status === 400) resp = await send(false);
+    if (!resp.ok) {
+      throw new EngineError(
+        explainVeniceError(resp.status, await resp.text()),
+        resp.status === 422,
+      );
+    }
+    if (resp.headers.get("x-venice-is-content-violation") === "true") {
+      throw new EngineError(
+        "Venice declined the prompt (content policy).",
+        true,
+      );
+    }
+    if ((resp.headers.get("content-type") ?? "").includes("json")) {
+      throw new EngineError("Venice returned no image.");
+    }
+    const bytes = Buffer.from(await resp.arrayBuffer());
+    if (bytes.length === 0) throw new EngineError("Venice returned no image.");
+    return bytes;
+  } catch (err) {
+    return asEngineError(err, req.signal);
+  }
+}
+
 async function callSiray(
   row: EngineRow,
   req: CallRequest,
@@ -372,14 +463,17 @@ async function callSiray(
       model: row.modelId,
       prompt: req.prompt,
       size:
-        row.kind === "image-to-image"
+        row.sizeTable === "seedream-4.5"
           ? (SEEDREAM_45_SIZES[req.aspect] ?? "2048x2048")
           : row.sizeRule === "tier"
             ? "1k"
             : (SIRAY_SIZES[row.style][req.aspect] ?? "1024x1024"),
     };
-    // Siray takes exactly one reference picture, as a plain string.
-    if (row.kind === "image-to-image") body.image = req.baseImageUri;
+    // Siray's older edit models take one picture as a string; the 5.0 line takes an array.
+    if (row.kind === "image-to-image") {
+      if (row.imageField === "images") body.images = [req.baseImageUri];
+      else body.image = req.baseImageUri;
+    }
     if (row.outputFormat) body.output_format = row.outputFormat;
 
     const submit = await req.fetchImpl(
@@ -407,6 +501,7 @@ async function callSiray(
     const giveUpMs =
       row.kind === "image-to-image" ? SIRAY_I2I_GIVE_UP_MS : SIRAY_GIVE_UP_MS;
     const deadline = Date.now() + giveUpMs;
+    let lastStatus = "none seen";
     while (Date.now() < deadline) {
       await req.sleep(SIRAY_POLL_MS);
       if (req.signal?.aborted) throw req.signal.reason ?? new Error("aborted");
@@ -418,8 +513,14 @@ async function callSiray(
       const pj = (await poll.json()) as any;
       const d = pj?.data && "status" in pj.data ? pj.data : pj;
       const status = String(d?.status ?? "").toUpperCase();
-      if (status === "FAILED") {
-        const why = `${d?.fail_code ?? ""} ${pj?.message ?? ""}`.trim();
+      if (status) lastStatus = status;
+      // Siray's docs spell the failure status FAILURE; older replies said FAILED.
+      if (["FAILED", "FAILURE", "CANCELLED", "CANCELED"].includes(status)) {
+        const why =
+          `${d?.fail_code ?? ""} ${d?.fail_reason ?? pj?.message ?? ""}`
+            .replace(/\s+/g, " ")
+            .trim()
+            .slice(0, 200);
         throw new EngineError(`Siray generation failed. ${why}`.trim());
       }
       const first = (d?.outputs ?? [])[0];
@@ -439,7 +540,7 @@ async function callSiray(
       }
     }
     throw new EngineError(
-      `Siray timed out after ${giveUpMs / 1000} seconds. Try again, or tell Tim; a text-only engine would not keep her face.`,
+      `Siray timed out after ${giveUpMs / 1000} seconds (last status: ${lastStatus}). Try again, or tell Tim; a text-only engine would not keep her face.`,
     );
   } catch (err) {
     return asEngineError(err, req.signal);
@@ -469,7 +570,7 @@ export interface GeneratedImage {
   /** The engine that actually made it. */
   engine: string;
   modelId: string;
-  /** True when it was not the first engine tried. */
+  /** True when another engine was actually tried first (skipped ones do not count). */
   fellBack: boolean;
   /** Plain-English notes: refusals, dud remakes, skipped engines. */
   notes: string[];
@@ -479,7 +580,16 @@ export interface BatchResult {
   images: GeneratedImage[];
   failures: string[];
   capped: boolean;
+  /**
+   * True only when a base picture was given and every engine that keeps her face
+   * has been tried and failed. A text-only retry can then be OFFERED; it would
+   * make a different woman, so it is never run automatically.
+   */
+  textOnlyOffer: boolean;
 }
+
+export const TEXT_ONLY_OFFER =
+  "Every engine that keeps her face failed. Offer the user one choice: a text-only picture (call generate_image again without base_image). It will be a different woman, not her, so say so plainly and only do it if they say yes.";
 
 async function makeOne(
   chain: EngineRow[],
@@ -497,19 +607,21 @@ async function makeOne(
     baseImageUri: opts.baseImage
       ? `data:${opts.baseImage.mime};base64,${opts.baseImage.bytes.toString("base64")}`
       : undefined,
+    baseImageB64: opts.baseImage?.bytes.toString("base64"),
     signal: opts.signal,
     fetchImpl,
     sleep,
   };
 
+  let enginesTried = 0; // engines actually attempted; skipped ones do not count
   for (let i = 0; i < chain.length; i++) {
     const row = chain[i];
     // Editing keeps her face; making a new picture does not. Never mix them.
     if ((row.kind === "image-to-image") !== Boolean(opts.baseImage)) {
       notes.push(
         row.kind === "image-to-image"
-          ? `: skipped, it needs a base picture.`
-          : `: skipped, text-only engines would make a new face.`,
+          ? `${row.name}: skipped, it needs a base picture.`
+          : `${row.name}: skipped, text-only engines would make a new face.`,
       );
       continue;
     }
@@ -518,6 +630,8 @@ async function makeOne(
       notes.push(`${row.name}: skipped, no ${row.service} key is set up.`);
       continue;
     }
+    const fellBack = enginesTried > 0;
+    enginesTried++;
     for (let attempt = 0; attempt <= BLANK_RETRIES; attempt++) {
       if (!reserveAttempt()) {
         state.capped = true;
@@ -529,7 +643,9 @@ async function makeOne(
       try {
         bytes =
           row.service === "venice"
-            ? await callVenice(row, req, key)
+            ? row.kind === "image-to-image"
+              ? await callVeniceEdit(row, req, key)
+              : await callVenice(row, req, key)
             : await callSiray(row, req, key);
       } catch (err) {
         if (opts.signal?.aborted) throw err;
@@ -552,7 +668,7 @@ async function makeOne(
           ext: sniffExtension(bytes),
           engine: row.name,
           modelId: row.modelId,
-          fellBack: i > 0,
+          fellBack,
           notes,
         },
       };
@@ -581,9 +697,12 @@ export async function generateImages(
       makeOne(chain, { ...options, prompt, aspect }, state),
     ),
   );
+  const images = results.flatMap((r) => (r.image ? [r.image] : []));
   return {
-    images: results.flatMap((r) => (r.image ? [r.image] : [])),
+    images,
     failures: results.flatMap((r) => (r.failure ? [r.failure] : [])),
     capped: state.capped,
+    textOnlyOffer:
+      Boolean(options.baseImage) && images.length === 0 && !state.capped,
   };
 }

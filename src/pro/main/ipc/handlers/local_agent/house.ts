@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { getDyadAppPath, getUserDataPath } from "@/paths/paths";
 import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
+import type { ModelSelection } from "@/lib/schemas";
 
 // The house: what the sisters share. It lives in Crackerbox's data folder:
 //
@@ -26,6 +27,18 @@ export interface Sister {
    * the model's default for this entity's turns; older rosters have none.
    */
   temperature?: number;
+  /**
+   * Optional model of her own. Order of choice for a turn: the chat's own pick,
+   * then this, then the global default. Older rosters have none. Stored as the
+   * same {provider, name, effortLevel} the chat picker saves.
+   */
+  modelSelection?: ModelSelection;
+  /**
+   * Optional image engine she starts with when she edits a base picture (an
+   * engine name from image_engines.ts, e.g. "siray-seedream-4-5-i2i"). The other
+   * engines stay behind it as backups. A request that names an engine still wins.
+   */
+  imageEngine?: string;
 }
 
 // A fresh install starts with an empty house; the user adds their own entities.

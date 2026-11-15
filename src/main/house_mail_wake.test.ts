@@ -65,12 +65,71 @@ describe("pickMailWakes", () => {
     expect(b.wakes).toHaveLength(1);
   });
 
-  it("wakes one sister at most once per tick", () => {
+  it("wakes a sister once for everything waiting for her", () => {
     const ls = [letter("nyx", "veritas"), letter("dextra", "veritas")];
     const a = pickMailWakes(t0, cfg, roster, ls, emptyMailWakeState());
     expect(a.wakes).toHaveLength(1);
     const b = pickMailWakes(mins(1), cfg, roster, ls, a.state);
-    expect(b.wakes).toHaveLength(1);
+    expect(b.wakes).toHaveLength(0);
+  });
+
+  it("a letter held back by the daily limit is not lost: it wakes her when the day rolls over", () => {
+    const tight = { ...cfg, dailyMax: 1, maxChain: 99 };
+    const first = letter("nyx", "veritas");
+    const held = letter("nyx", "dextra");
+    let s = pickMailWakes(
+      t0,
+      tight,
+      roster,
+      [first],
+      emptyMailWakeState(),
+    ).state;
+    const a = pickMailWakes(mins(1), tight, roster, [held], s);
+    expect(a.wakes).toHaveLength(0);
+    const nextDay = new Date(t0.getTime() + 24 * 3600_000);
+    const b = pickMailWakes(nextDay, tight, roster, [held], a.state);
+    expect(b.wakes.map((w) => w.letter.to)).toEqual(["dextra"]);
+    const c = pickMailWakes(
+      new Date(nextDay.getTime() + 60_000),
+      tight,
+      roster,
+      [held],
+      b.state,
+    );
+    expect(c.wakes).toHaveLength(0);
+  });
+
+  it("on a new day, every sister holding unread letters is woken once, even letters a chain limit dropped", () => {
+    let s = emptyMailWakeState();
+    const sent: WakeLetter[] = [];
+    for (let i = 0; i < 6; i++) {
+      const [from, to] = i % 2 === 0 ? ["nyx", "veritas"] : ["veritas", "nyx"];
+      const l = letter(from, to);
+      sent.push(l);
+      s = pickMailWakes(mins(i), cfg, roster, [l], s).state;
+    }
+    const nextDay = new Date(t0.getTime() + 24 * 3600_000);
+    const r = pickMailWakes(nextDay, cfg, roster, sent, s);
+    expect(r.wakes.map((w) => w.letter.to).sort()).toEqual(["nyx", "veritas"]);
+    const again = pickMailWakes(
+      new Date(nextDay.getTime() + 60_000),
+      cfg,
+      roster,
+      sent,
+      r.state,
+    );
+    expect(again.wakes).toHaveLength(0);
+  });
+
+  it("does not run the new-day catch-up on the very first tick ever", () => {
+    const r = pickMailWakes(
+      t0,
+      { ...cfg, enabled: true },
+      roster,
+      [],
+      emptyMailWakeState(),
+    );
+    expect(r.wakes).toHaveLength(0);
   });
 
   it("never wakes twice for the same letter", () => {

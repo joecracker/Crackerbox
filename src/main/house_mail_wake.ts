@@ -97,6 +97,9 @@ export function pickMailWakes(
 ): { wakes: PlannedWake[]; state: MailWakeState } {
   const next: MailWakeState = structuredClone(state);
   const today = dateKey(now);
+  // The first tick of a new day (not the very first ever) gives every sister
+  // who is holding unread letters one wake, so nothing capped yesterday is lost.
+  const rolledOver = state.daily.date !== "" && state.daily.date !== today;
   if (next.daily.date !== today)
     next.daily = { date: today, total: 0, per: {} };
   const wakes: PlannedWake[] = [];
@@ -104,6 +107,33 @@ export function pickMailWakes(
   const iso = now.toISOString();
   const wokeThisTick = new Set<string>();
   const sorted = [...letters].sort((a, b) => a.file.localeCompare(b.file));
+  if (rolledOver) {
+    const newest = new Map<string, WakeLetter>();
+    for (const l of sorted) {
+      if (l.fromId !== l.to && roster.some((s) => s.id === l.to)) {
+        newest.set(l.to, l);
+      }
+    }
+    for (const l of newest.values()) {
+      if (config.perSister[l.to] === false) continue;
+      if (
+        next.daily.total >= config.dailyMax ||
+        (next.daily.per[l.to] ?? 0) >= config.perSisterDailyMax
+      ) {
+        continue;
+      }
+      const pair = pairKey(l.fromId, l.to);
+      next.chains[pair] = { count: 1, lastAt: iso };
+      next.lastBody[pair] = l.bodyHash;
+      next.daily.total += 1;
+      next.daily.per[l.to] = (next.daily.per[l.to] ?? 0) + 1;
+      for (const o of sorted) {
+        if (o.to === l.to) next.woken[`${o.to}/${o.file}`] = iso;
+      }
+      wokeThisTick.add(l.to);
+      wakes.push({ letter: l, stateAfter: structuredClone(next) });
+    }
+  }
   for (const l of sorted) {
     const key = `${l.to}/${l.file}`;
     if (next.woken[key]) continue;
@@ -138,7 +168,7 @@ export function pickMailWakes(
       next.daily.total >= config.dailyMax ||
       (next.daily.per[l.to] ?? 0) >= config.perSisterDailyMax
     ) {
-      drop("daily limit");
+      // Not dropped: it stays waiting and gets a wake when the day rolls over.
       continue;
     }
     next.chains[pair] = { count: count + 1, lastAt: iso };
@@ -146,6 +176,12 @@ export function pickMailWakes(
     next.daily.total += 1;
     next.daily.per[l.to] = (next.daily.per[l.to] ?? 0) + 1;
     next.woken[key] = iso;
+    // One wake covers everything waiting for her: she opens her whole inbox.
+    for (const o of sorted) {
+      if (o.to === l.to && !next.woken[`${o.to}/${o.file}`]) {
+        next.woken[`${o.to}/${o.file}`] = iso;
+      }
+    }
     wokeThisTick.add(l.to);
     wakes.push({ letter: l, stateAfter: structuredClone(next) });
   }

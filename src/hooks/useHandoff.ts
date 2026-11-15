@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { useAtomValue } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { selectedChatIdAtom } from "@/atoms/chatAtoms";
+import { closeMultipleTabsAtom, selectedChatIdAtom } from "@/atoms/chatAtoms";
 import { selectedAppIdAtom } from "@/atoms/appAtoms";
 import { useStreamChat } from "@/hooks/useStreamChat";
 import { ipc } from "@/ipc/types";
@@ -36,6 +36,7 @@ export function useHandoff() {
   const { streamMessage, isStreaming } = useStreamChat();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const closeTabs = useSetAtom(closeMultipleTabsAtom);
   // Writing the handoff and opening the new chat each have their own lock, so
   // one can never leave the other stuck (a missed "settled" signal used to
   // leave New chat dead, with no message).
@@ -102,6 +103,16 @@ export function useHandoff() {
       });
       await queryClient.invalidateQueries({ queryKey: queryKeys.chats.all });
       await navigate({ to: "/chat", search: { id: newChatId } });
+      // The old chat is finished with: close its tab (it stays in the history list).
+      if (chatId != null) {
+        let title: string | null = null;
+        try {
+          title = (await ipc.chat.getChat(chatId)).title ?? null;
+        } catch {
+          // the tab closes either way
+        }
+        closeTabs([{ chatId, appId: targetAppId, title }]);
+      }
       await streamMessage({
         prompt: HANDOFF_START_LINE,
         chatId: newChatId,
@@ -115,7 +126,7 @@ export function useHandoff() {
     } finally {
       openingRef.current = false;
     }
-  }, [appId, chatId, navigate, queryClient, streamMessage]);
+  }, [appId, chatId, closeTabs, navigate, queryClient, streamMessage]);
 
   return {
     chatId,

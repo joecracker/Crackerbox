@@ -429,10 +429,9 @@ describe("chat tab session persistence", () => {
       updatedAt: 123,
     });
 
-    const restoredSession = store.set(
-      hydrateChatTabSessionAtom,
-      new Set([1, 2, 3, 4]),
-    );
+    const restoredSession = store.set(hydrateChatTabSessionAtom, {
+      validChatIds: new Set([1, 2, 3, 4]),
+    });
 
     expect(restoredSession).toEqual({
       openChatIds: [4, 2, 1],
@@ -443,6 +442,24 @@ describe("chat tab session persistence", () => {
     expect(store.get(recentViewedChatIdsAtom)).toEqual([4, 2, 1]);
     expect(Array.from(store.get(sessionOpenedChatIdsAtom))).toEqual([4, 2, 1]);
     expect(Array.from(store.get(closedChatIdsAtom))).toEqual([3]);
+  });
+
+  it("does not restore tabs for stale chats, except the selected one", () => {
+    const store = createStore();
+    store.set(chatTabSessionStorageAtom, {
+      openChatIds: [4, 3, 2, 1],
+      selectedChatId: 2,
+      closedChatIds: [],
+      updatedAt: 123,
+    });
+
+    const restoredSession = store.set(hydrateChatTabSessionAtom, {
+      validChatIds: new Set([1, 2, 3, 4]),
+      staleChatIds: new Set([1, 2, 3]),
+    });
+
+    expect(restoredSession.openChatIds).toEqual([4, 2]);
+    expect(store.get(recentViewedChatIdsAtom)).toEqual([4, 2]);
   });
 
   it("keeps a chat opened before hydration and persists it next", () => {
@@ -457,10 +474,9 @@ describe("chat tab session persistence", () => {
     store.set(sessionOpenedChatIdsAtom, new Set([2]));
     store.set(selectedChatIdAtom, 2);
 
-    const restoredSession = store.set(
-      hydrateChatTabSessionAtom,
-      new Set([1, 2]),
-    );
+    const restoredSession = store.set(hydrateChatTabSessionAtom, {
+      validChatIds: new Set([1, 2]),
+    });
 
     expect(restoredSession).toMatchObject({
       openChatIds: [1, 2],
@@ -489,10 +505,9 @@ describe("chat tab session persistence", () => {
     store.set(recentViewedChatIdsAtom, [3, 2]);
     store.set(sessionOpenedChatIdsAtom, new Set([3, 2]));
 
-    const restoredSession = store.set(
-      hydrateChatTabSessionAtom,
-      new Set([1, 2, 3, 4]),
-    );
+    const restoredSession = store.set(hydrateChatTabSessionAtom, {
+      validChatIds: new Set([1, 2, 3, 4]),
+    });
 
     expect(restoredSession.openChatIds).toEqual([4, 2, 1, 3]);
     expect(store.get(recentViewedChatIdsAtom)).toEqual([4, 2, 1, 3]);
@@ -514,10 +529,9 @@ describe("chat tab session persistence", () => {
     store.set(sessionOpenedChatIdsAtom, new Set([101, 102]));
     store.set(selectedChatIdAtom, 102);
 
-    const restoredSession = store.set(
-      hydrateChatTabSessionAtom,
-      new Set([...storedOpenChatIds, 101, 102]),
-    );
+    const restoredSession = store.set(hydrateChatTabSessionAtom, {
+      validChatIds: new Set([...storedOpenChatIds, 101, 102]),
+    });
 
     expect(restoredSession.openChatIds).toEqual([
       ...storedOpenChatIds.slice(0, 98),
@@ -541,10 +555,9 @@ describe("chat tab session persistence", () => {
     store.set(sessionOpenedChatIdsAtom, new Set([2]));
     store.set(selectedChatIdAtom, 2);
 
-    const restoredSession = store.set(
-      hydrateChatTabSessionAtom,
-      new Set([1, 2]),
-    );
+    const restoredSession = store.set(hydrateChatTabSessionAtom, {
+      validChatIds: new Set([1, 2]),
+    });
 
     expect(restoredSession).toMatchObject({
       openChatIds: [1, 2],
@@ -563,10 +576,9 @@ describe("chat tab session persistence", () => {
       updatedAt: 123,
     });
 
-    const restoredSession = store.set(
-      hydrateChatTabSessionAtom,
-      new Set([1, 2]),
-    );
+    const restoredSession = store.set(hydrateChatTabSessionAtom, {
+      validChatIds: new Set([1, 2]),
+    });
 
     expect(restoredSession.selectedChatId).toBeNull();
     expect(store.get(recentViewedChatIdsAtom)).toEqual([1]);
@@ -581,10 +593,9 @@ describe("chat tab session persistence", () => {
       updatedAt: 123,
     } as unknown as ChatTabSession);
 
-    const restoredSession = store.set(
-      hydrateChatTabSessionAtom,
-      new Set([1, 2]),
-    );
+    const restoredSession = store.set(hydrateChatTabSessionAtom, {
+      validChatIds: new Set([1, 2]),
+    });
 
     expect(restoredSession).toEqual({
       openChatIds: [],

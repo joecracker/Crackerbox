@@ -107,10 +107,9 @@ describe("golden single-window: tab-session schema", () => {
     const store = createStore();
     store.set(chatTabSessionStorageAtom, capturedSession);
 
-    const restored = store.set(
-      hydrateChatTabSessionAtom,
-      new Set([1711, 1736, 1764, 1799, 1807, 1842]),
-    );
+    const restored = store.set(hydrateChatTabSessionAtom, {
+      validChatIds: new Set([1711, 1736, 1764, 1799, 1807, 1842]),
+    });
 
     // Protects the Phase B per-window tab-session schema migration.
     expect(restored).toEqual(capturedSession);

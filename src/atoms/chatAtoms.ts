@@ -182,7 +182,12 @@ function dedupeValidChatIds(
 
 export const hydrateChatTabSessionAtom = atom(
   null,
-  (get, set, validChatIds: Set<number>) => {
+  (
+    get,
+    set,
+    args: { validChatIds: Set<number>; staleChatIds?: Set<number> },
+  ) => {
+    const { validChatIds, staleChatIds } = args;
     const storedSession = get(chatTabSessionStorageAtom);
     const session = isChatTabSession(storedSession)
       ? storedSession
@@ -210,8 +215,13 @@ export const hydrateChatTabSessionAtom = atom(
       currentOpenChatIds.push(selectedChatIdOpenedBeforeHydration);
     }
     const currentOpenChatIdSet = new Set(currentOpenChatIds);
+    // Tabs from earlier days are not brought back on launch (chat stays in history).
+    const restoredOpenChatIds = session.openChatIds.filter(
+      (chatId) =>
+        !staleChatIds?.has(chatId) || chatId === session.selectedChatId,
+    );
     const openChatIds = dedupeValidChatIds(
-      [...session.openChatIds, ...currentOpenChatIds],
+      [...restoredOpenChatIds, ...currentOpenChatIds],
       validChatIds,
       Number.POSITIVE_INFINITY,
     );

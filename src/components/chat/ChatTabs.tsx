@@ -1054,7 +1054,16 @@ export function ChatTabs({ selectedChatId }: ChatTabsProps) {
     }
 
     hasHydratedTabSessionRef.current = true;
-    const restoredSession = hydrateChatTabSession(chatIdSet);
+    const staleCutoff = Date.now() - 24 * 60 * 60 * 1000;
+    const staleChatIds = new Set(
+      chats
+        .filter((chat) => new Date(chat.createdAt).getTime() < staleCutoff)
+        .map((chat) => chat.id),
+    );
+    const restoredSession = hydrateChatTabSession({
+      validChatIds: chatIdSet,
+      staleChatIds,
+    });
     setHasHydratedTabSession(true);
     if (
       selectedChatId === null &&
@@ -1072,6 +1081,7 @@ export function ChatTabs({ selectedChatId }: ChatTabsProps) {
     }
   }, [
     chatIdSet,
+    chats,
     chatsById,
     hydrateChatTabSession,
     loading,

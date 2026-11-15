@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { z } from "zod";
 import { ToolDefinition, AgentContext } from "./types";
 import {
@@ -8,12 +10,18 @@ import {
   readMail,
   readRoster,
   readShared,
+  houseDir,
   sendMail,
   sisterById,
   writeShared,
 } from "../house";
 import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
-import { readSchedule, readState, writeSchedule } from "@/main/house_schedule";
+import {
+  readJobPrompt,
+  readSchedule,
+  readState,
+  writeSchedule,
+} from "@/main/house_schedule";
 import { readSettings } from "@/main/settings";
 import { runningApps } from "@/ipc/utils/process_manager";
 import { db } from "@/db";
@@ -60,6 +68,13 @@ const houseSchema = z.object({
     .string()
     .optional()
     .describe("schedule_set, daily jobs: HH:MM local time."),
+  job_text: z
+    .string()
+    .max(4000)
+    .optional()
+    .describe(
+      "schedule_set: replace the wording of your job, the text you are given when it fires.",
+    ),
   one_in: z
     .number()
     .int()
@@ -157,8 +172,8 @@ export const houseTool: ToolDefinition<z.infer<typeof houseSchema>> = {
             .filter((j) => j.sister === me.id)
             .map((j) =>
               j.kind === "daily"
-                ? `${j.id}: daily at ${j.time}, ${j.enabled ? "ON" : "off"}`
-                : `${j.id}: surprise check-in, 1 in ${j.oneIn} each hour from ${j.windowStart}:00 to ${j.windowEnd}:00, max ${j.maxPerDay}/day, ${j.enabled ? "ON" : "off"}`,
+                ? `${j.id}: daily at ${j.time}, ${j.enabled ? "ON" : "off"}\n  wording: ${readJobPrompt(j) ?? "(none)"}`
+                : `${j.id}: surprise check-in, 1 in ${j.oneIn} each hour from ${j.windowStart}:00 to ${j.windowEnd}:00, max ${j.maxPerDay}/day, ${j.enabled ? "ON" : "off"}\n  wording: ${readJobPrompt(j) ?? "(none)"}`,
             )
             .join("\n") || "No scheduled jobs for you."
         );
@@ -167,6 +182,21 @@ export const houseTool: ToolDefinition<z.infer<typeof houseSchema>> = {
         const job = jobs.find((j) => j.id === need(args.job, "job"));
         if (!job || job.sister !== me.id) {
           return "No such job of yours. Use schedule_list.";
+        }
+        if (args.job_text !== undefined) {
+          const text = args.job_text.trim();
+          if (!text) return "job_text can't be empty.";
+          if (job.promptFile) {
+            const root = path.resolve(houseDir(), "prompts");
+            const file = path.resolve(houseDir(), job.promptFile);
+            if (!file.startsWith(root + path.sep)) {
+              return "That job's wording file is outside the prompts folder, so it can't be changed here.";
+            }
+            fs.mkdirSync(path.dirname(file), { recursive: true });
+            fs.writeFileSync(file, text);
+          } else {
+            job.prompt = text;
+          }
         }
         if (args.enabled !== undefined) job.enabled = args.enabled;
         if (args.time !== undefined && job.kind === "daily") {

@@ -1,4 +1,7 @@
-import { readRoster } from "@/pro/main/ipc/handlers/local_agent/house";
+import {
+  readRoster,
+  writeRoster,
+} from "@/pro/main/ipc/handlers/local_agent/house";
 import { normalizeTemperature } from "@/shared/temperament";
 import { ModelSelectionSchema, type ModelSelection } from "@/lib/schemas";
 
@@ -64,6 +67,26 @@ export function entityModelSelectionForApp(
 }
 
 /** The image engine this entity starts with for base-picture edits, or undefined. */
+/** Saves the engine a girl starts with when editing a base picture. */
+export function setEntityImageEngine(
+  sisterId: string | null | undefined,
+  appId: number,
+  engine: string,
+): boolean {
+  try {
+    const roster = readRoster();
+    const speaker =
+      roster.find((s) => s.id === sisterId) ??
+      roster.find((s) => s.appId === appId);
+    if (!speaker) return false;
+    speaker.imageEngine = engine;
+    writeRoster(roster);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function entityImageEngine(
   sisterId: string | null | undefined,
   appId: number,

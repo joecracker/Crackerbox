@@ -182,7 +182,7 @@ const SIRAY_SUBMIT_TIMEOUT_MS = 60_000;
 const SIRAY_POLL_MS = 3_000;
 const SIRAY_GIVE_UP_MS = 240_000;
 // Editing a picture (keeps her face) gives up sooner so the sister can retry or tell Tim.
-const SIRAY_I2I_GIVE_UP_MS = 180_000;
+const SIRAY_I2I_GIVE_UP_MS = 240_000;
 const BLANK_MEAN = 8;
 const BLANK_RETRIES = 2;
 // ----------------------------------------------------------------------------

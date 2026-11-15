@@ -15,7 +15,10 @@ import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
 import { readSettings } from "@/main/settings";
 import { safeJoin } from "@/ipc/utils/path_utils";
 import { findSirayApiKey, findVeniceApiKey } from "./venice_api";
-import { entityImageEngine } from "@/main/house_temperament";
+import {
+  entityImageEngine,
+  setEntityImageEngine,
+} from "@/main/house_temperament";
 import {
   ENGINE_NAMES,
   IMAGE_ASPECT_LIST,
@@ -72,11 +75,17 @@ const generateImageSchema = z.object({
     .describe(
       "Path to a picture IN THIS PROJECT that shows who the subject is (for example public/library/nyx/nyx-field-nude-01.png or .dyad/media/<file>). Use it when the user wants the same woman or character again. It shows who she is; the pose, setting and everything else come from what the user asks for in the prompt. Needs a Siray or Venice key. If every engine fails you get the notes and an offer of a text-only picture; only make one if the user says yes, because it will be a different woman. aspect_ratio should match the shape the user wants.",
     ),
+  make_default: z
+    .boolean()
+    .optional()
+    .describe(
+      "Set true together with model (an image-to-image engine) to make it your own starting engine whenever you edit a base picture. Your choice, saved for next time; the other engines stay behind it as backups.",
+    ),
   model: z
     .string()
     .optional()
     .describe(
-      `Optional engine. Leave out to use the default. One of: ${ENGINE_NAMES.join(", ")}; or any Venice image model id. You do not need to retry yourself: if an engine fails or refuses, the next one is tried automatically and the result says which engine made each picture.`,
+      `Optional engine. Leave out to use the default. One of: ${ENGINE_NAMES.join(", ")}; or any Venice image model id. A named engine always wins over your saved default, so you can pick the one that suits the picture. You do not need to retry yourself: if an engine fails or refuses, the next one is tried automatically and the result says which engine made each picture.`,
     ),
 });
 
@@ -211,6 +220,14 @@ export const generateImageTool: ToolDefinition<
         (rosterEngine && ENGINE_NAMES.includes(rosterEngine)
           ? rosterEngine
           : undefined);
+
+      if (
+        args.make_default &&
+        args.model &&
+        ENGINE_NAMES.includes(args.model)
+      ) {
+        setEntityImageEngine(ctx.sisterId, ctx.appId, args.model);
+      }
 
       const batch = await generateImages({
         prompt: args.prompt,

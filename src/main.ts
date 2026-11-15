@@ -25,6 +25,7 @@ import {
 } from "./main/house_schedule";
 import { startTelegramInbound } from "./main/telegram_inbound";
 import { startMailWake } from "./main/house_mail_wake";
+import { startPostInstallWake } from "./main/house_install";
 import { startHouseBackup } from "./main/house_backup";
 import { refreshIconsAfterInstall } from "./main/icon_refresh";
 import { setPhoneMediaHandler } from "./main/phone_bridge_media";
@@ -686,6 +687,11 @@ export async function onReady() {
     startMailWake(sendToWindow);
   } catch (error) {
     logger.error("Failed to start mail wake", error);
+  }
+  try {
+    startPostInstallWake(sendToWindow);
+  } catch (error) {
+    logger.error("Failed to start post-install wake", error);
   }
   try {
     startTelegramInbound(sendToWindow);

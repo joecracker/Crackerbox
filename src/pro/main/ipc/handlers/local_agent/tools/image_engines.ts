@@ -97,6 +97,16 @@ export const ENGINES: EngineRow[] = [
     kind: "image-to-image",
   },
   {
+    // Venice's Seedream 5.5 edit. Venice does not document it as uncensored (only
+    // qwen-edit-uncensored is), so it is on trial: a refusal is cheap and the
+    // chain moves on. Keeps more of a picture on Venice, one account.
+    name: "venice-seedream-5-5-edit",
+    service: "venice",
+    modelId: "seedream-v5-5-edit",
+    style: "realistic",
+    kind: "image-to-image",
+  },
+  {
     name: "siray-seedream-4-5-i2i",
     service: "siray",
     modelId: "bytedance/seedream-4.5-i2i-spicy",

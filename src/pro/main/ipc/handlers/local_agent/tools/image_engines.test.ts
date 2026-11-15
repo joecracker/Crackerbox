@@ -304,7 +304,7 @@ describe("editing a base picture", () => {
     expect(r.textOnlyOffer).toBe(true);
     expect(calls.veniceBodies).toHaveLength(0); // no text-only generate calls
     expect(calls.sirayBodies.every((b) => b.model.includes("i2i"))).toBe(true);
-    expect(calls.veniceEditBodies).toHaveLength(1); // the uncensored Venice edit engine tried
+    expect(calls.veniceEditBodies).toHaveLength(2); // both Venice edit engines tried
     expect(r.failures[0]).toMatch(/seedream-4-5-i2i/);
   });
 
@@ -334,7 +334,10 @@ describe("editing a base picture", () => {
     // Only uncensored engines belong in her chain.
     expect(
       chain.every(
-        (e) => /spicy/.test(e.modelId) || /uncensored/.test(e.modelId),
+        (e) =>
+          /spicy/.test(e.modelId) ||
+          /uncensored/.test(e.modelId) ||
+          e.name === "venice-seedream-5-5-edit", // on trial, see the table
       ),
     ).toBe(true);
     const named = resolveI2iChain("venice-qwen-edit").map((e) => e.name);

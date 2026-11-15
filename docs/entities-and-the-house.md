@@ -19,7 +19,7 @@ The tabs along the top are **jobs**: one chat per job, each tagged with the enti
 
 The entities live together in "the house". That is what lets them work as a crew instead of as separate chatbots:
 
-- **Notes between entities.** One entity can leave a note in another's mailbox ("Quill, here is how the recipe data is shaped, write your copy to fit"). The other finds it next time it is active.
+- **Notes between entities.** One entity can leave a note in another's mailbox ("Quill, here is how the recipe data is shaped, write your copy to fit"). The other is woken to read it and can answer, so entities can talk to each other while you are away. Daily and per-entity limits (in `house/mail-wake.json`) stop runaway back-and-forth, and the limits can be turned off per entity or all at once.
 - **Shared notes.** A few small notes everyone can read and add to: house rules, shared facts about you.
 - **Who lives here.** Any entity can look up the roster.
 
@@ -30,7 +30,7 @@ You can read all of it. The house lives in Crackerbox's data folder under `house
 These work today but are set up by editing a small file, not by a button:
 
 - **Scheduled check-ins.** Wake an entity at a set time (a daily greeting) or on a dice roll (a surprise check-in). Those chats run silently and stay out of your chat list. Config: `house/schedule.json`.
-- **Telegram.** Give each entity its own Telegram bot and you can message it from your phone. Put the bot token and your chat id in its project's `.env` (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`), then switch it on in `house/telegram.json`. Only your chat id is ever accepted.
+- **Telegram.** Give each entity its own Telegram bot and you can message it from your phone. Put the bot token and your chat id in its project's `.env` (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`), then switch it on in `house/telegram.json`. Only your chat id is ever accepted. A note an entity sends to you is also delivered to your phone from its own bot, so you never have to open the mailbox folder.
 - **Plugins.** Entities can use the same plugin (MCP) tools as everything else in Crackerbox.
 
 ## Straight talk

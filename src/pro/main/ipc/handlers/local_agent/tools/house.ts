@@ -184,6 +184,9 @@ export const houseTool: ToolDefinition<z.infer<typeof houseSchema>> = {
           return "No such job of yours. Use schedule_list.";
         }
         if (args.job_text !== undefined) {
+          if (me.id !== "dextra") {
+            return "Only Dextra can rewrite job wording. Write Daddy or Dextra a letter with the change you want.";
+          }
           const text = args.job_text.trim();
           if (!text) return "job_text can't be empty.";
           if (job.promptFile) {

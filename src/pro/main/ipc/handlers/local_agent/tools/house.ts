@@ -15,6 +15,7 @@ import {
   sisterById,
   writeShared,
 } from "../house";
+import { forwardLetterToTim } from "../house_telegram";
 import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
 import {
   readJobPrompt,
@@ -147,6 +148,15 @@ export const houseTool: ToolDefinition<z.infer<typeof houseSchema>> = {
           need(args.subject, "subject"),
           need(args.body, "body"),
         );
+        const toTim = need(args.to, "to").trim().toLowerCase() === "tim";
+        if (toTim) {
+          const note = await forwardLetterToTim(
+            me.id,
+            args.subject ?? "",
+            args.body ?? "",
+          );
+          return `Sent ${f}. ${note}`;
+        }
         return `Sent ${f}.`;
       }
       case "inbox": {

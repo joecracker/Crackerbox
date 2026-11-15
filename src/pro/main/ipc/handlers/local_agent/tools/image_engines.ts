@@ -193,6 +193,10 @@ const SIRAY_POLL_MS = 3_000;
 const SIRAY_GIVE_UP_MS = 240_000;
 // Editing a picture (keeps her face) gives up sooner so the sister can retry or tell Tim.
 const SIRAY_I2I_GIVE_UP_MS = 240_000;
+// One picture never waits on Siray longer than this in total, however many Siray
+// engines are tried, so a slow afternoon costs five minutes, not ten.
+const SIRAY_TOTAL_WAIT_MS = 300_000;
+const SIRAY_MIN_USEFUL_WAIT_MS = 30_000;
 const BLANK_MEAN = 8;
 const BLANK_RETRIES = 2;
 // ----------------------------------------------------------------------------
@@ -341,6 +345,8 @@ interface CallRequest {
   signal?: AbortSignal;
   fetchImpl: typeof fetch;
   sleep: (ms: number) => Promise<void>;
+  /** Milliseconds this picture has already spent waiting on Siray. */
+  sirayWaitedMs?: number;
 }
 
 function withTimeout(signal: AbortSignal | undefined, ms: number) {
@@ -464,7 +470,16 @@ async function callSiray(
   req: CallRequest,
   key: string,
 ): Promise<Buffer> {
+  let waitStart = 0;
   try {
+    if (
+      row.kind === "image-to-image" &&
+      SIRAY_TOTAL_WAIT_MS - (req.sirayWaitedMs ?? 0) < SIRAY_MIN_USEFUL_WAIT_MS
+    ) {
+      throw new EngineError(
+        "skipped, this picture already used its Siray waiting time.",
+      );
+    }
     const headers = {
       Authorization: `Bearer ${key}`,
       "Content-Type": "application/json",
@@ -508,9 +523,12 @@ async function callSiray(
     const taskId: string | undefined = sj?.data?.task_id ?? sj?.task_id;
     if (!taskId) throw new EngineError("Siray returned no task id.");
 
-    const giveUpMs =
+    const rowGiveUpMs =
       row.kind === "image-to-image" ? SIRAY_I2I_GIVE_UP_MS : SIRAY_GIVE_UP_MS;
-    const deadline = Date.now() + giveUpMs;
+    const budgetLeft = SIRAY_TOTAL_WAIT_MS - (req.sirayWaitedMs ?? 0);
+    const giveUpMs = Math.min(rowGiveUpMs, budgetLeft);
+    waitStart = Date.now();
+    const deadline = waitStart + giveUpMs;
     let lastStatus = "none seen";
     while (Date.now() < deadline) {
       await req.sleep(SIRAY_POLL_MS);
@@ -554,6 +572,10 @@ async function callSiray(
     );
   } catch (err) {
     return asEngineError(err, req.signal);
+  } finally {
+    if (waitStart) {
+      req.sirayWaitedMs = (req.sirayWaitedMs ?? 0) + (Date.now() - waitStart);
+    }
   }
 }
 

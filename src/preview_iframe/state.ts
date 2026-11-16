@@ -100,7 +100,7 @@ export type PreviewIframeEvent =
   | { type: "RELOAD_REQUESTED" }
   | { type: "IFRAME_REPLACED"; reason: "external" }
   | { type: "IFRAME_LOADED" }
-  | { type: "PANEL_OPENED"; rootUrl: string }
+  | { type: "PANEL_RESET"; rootUrl: string }
   | { type: "SELECTOR_READY" }
   | { type: "PICKER_TOGGLED" }
   | { type: "PICKER_DEACTIVATED" }

@@ -43,6 +43,7 @@ const EVENTS: readonly PreviewIframeEvent[] = [
   { type: "RELOAD_REQUESTED" },
   { type: "IFRAME_REPLACED", reason: "external" },
   { type: "IFRAME_LOADED" },
+  { type: "PANEL_RESET", rootUrl: URL },
   { type: "SELECTOR_READY" },
   { type: "PICKER_TOGGLED" },
   { type: "PICKER_DEACTIVATED" },
@@ -90,7 +91,8 @@ function boundedEvents(state: PreviewIframeState): PreviewIframeEvent[] {
       ((event.type !== "NAVIGATE" &&
         !(event.type === "NAVIGATED_IN_APP" && event.kind === "pushState")) ||
         state.history.length < 3) &&
-      (event.type !== "RELOAD_REQUESTED" || state.iframeEpoch < 2),
+      (event.type !== "RELOAD_REQUESTED" || state.iframeEpoch < 2) &&
+      (event.type !== "PANEL_RESET" || state.iframeEpoch < 2),
   );
 }
 
@@ -626,5 +628,60 @@ describe("preview iframe transition", () => {
     expect(
       transition(setBeforeClear.state, { type: "IFRAME_LOADED" }).state.error,
     ).toBeUndefined();
+  });
+
+  describe("PANEL_RESET", () => {
+    const away = () => {
+      let state = transition(INITIAL_PREVIEW_IFRAME_STATE, {
+        type: "APP_URL_CHANGED",
+        url: URL,
+      }).state;
+      state = transition(state, {
+        type: "NAVIGATE",
+        path: `${URL}/about`,
+      }).state;
+      return state;
+    };
+
+    it("returns to the app root with a fresh iframe and no message into the page", () => {
+      const result = transition(away(), { type: "PANEL_RESET", rootUrl: URL });
+      expect(result.state).toMatchObject({
+        history: [URL],
+        position: 0,
+        currentUrl: URL,
+        preservedUrl: URL,
+        currentUrlSource: "none",
+        iframeEpoch: 1,
+        selectorReady: false,
+        picking: false,
+      });
+      expect(commandsOf(result)).toEqual([]);
+      expect(selectIframeSrc(result.state, URL)).toBe(URL);
+    });
+
+    it("does nothing when the preview is already at the root", () => {
+      const atRoot = transition(INITIAL_PREVIEW_IFRAME_STATE, {
+        type: "APP_URL_CHANGED",
+        url: URL,
+      }).state;
+      const again = transition(atRoot, { type: "PANEL_RESET", rootUrl: URL });
+      expect(again.state).toBe(atRoot);
+      expect(ignoreReasonOf(again)).toBe("already-root");
+    });
+
+    it("ignores an empty root, and leaves an app error alone", () => {
+      const state = away();
+      expect(
+        ignoreReasonOf(transition(state, { type: "PANEL_RESET", rootUrl: "" })),
+      ).toBe("empty-url");
+      const failed = transition(state, {
+        type: "APP_ERROR",
+        message: "run failed",
+      }).state;
+      expect(
+        transition(failed, { type: "PANEL_RESET", rootUrl: URL }).state.error
+          ?.message,
+      ).toBe("run failed");
+    });
   });
 });

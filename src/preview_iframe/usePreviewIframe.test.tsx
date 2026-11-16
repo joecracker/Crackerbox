@@ -13,6 +13,7 @@ import {
 } from "@/state_machines/react";
 import { PreviewIframeProvider } from "./PreviewIframeProvider";
 import {
+  usePreviewIframe,
   usePreviewIframeController,
   useSendPreviewIframeEvent,
 } from "./usePreviewIframe";
@@ -188,5 +189,44 @@ describe("useSendPreviewIframeEvent", () => {
     });
 
     expect(result.current.preview.state.error).toBeUndefined();
+  });
+});
+
+describe("usePreviewIframe panel reset", () => {
+  const ROOT = "http://localhost:3000";
+
+  it("returns to the front page when the panel opens or closes, never while it stays open", () => {
+    const { Wrapper } = makeWrapper();
+    const iframeRef = { current: null };
+    const { result, rerender } = renderHook(
+      ({ open }: { open: boolean }) =>
+        usePreviewIframe({
+          appId: 1,
+          appUrl: ROOT,
+          iframeRef,
+          onSharedMachineEvent: () => undefined,
+          onComponentMessage: () => undefined,
+          panelOpen: open,
+        }),
+      { wrapper: Wrapper, initialProps: { open: true } },
+    );
+    expect(result.current.state.currentUrl).toBe(ROOT);
+
+    act(() => result.current.send({ type: "NAVIGATE", path: `${ROOT}/about` }));
+    expect(result.current.state.currentUrl).toBe(`${ROOT}/about`);
+
+    // Re-rendering with the panel still open must not undo the user's clicks.
+    rerender({ open: true });
+    expect(result.current.state.currentUrl).toBe(`${ROOT}/about`);
+
+    // Closing drops the route and replaces the iframe, with no message to lose.
+    rerender({ open: false });
+    expect(result.current.state.currentUrl).toBe(ROOT);
+    expect(result.current.state.iframeEpoch).toBe(1);
+
+    // Already at the front page: opening again changes nothing.
+    rerender({ open: true });
+    expect(result.current.state.currentUrl).toBe(ROOT);
+    expect(result.current.state.iframeEpoch).toBe(1);
   });
 });

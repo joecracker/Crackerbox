@@ -274,35 +274,33 @@ export function transition(
       return state.error === undefined
         ? ignore(state, "no-preview-error")
         : applied({ ...state, error: undefined });
-    case "PANEL_OPENED": {
-      // Entry point only: the panel opens on the app root instead of whatever
-      // route was left behind. The current history entry is rewritten rather
-      // than appended, so opening the panel never adds a step, and the rest of
-      // the trail (Back/Forward) is left exactly as it was.
+    case "PANEL_RESET": {
+      // The preview panel opened or closed: drop whatever route was left behind
+      // and go back to the app's front page. State only, no message into the
+      // page. The iframe is replaced outright (new epoch, source = the app
+      // root), so nothing can be lost to a page that is still loading. Safe to
+      // repeat: at the root already, it does nothing.
       if (!event.rootUrl) return ignore(state, "empty-url");
       if (
-        state.currentUrl === event.rootUrl ||
+        state.history.length === 1 &&
+        state.position === 0 &&
+        state.currentUrl === event.rootUrl &&
         state.preservedUrl === event.rootUrl
       ) {
         return ignore(state, "already-root");
       }
-      const history =
-        state.history.length === 0
-          ? [event.rootUrl]
-          : state.history.map((entry, index) =>
-              index === state.position ? event.rootUrl : entry,
-            );
-      return applied(
-        {
-          ...state,
-          history,
-          position: state.history.length === 0 ? 0 : state.position,
-          currentUrl: event.rootUrl,
-          currentUrlSource: "dyad",
-          preservedUrl: event.rootUrl,
-        },
-        [navigateCommand(event.rootUrl)],
-      );
+      return applied({
+        ...state,
+        history: [event.rootUrl],
+        position: 0,
+        currentUrl: event.rootUrl,
+        // The app's own address, not a route anyone chose.
+        currentUrlSource: "none",
+        preservedUrl: event.rootUrl,
+        iframeEpoch: state.iframeEpoch + 1,
+        selectorReady: false,
+        picking: false,
+      });
     }
     case "IFRAME_ERROR":
       if (

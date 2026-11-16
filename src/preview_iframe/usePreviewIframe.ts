@@ -77,12 +77,25 @@ export function usePreviewIframe(input: {
     if (appUrl) send({ type: "APP_URL_CHANGED", url: appUrl });
   }, [appUrl, send]);
 
-  // Opening the panel is the moment to drop whatever route the app was left
-  // on, so nobody gets caught by a nude preview page over their shoulder. Only
-  // the opening edge counts: clicking around afterwards must not be undone.
+  // Opening or closing the panel drops whatever route the app was left on and
+  // returns to its front page. State only: the iframe is replaced rather than
+  // sent a message, so a page that is still loading cannot swallow it. Only
+  // the open/close edges count (the app address is read, not watched), so
+  // clicking around while the panel stays open is never undone.
+  const appUrlRef = useRef(appUrl);
+  appUrlRef.current = appUrl;
+  const prevPanelOpenRef = useRef<boolean | null>(null);
   useEffect(() => {
-    if (panelOpen && appUrl) send({ type: "PANEL_OPENED", rootUrl: appUrl });
-  }, [panelOpen, appUrl, send]);
+    const previous = prevPanelOpenRef.current;
+    prevPanelOpenRef.current = panelOpen;
+    if (previous === panelOpen) return;
+    const rootUrl = appUrlRef.current;
+    if (!rootUrl) return;
+    console.info(
+      `[preview] panel ${panelOpen ? "opened" : "closed"}: back to the front page`,
+    );
+    send({ type: "PANEL_RESET", rootUrl });
+  }, [panelOpen, send]);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) =>

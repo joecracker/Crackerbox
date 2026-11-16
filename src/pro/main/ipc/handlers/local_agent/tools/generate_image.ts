@@ -89,7 +89,7 @@ const generateImageSchema = z.object({
     ),
 });
 
-const DESCRIPTION = `Generate 1 to 4 pictures from a text prompt using the user's own Venice and Siray accounts. Venice is tried first; if it refuses, times out or fails, Siray engines are tried automatically. Pictures are saved to the project's .dyad/media directory and filed under a section (default "generated") on the Media page, with the prompt and engine remembered.
+const DESCRIPTION = `Generate 1 to 4 pictures from a text prompt using the user's own Venice and Siray accounts. Siray is tried first; if it refuses, times out or fails, Venice is tried automatically as the backup. Pictures are saved to the project's .dyad/media directory and filed under a section (default "generated") on the Media page, with the prompt and engine remembered.
 
 ### Same subject, new picture (base_image)
 Pass base_image when the user wants the same woman or character in a new picture. The base picture shows who she is; the pose and everything else follow what the user asks for. Do what the user says. If the result is not what they wanted, they will tell you and you try again. Only image-to-image engines run (Siray and Venice, tried in turn, so one service being down does not stop it). A text-only picture is never made on its own, because it would be a stranger; if every engine fails you get the notes and an offer, and you make a text-only picture only if the user says yes. The base picture is sent to the user's Siray and Venice accounts.

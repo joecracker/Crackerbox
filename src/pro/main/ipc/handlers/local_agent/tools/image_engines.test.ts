@@ -154,7 +154,7 @@ describe("resolveChain", () => {
 });
 
 describe("generateImages", () => {
-  it("uses Venice first and says so", async () => {
+  it("uses Siray first and says so", async () => {
     const { fetchImpl, calls } = fakeFetch({});
     const r = await generateImages({
       prompt: "a red barn",
@@ -165,27 +165,32 @@ describe("generateImages", () => {
       sampler: goodSampler,
     });
     expect(r.images).toHaveLength(1);
-    expect(r.images[0].engine).toBe("venice-chroma");
+    expect(r.images[0].engine).toBe("siray-seedream-5-pro");
     expect(r.images[0].fellBack).toBe(false);
-    expect(calls.veniceBodies[0].safe_mode).toBe(false);
-    expect(calls.veniceBodies[0].negative_prompt).toBe("text");
-    expect(calls.sirayBodies).toHaveLength(0);
+    expect(calls.veniceBodies).toHaveLength(0);
+    expect(calls.sirayBodies).toHaveLength(1);
   });
 
-  it("falls back to Siray when Venice refuses (422)", async () => {
-    const { fetchImpl, calls } = fakeFetch({ veniceStatus: 422 });
+  it("falls back to Venice when every Siray engine fails", async () => {
+    const { fetchImpl, calls } = fakeFetch({
+      sirayFailModels: [
+        "bytedance/seedream-5.0-pro-t2i-spicy",
+        "alibaba/qwen-image-3-pro-t2i-spicy",
+        "alibaba/wan-2.7-image-pro-t2i-spicy",
+      ],
+    });
     const r = await generateImages({
       prompt: "x",
+      negativePrompt: "text",
       keys: { venice: "k", siray: "s" },
       fetchImpl,
       sleep: noSleep,
       sampler: goodSampler,
     });
-    expect(r.images[0].engine).toBe("siray-seedream-5-pro");
+    expect(r.images[0].engine).toBe("venice-chroma");
     expect(r.images[0].fellBack).toBe(true);
-    expect(r.images[0].ext).toBe(".jpg");
-    expect(r.images[0].notes.join(" ")).toMatch(/refused/);
-    expect(calls.sirayBodies[0].output_format).toBe("jpg");
+    expect(calls.veniceBodies[0].safe_mode).toBe(false);
+    expect(calls.veniceBodies[0].negative_prompt).toBe("text");
   });
 
   it("skips Venice quietly when only a Siray key exists", async () => {
@@ -304,7 +309,7 @@ describe("editing a base picture", () => {
     expect(r.textOnlyOffer).toBe(true);
     expect(calls.veniceBodies).toHaveLength(0); // no text-only generate calls
     expect(calls.sirayBodies.every((b) => b.model.includes("i2i"))).toBe(true);
-    expect(calls.veniceEditBodies).toHaveLength(2); // both Venice edit engines tried
+    expect(calls.veniceEditBodies).toHaveLength(1); // the Venice backup tried
     expect(r.failures[0]).toMatch(/seedream-4-5-i2i/);
   });
 
@@ -334,10 +339,7 @@ describe("editing a base picture", () => {
     // Only uncensored engines belong in her chain.
     expect(
       chain.every(
-        (e) =>
-          /spicy/.test(e.modelId) ||
-          /uncensored/.test(e.modelId) ||
-          e.name === "venice-seedream-5-5-edit", // on trial, see the table
+        (e) => /spicy/.test(e.modelId) || /uncensored/.test(e.modelId),
       ),
     ).toBe(true);
     const named = resolveI2iChain("venice-qwen-edit").map((e) => e.name);
@@ -345,7 +347,7 @@ describe("editing a base picture", () => {
     expect(named).toHaveLength(chain.length);
   });
 
-  it("tries Venice first and never touches Siray when Venice works", async () => {
+  it("tries Siray first and never touches Venice when Siray works", async () => {
     const { fetchImpl, calls } = fakeFetch({});
     const r = await generateImages({
       prompt: "sitting on a sofa",
@@ -357,31 +359,37 @@ describe("editing a base picture", () => {
       sampler: goodSampler,
     });
     expect(r.images).toHaveLength(1);
-    expect(r.images[0].engine).toBe("venice-qwen-edit");
+    expect(r.images[0].engine).toBe("siray-seedream-4-5-i2i");
     expect(r.images[0].fellBack).toBe(false);
     expect(r.textOnlyOffer).toBe(false);
-    expect(calls.sirayBodies).toHaveLength(0);
-    const body = calls.veniceEditBodies[0];
-    expect(body.model).toBe("qwen-edit-uncensored");
-    expect(body.image).toBe(PNG.toString("base64"));
-    expect(body.aspect_ratio).toBe("2:3");
-    expect(body.safe_mode).toBe(false);
+    expect(calls.veniceEditBodies).toHaveLength(0);
   });
 
-  it("falls to Siray as the backup when Venice fails, with no offer", async () => {
-    const { fetchImpl, calls } = fakeFetch({ veniceEditStatus: 503 });
+  it("falls to Venice as the backup when Siray fails, with no offer", async () => {
+    const { fetchImpl, calls } = fakeFetch({
+      sirayFailModels: [
+        "bytedance/seedream-4.5-i2i-spicy",
+        "bytedance/seedream-5.5-i2i-spicy",
+        "bytedance/seedream-5.0-pro-i2i-spicy",
+      ],
+    });
     const r = await generateImages({
       prompt: "x",
+      aspect: "2:3",
       baseImage: base,
       keys: { venice: "k", siray: "s" },
       fetchImpl,
       sleep: noSleep,
       sampler: goodSampler,
     });
-    expect(r.images[0].engine).toBe("siray-seedream-4-5-i2i");
+    expect(r.images[0].engine).toBe("venice-qwen-edit");
     expect(r.images[0].fellBack).toBe(true);
     expect(r.textOnlyOffer).toBe(false);
-    expect(calls.sirayBodies).toHaveLength(1);
+    const body = calls.veniceEditBodies[0];
+    expect(body.model).toBe("qwen-edit-uncensored");
+    expect(body.image).toBe(PNG.toString("base64"));
+    expect(body.aspect_ratio).toBe("2:3");
+    expect(body.safe_mode).toBe(false);
   });
 
   it("reads Siray's FAILURE status as a real failure, not a timeout", async () => {

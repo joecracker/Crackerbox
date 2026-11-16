@@ -85,27 +85,11 @@ export const ENGINES: EngineRow[] = [
     kind: "text-to-image",
   },
   // ---- Image-to-image: edit a base picture and keep her face. Tried in this
-  // order: Venice first (the main account), Siray only as the paid backup. EVERY row here must be an uncensored / "spicy" engine: a filtered one
-  // just refuses and wastes the attempt. Siray's -spicy lines and Venice's
-  // qwen-edit-uncensored qualify; Venice's default firered-image-edit is not
-  // documented as uncensored, so it is deliberately left out.
-  {
-    name: "venice-qwen-edit",
-    service: "venice",
-    modelId: "qwen-edit-uncensored",
-    style: "realistic",
-    kind: "image-to-image",
-  },
-  {
-    // Venice's Seedream 5.5 edit. Venice does not document it as uncensored (only
-    // qwen-edit-uncensored is), so it is on trial: a refusal is cheap and the
-    // chain moves on. Keeps more of a picture on Venice, one account.
-    name: "venice-seedream-5-5-edit",
-    service: "venice",
-    modelId: "seedream-v5-5-edit",
-    style: "realistic",
-    kind: "image-to-image",
-  },
+  // order: Siray first (its Seedream "spicy" lines hold her face best), Venice's
+  // qwen-edit-uncensored last as the backup. EVERY row here must be an
+  // uncensored / "spicy" engine: a filtered one just refuses and wastes the
+  // attempt. Venice's default firered-image-edit and its Seedream 5.5 edit
+  // refuse nudity, so they are deliberately left out.
   {
     name: "siray-seedream-4-5-i2i",
     service: "siray",
@@ -127,7 +111,6 @@ export const ENGINES: EngineRow[] = [
     kind: "image-to-image",
   },
   {
-    // Last on purpose: its output filter rejects many of the pictures asked of it ("1200 Task failed"), so it only runs when everything else has failed.
     name: "siray-seedream-5-5-i2i",
     service: "siray",
     modelId: "bytedance/seedream-5.5-i2i-spicy",
@@ -136,17 +119,24 @@ export const ENGINES: EngineRow[] = [
     imageField: "images",
     kind: "image-to-image",
   },
+  {
+    name: "venice-qwen-edit",
+    service: "venice",
+    modelId: "qwen-edit-uncensored",
+    style: "realistic",
+    kind: "image-to-image",
+  },
 ];
 
 /** Order tried when the caller names no engine (or the named one fails). */
 export const DEFAULT_CHAINS: Record<ImageStyle, string[]> = {
   realistic: [
-    "venice-chroma",
     "siray-seedream-5-pro",
     "siray-qwen-pro",
     "siray-wan-2.7-pro",
+    "venice-chroma",
   ],
-  anime: ["venice-anime", "siray-z-image-anime"],
+  anime: ["siray-z-image-anime", "venice-anime"],
 };
 
 export const ENGINE_NAMES = ENGINES.map((e) => e.name);

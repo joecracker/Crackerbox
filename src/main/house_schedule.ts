@@ -1,7 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import log from "electron-log";
-import { houseDir, readRoster } from "@/pro/main/ipc/handlers/local_agent/house";
+import {
+  houseDir,
+  readRoster,
+} from "@/pro/main/ipc/handlers/local_agent/house";
 
 const logger = log.scope("house_schedule");
 
@@ -175,7 +178,11 @@ export function writeSchedule(jobs: ScheduleJob[]) {
 export function readState(): ScheduleState {
   try {
     const s = JSON.parse(fs.readFileSync(stateFile(), "utf8"));
-    return { fired: s.fired ?? {}, rolls: s.rolls ?? {}, counts: s.counts ?? {} };
+    return {
+      fired: s.fired ?? {},
+      rolls: s.rolls ?? {},
+      counts: s.counts ?? {},
+    };
   } catch {
     return { fired: {}, rolls: {}, counts: {} };
   }
@@ -210,13 +217,18 @@ export function pickDue(
       const at = new Date(now);
       at.setHours(h, m, 0, 0);
       const late = (now.getTime() - at.getTime()) / 60000;
-      if (late >= 0 && late <= (job.catchUpMinutes ?? 90) && next.fired[job.id] !== today) {
+      if (
+        late >= 0 &&
+        late <= (job.catchUpMinutes ?? 90) &&
+        next.fired[job.id] !== today
+      ) {
         next.fired[job.id] = today;
         due.push(job);
       }
     } else if (job.kind === "dice") {
       const hour = now.getHours();
-      if (hour < (job.windowStart ?? 10) || hour >= (job.windowEnd ?? 21)) continue;
+      if (hour < (job.windowStart ?? 10) || hour >= (job.windowEnd ?? 21))
+        continue;
       const key = `${today}T${pad(hour)}`;
       if (next.rolls[job.id] === key) continue;
       next.rolls[job.id] = key;
@@ -259,6 +271,11 @@ export interface HouseTriggerPayload {
   prompt: string;
   title: string;
   thread?: "telegram";
+  /**
+   * Show this chat to Tim: it appears in the chat list and opens on screen.
+   * Without it a trigger runs quietly (kept, but hidden from the lists).
+   */
+  visible?: boolean;
 }
 
 /**

@@ -544,6 +544,7 @@ export const miscEvents = {
       prompt: z.string(),
       title: z.string(),
       thread: z.literal("telegram").optional(),
+      visible: z.boolean().optional(),
     }),
   }),
 

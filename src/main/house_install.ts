@@ -148,6 +148,8 @@ export function startPostInstallWake(
         sisterId: sister.id,
         prompt: postInstallPrompt(wake),
         title: `${sister.name}: back from the install`,
+        // She reports to Tim, so this chat must be seen, not run quietly.
+        visible: true,
       });
       if (ok) {
         fs.rmSync(file, { force: true });

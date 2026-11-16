@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { ipc } from "@/ipc/types";
 import { useStreamChat } from "@/hooks/useStreamChat";
+import { useSelectChat } from "@/hooks/useSelectChat";
 
 /**
  * Starts a chat turn as a sister when the house scheduler asks for one (her
@@ -35,6 +36,7 @@ async function telegramChatId(appId: number, sisterId: string) {
 
 export function HouseTriggerListener() {
   const { streamMessage } = useStreamChat({ hasChatId: false });
+  const { selectChat } = useSelectChat();
 
   useEffect(() => {
     return ipc.events.misc.onHouseTrigger((payload) => {
@@ -45,7 +47,13 @@ export function HouseTriggerListener() {
             ? await telegramChatId(payload.appId, payload.sisterId)
             : await ipc.chat.createChat({ appId: payload.appId });
           // Scheduled jobs run quietly: kept, but hidden from the chat lists.
-          if (!isTelegram) await ipc.chat.markChatSilent({ chatId });
+          // A trigger marked visible (the post-install wake) is the opposite:
+          // it opens on screen so Tim sees her report without having to ask.
+          if (payload.visible) {
+            selectChat({ chatId, appId: payload.appId });
+          } else if (!isTelegram) {
+            await ipc.chat.markChatSilent({ chatId });
+          }
           await streamMessage({
             prompt: payload.prompt,
             chatId,
@@ -57,7 +65,7 @@ export function HouseTriggerListener() {
         }
       });
     });
-  }, [streamMessage]);
+  }, [streamMessage, selectChat]);
 
   return null;
 }

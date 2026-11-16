@@ -36,9 +36,17 @@ export function usePreviewIframe(input: {
     event: PreviewSharedMachineEvent | { type: "IFRAME_LOADED" },
   ) => void;
   onComponentMessage: (event: MessageEvent) => void;
+  /** The preview panel is showing. Its opening edge resets to the app root. */
+  panelOpen: boolean;
 }) {
-  const { appId, appUrl, iframeRef, onSharedMachineEvent, onComponentMessage } =
-    input;
+  const {
+    appId,
+    appUrl,
+    iframeRef,
+    onSharedMachineEvent,
+    onComponentMessage,
+    panelOpen,
+  } = input;
   const manager = usePreviewIframeManager();
   const { state, send } = usePreviewIframeController(appId);
   const componentHandlerRef = useRef(onComponentMessage);
@@ -68,6 +76,13 @@ export function usePreviewIframe(input: {
   useEffect(() => {
     if (appUrl) send({ type: "APP_URL_CHANGED", url: appUrl });
   }, [appUrl, send]);
+
+  // Opening the panel is the moment to drop whatever route the app was left
+  // on, so nobody gets caught by a nude preview page over their shoulder. Only
+  // the opening edge counts: clicking around afterwards must not be undone.
+  useEffect(() => {
+    if (panelOpen && appUrl) send({ type: "PANEL_OPENED", rootUrl: appUrl });
+  }, [panelOpen, appUrl, send]);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) =>

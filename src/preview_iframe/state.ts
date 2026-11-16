@@ -100,6 +100,7 @@ export type PreviewIframeEvent =
   | { type: "RELOAD_REQUESTED" }
   | { type: "IFRAME_REPLACED"; reason: "external" }
   | { type: "IFRAME_LOADED" }
+  | { type: "PANEL_OPENED"; rootUrl: string }
   | { type: "SELECTOR_READY" }
   | { type: "PICKER_TOGGLED" }
   | { type: "PICKER_DEACTIVATED" }
@@ -137,6 +138,7 @@ export type PreviewIframeCommand = {
 export type PreviewIframeIgnoreReason =
   | "already-current-app-url"
   | "already-current-url"
+  | "already-root"
   | "empty-url"
   | "history-boundary"
   | "unknown-history-entry"

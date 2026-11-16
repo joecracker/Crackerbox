@@ -171,6 +171,7 @@ export const PreviewIframe = ({
     iframeRef,
     onSharedMachineEvent: (event) => screenshotAdapterHandlerRef.current(event),
     onComponentMessage: (event) => componentMessageHandlerRef.current(event),
+    panelOpen: isPreviewOpen,
   });
   const errorMessage = selectPreviewError(iframeState);
   screenshotAdapterHandlerRef.current = useScreenshot({

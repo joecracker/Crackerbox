@@ -88,6 +88,8 @@ import {
 } from "@/pro/main/ipc/handlers/local_agent/subagents/subagent_manager";
 import { deployKeyDirPath } from "@/ipc/utils/coolify_deploy_key";
 
+const PINNED_CARD_FILENAME = "card-image.png";
+
 /**
  * Read screenshot entries for a single app directory, filtered by filename
  * pattern and stat'd for mtime. Swallows per-file errors (races with prune).
@@ -113,6 +115,25 @@ async function readScreenshotEntries(
   }
   results.sort((a, b) => b.mtimeMs - a.mtimeMs);
   return results;
+}
+
+/**
+ * The pinned card image for an app, as a media URL with its modified time as a
+ * version marker so a re-pinned picture is not served from cache. Null when
+ * none is pinned, which leaves the caller on the live-screenshot path.
+ */
+async function readPinnedCardUrl(
+  appPath: string,
+  screenshotDir: string,
+): Promise<string | null> {
+  const file = path.join(screenshotDir, PINNED_CARD_FILENAME);
+  let mtimeMs: number;
+  try {
+    mtimeMs = (await fsPromises.stat(file)).mtimeMs;
+  } catch {
+    return null;
+  }
+  return `dyad-media://media/${encodeURIComponent(appPath)}/${DYAD_SCREENSHOT_DIR_NAME}/${PINNED_CARD_FILENAME}?v=${Math.floor(mtimeMs)}`;
 }
 
 import log from "electron-log";
@@ -2662,6 +2683,12 @@ export function registerAppHandlers() {
         }
         const appPath = getDyadAppPath(record.path);
         const screenshotDir = path.join(appPath, DYAD_SCREENSHOT_DIR_NAME);
+        // A pinned front-door image wins over the newest live screenshot. The
+        // commit-hash filename pattern already ignores it in the listing.
+        const pinnedUrl = await readPinnedCardUrl(record.path, screenshotDir);
+        if (pinnedUrl) {
+          return { appId, thumbnailUrl: pinnedUrl };
+        }
         const entries = await readScreenshotEntries(screenshotDir);
         const latest = entries[0];
         if (!latest) {

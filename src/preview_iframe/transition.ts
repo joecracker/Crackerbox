@@ -274,6 +274,36 @@ export function transition(
       return state.error === undefined
         ? ignore(state, "no-preview-error")
         : applied({ ...state, error: undefined });
+    case "PANEL_OPENED": {
+      // Entry point only: the panel opens on the app root instead of whatever
+      // route was left behind. The current history entry is rewritten rather
+      // than appended, so opening the panel never adds a step, and the rest of
+      // the trail (Back/Forward) is left exactly as it was.
+      if (!event.rootUrl) return ignore(state, "empty-url");
+      if (
+        state.currentUrl === event.rootUrl ||
+        state.preservedUrl === event.rootUrl
+      ) {
+        return ignore(state, "already-root");
+      }
+      const history =
+        state.history.length === 0
+          ? [event.rootUrl]
+          : state.history.map((entry, index) =>
+              index === state.position ? event.rootUrl : entry,
+            );
+      return applied(
+        {
+          ...state,
+          history,
+          position: state.history.length === 0 ? 0 : state.position,
+          currentUrl: event.rootUrl,
+          currentUrlSource: "dyad",
+          preservedUrl: event.rootUrl,
+        },
+        [navigateCommand(event.rootUrl)],
+      );
+    }
     case "IFRAME_ERROR":
       if (
         state.error?.source === event.source &&

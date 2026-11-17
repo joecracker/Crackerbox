@@ -264,8 +264,14 @@ function splitOpening(chunks: string[]) {
   return { opening: chunks.slice(0, used), rest: chunks.slice(used).join(" ") };
 }
 
-/** "openrouter" and "venice" are hosted voices; "local" runs on this PC. */
-export type SpeechEngine = "openrouter" | "venice" | "local";
+/**
+ * "openrouter" and "venice" are hosted voices; "local" (Kokoro) and "pocket"
+ * run on this PC. Pocket falls back to the local Kokoro voice if it fails.
+ */
+export type SpeechEngine = "openrouter" | "venice" | "local" | "pocket";
+
+/** Voice used when Pocket falls back to Kokoro, which has no Pocket names. */
+const KOKORO_FALLBACK_VOICE = "af_bella";
 
 export async function playSpeech({
   messageId,
@@ -289,7 +295,10 @@ export async function playSpeech({
     const synthesize = (chunk: string, selectedProvider: SpeechEngine) =>
       ipc.audio.synthesizeSpeech({
         text: chunk,
-        voice,
+        voice:
+          provider === "pocket" && selectedProvider !== "pocket"
+            ? KOKORO_FALLBACK_VOICE
+            : voice,
         speed,
         provider: selectedProvider,
       });
@@ -323,7 +332,9 @@ export async function playSpeech({
     // smooth recording. The built-in voice only runs on this PC at about the
     // speed it is spoken, so it leaves a pause between sentences; with Venice
     // it is just the backup if the hosted voice does not answer in time.
-    const cloudFirst = provider === "venice";
+    // Pocket is the same shape: it reads whole pieces smoothly and Kokoro is
+    // only its backup.
+    const cloudFirst = provider === "venice" || provider === "pocket";
     const { opening, rest }: { opening: string[]; rest: string } = cloudFirst
       ? { opening: [], rest: text }
       : splitOpening(localChunks);

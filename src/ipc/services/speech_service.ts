@@ -1,5 +1,7 @@
 import { app, utilityProcess, type UtilityProcess } from "electron";
 import path from "node:path";
+import fs from "node:fs";
+import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import log from "electron-log";
 import type { z } from "zod";
 import type { SynthesizeSpeechParamsSchema } from "../types/audio";
@@ -180,6 +182,204 @@ class KokoroSpeechProvider implements SpeechProvider {
   }
 }
 
+// Pocket TTS (Kyutai): a small voice model that runs on this PC's processor.
+// Crackerbox starts its own little server on first use, talks to it over the
+// local loopback only, and shuts it down after a quiet spell or on exit.
+const POCKET_PORT = 8745;
+const POCKET_VOICES = new Set([
+  "alba",
+  "azelma",
+  "cosette",
+  "eponine",
+  "fantine",
+  "marius",
+  "javert",
+  "jean",
+]);
+const POCKET_DEFAULT_VOICE = "azelma";
+const POCKET_START_TIMEOUT_MS = 3 * 60 * 1000;
+const POCKET_REQUEST_TIMEOUT_MS = 60 * 1000;
+
+/**
+ * Pocket streams its WAV, so the header carries placeholder sizes. Players
+ * that read the sizes would stop early or refuse the file, so write the real
+ * ones in.
+ */
+export function fixStreamedWav(data: Uint8Array<ArrayBuffer>) {
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  const tag = (at: number) => String.fromCharCode(...data.subarray(at, at + 4));
+  if (data.byteLength < 12 || tag(0) !== "RIFF" || tag(8) !== "WAVE") {
+    return data;
+  }
+  view.setUint32(4, data.byteLength - 8, true);
+  let at = 12;
+  while (at + 8 <= data.byteLength) {
+    const size = view.getUint32(at + 4, true);
+    if (tag(at) === "data") {
+      view.setUint32(at + 4, data.byteLength - (at + 8), true);
+      break;
+    }
+    at += 8 + size + (size % 2);
+  }
+  return data;
+}
+
+export function pocketVoiceFor(voice: string) {
+  return POCKET_VOICES.has(voice) ? voice : POCKET_DEFAULT_VOICE;
+}
+
+function findPocketExe(): string | null {
+  const home = app.getPath("home");
+  const candidates = [
+    path.join(
+      app.getPath("userData"),
+      "pocket-tts",
+      ".venv",
+      "Scripts",
+      "pocket-tts.exe",
+    ),
+    path.join(
+      home,
+      "Documents",
+      "pocket-tts-test",
+      ".venv",
+      "Scripts",
+      "pocket-tts.exe",
+    ),
+  ];
+  return candidates.find((candidate) => fs.existsSync(candidate)) ?? null;
+}
+
+function killTree(child: ChildProcess) {
+  if (child.pid === undefined) return;
+  try {
+    if (process.platform === "win32") {
+      spawnSync("taskkill", ["/pid", String(child.pid), "/T", "/F"], {
+        windowsHide: true,
+      });
+    } else {
+      child.kill();
+    }
+  } catch {
+    // Already gone.
+  }
+}
+
+class PocketSpeechProvider implements SpeechProvider {
+  private child: ChildProcess | null = null;
+  private starting: Promise<void> | null = null;
+  private idleTimer: NodeJS.Timeout | undefined;
+  private active = 0;
+
+  constructor() {
+    process.once("exit", () => this.stop());
+  }
+
+  private stop() {
+    clearTimeout(this.idleTimer);
+    const child = this.child;
+    this.child = null;
+    this.starting = null;
+    if (child) killTree(child);
+  }
+
+  private async healthy() {
+    try {
+      const response = await fetch(`http://127.0.0.1:${POCKET_PORT}/health`, {
+        signal: AbortSignal.timeout(1500),
+      });
+      return response.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  private ensureRunning(): Promise<void> {
+    if (this.starting) return this.starting;
+    const starting = (async () => {
+      if (this.child && (await this.healthy())) return;
+      const exe = findPocketExe();
+      if (!exe) throw new Error("Pocket TTS is not installed on this PC");
+      logger.info("Starting Pocket TTS server");
+      const child = spawn(
+        exe,
+        ["serve", "--host", "127.0.0.1", "--port", String(POCKET_PORT)],
+        { windowsHide: true, stdio: "ignore" },
+      );
+      this.child = child;
+      child.on("exit", (code) => {
+        if (this.child !== child) return;
+        logger.warn(`Pocket TTS server exited (code ${code})`);
+        this.child = null;
+        this.starting = null;
+      });
+      child.on("error", (error) => {
+        logger.warn("Pocket TTS server failed to start", error);
+      });
+      const deadline = Date.now() + POCKET_START_TIMEOUT_MS;
+      while (Date.now() < deadline) {
+        if (this.child !== child)
+          throw new Error("Pocket TTS stopped while starting");
+        if (await this.healthy()) {
+          logger.info("Pocket TTS server ready");
+          return;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+      this.stop();
+      throw new Error("Pocket TTS did not start in time");
+    })();
+    this.starting = starting;
+    starting.catch(() => {
+      if (this.starting === starting) this.starting = null;
+    });
+    return starting;
+  }
+
+  private scheduleIdleShutdown() {
+    clearTimeout(this.idleTimer);
+    if (this.active > 0 || !this.child) return;
+    this.idleTimer = setTimeout(() => {
+      if (this.active === 0 && this.child) {
+        logger.info("Stopping idle Pocket TTS server");
+        this.stop();
+      }
+    }, IDLE_SHUTDOWN_MS);
+    this.idleTimer.unref();
+  }
+
+  async synthesize({ text, voice }: SpeechSynthesisInput) {
+    this.active++;
+    clearTimeout(this.idleTimer);
+    try {
+      await this.ensureRunning();
+      logger.info(`Generating Pocket speech (${text.length} chars)`);
+      const started = Date.now();
+      const body = new URLSearchParams({
+        text,
+        voice_url: pocketVoiceFor(voice),
+      });
+      const response = await fetch(`http://127.0.0.1:${POCKET_PORT}/tts`, {
+        method: "POST",
+        signal: AbortSignal.timeout(POCKET_REQUEST_TIMEOUT_MS),
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body,
+      });
+      if (!response.ok) {
+        throw new Error(`Pocket TTS returned HTTP ${response.status}`);
+      }
+      const data = new Uint8Array(await response.arrayBuffer());
+      if (data.byteLength === 0)
+        throw new Error("Pocket TTS returned empty audio");
+      logger.info(`Pocket speech generated in ${Date.now() - started}ms`);
+      return { data: fixStreamedWav(data), mimeType: "audio/wav" as const };
+    } finally {
+      this.active--;
+      this.scheduleIdleShutdown();
+    }
+  }
+}
+
 class OpenRouterSpeechProvider implements SpeechProvider {
   async synthesize({ text, voice }: SpeechSynthesisInput) {
     const apiKey = readSettings().providerSettings?.openrouter?.apiKey?.value;
@@ -283,6 +483,7 @@ const providers: Record<SpeechSynthesisInput["provider"], SpeechProvider> = {
   openrouter: new OpenRouterSpeechProvider(),
   venice: new VeniceSpeechProvider(),
   local: new KokoroSpeechProvider(),
+  pocket: new PocketSpeechProvider(),
 };
 
 export async function synthesizeSpeech(input: SpeechSynthesisInput) {

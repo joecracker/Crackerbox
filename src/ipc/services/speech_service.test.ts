@@ -20,7 +20,11 @@ vi.mock("electron-log", () => ({
 vi.mock("@/main/settings", () => ({ readSettings: () => readSettings() }));
 
 import { EventEmitter } from "node:events";
-import { synthesizeSpeech } from "./speech_service";
+import {
+  fixStreamedWav,
+  pocketVoiceFor,
+  synthesizeSpeech,
+} from "./speech_service";
 
 describe("synthesizeSpeech", () => {
   beforeEach(() => {
@@ -329,5 +333,39 @@ describe("synthesizeSpeech with the built-in voice", () => {
     });
     expect(child.killed).toBe(false);
     expect(forkMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Pocket voice helpers", () => {
+  it("falls back to Azelma for a voice Pocket does not have", () => {
+    expect(pocketVoiceFor("cosette")).toBe("cosette");
+    expect(pocketVoiceFor("af_bella")).toBe("azelma");
+  });
+
+  it("writes real sizes into a streamed WAV header", () => {
+    const bytes = new Uint8Array(60);
+    const view = new DataView(bytes.buffer);
+    bytes.set(
+      [..."RIFF"].map((c) => c.charCodeAt(0)),
+      0,
+    );
+    view.setUint32(4, 2_000_000_036, true);
+    bytes.set(
+      [..."WAVE"].map((c) => c.charCodeAt(0)),
+      8,
+    );
+    bytes.set(
+      [..."fmt "].map((c) => c.charCodeAt(0)),
+      12,
+    );
+    view.setUint32(16, 16, true);
+    bytes.set(
+      [..."data"].map((c) => c.charCodeAt(0)),
+      36,
+    );
+    view.setUint32(40, 2_000_000_000, true);
+    fixStreamedWav(bytes);
+    expect(view.getUint32(4, true)).toBe(52);
+    expect(view.getUint32(40, true)).toBe(16);
   });
 });

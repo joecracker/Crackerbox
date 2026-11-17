@@ -18,10 +18,26 @@ const VOICES = [
   ["bf_isabella", "Isabella — British"],
 ] as const;
 
+const POCKET_VOICES = [
+  ["azelma", "Azelma"],
+  ["cosette", "Cosette"],
+  ["eponine", "Eponine"],
+  ["alba", "Alba"],
+  ["fantine", "Fantine"],
+  ["marius", "Marius (male)"],
+  ["javert", "Javert (male)"],
+  ["jean", "Jean (male)"],
+] as const;
+
 export function VoiceSettings() {
   const { settings, updateSettings } = useSettings();
   const provider = settings?.speechProvider ?? "openrouter";
-  const voice = settings?.speechVoice ?? "af_bella";
+  const savedVoice = settings?.speechVoice ?? "af_bella";
+  const voiceList = provider === "pocket" ? POCKET_VOICES : VOICES;
+  // A voice from the other engine reads as that engine's default.
+  const voice = voiceList.some(([id]) => id === savedVoice)
+    ? savedVoice
+    : voiceList[0][0];
   const rate = settings?.speechRate ?? 1;
 
   return (
@@ -64,7 +80,8 @@ export function VoiceSettings() {
             if (
               value === "openrouter" ||
               value === "venice" ||
-              value === "local"
+              value === "local" ||
+              value === "pocket"
             ) {
               void updateSettings({ speechProvider: value });
             }
@@ -80,6 +97,9 @@ export function VoiceSettings() {
             <SelectItem value="venice">
               Venice — uses your Venice key
             </SelectItem>
+            <SelectItem value="pocket">
+              Pocket — natural voice on this PC
+            </SelectItem>
             <SelectItem value="local">Local — offline backup</SelectItem>
           </SelectContent>
         </Select>
@@ -94,7 +114,7 @@ export function VoiceSettings() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {VOICES.map(([id, label]) => (
+            {voiceList.map(([id, label]) => (
               <SelectItem key={id} value={id}>
                 {label}
               </SelectItem>
@@ -125,6 +145,12 @@ export function VoiceSettings() {
         voice model. If the cloud is unavailable, Crackerbox automatically uses
         the local voice.
       </p>
+      {provider === "pocket" && (
+        <p className="text-[13px] leading-relaxed text-muted-foreground">
+          Pocket runs on this PC. The first reply after starting can take a
+          little while; until it is ready, the local Kokoro voice speaks.
+        </p>
+      )}
       {provider === "venice" && voice === "bf_isabella" && (
         <p className="text-[13px] leading-relaxed text-muted-foreground">
           Venice doesn't have Isabella, so it speaks with Heart instead.

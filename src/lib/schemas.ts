@@ -650,7 +650,9 @@ const BaseUserSettingsFields = {
   // Show only the final message of each reply and fold her working. On unless
   // it is set to false.
   summaryView: z.boolean().optional(),
-  speechProvider: z.enum(["openrouter", "venice", "local"]).optional(),
+  speechProvider: z
+    .enum(["openrouter", "venice", "local", "pocket"])
+    .optional(),
   speechVoice: z.string().optional(),
   speechRate: z.number().min(0.7).max(1.35).optional(),
   skipNotificationBanner: z.boolean().optional(),

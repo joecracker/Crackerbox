@@ -33,12 +33,13 @@ import {
 } from "@/components/ui/tooltip";
 import { ArrowDown, Square } from "lucide-react";
 import { useSettings } from "@/hooks/useSettings";
+import { useSpokenVoice } from "@/hooks/useSpokenVoice";
+import { selectedAppIdAtom } from "@/atoms/appAtoms";
 import { useFreeAgentQuota } from "@/hooks/useFreeAgentQuota";
 import { useChatMode } from "@/hooks/useChatMode";
 import { isDyadProEnabled } from "@/lib/schemas";
 import { isFreeProModel } from "@/lib/freeProModel";
 import { terminalOpenByChatIdAtom } from "@/atoms/terminalAtoms";
-import { selectedAppIdAtom } from "@/atoms/appAtoms";
 import { useReducedMotionPref } from "@/hooks/useReducedMotion";
 import { useLoadApps } from "@/hooks/useLoadApps";
 import { useVersionPreview } from "@/hooks/useVersionPreview";
@@ -106,6 +107,7 @@ export function ChatPanel({
   const streamState = useChatStreamState(chatId) ?? { type: "idle" };
   const chatStreamManager = useChatStreamManager();
   const { settings } = useSettings();
+  const spoken = useSpokenVoice(chatId, selectedAppId, settings);
   const speechPlayback = useSpeechPlayback();
   const autoSpeakSawActiveStreamRef = useRef(false);
   const autoSpokenMessageIdsRef = useRef(new Set<number>());
@@ -162,16 +164,16 @@ export function ChatPanel({
     void playSpeech({
       messageId: message.id,
       text,
-      voice: settings.speechVoice ?? "af_bella",
+      voice: spoken.voice,
       speed: settings.speechRate ?? 1,
-      provider: settings.speechProvider ?? "openrouter",
+      provider: spoken.provider,
     }).catch(() => {
       // Speech is optional, but say why nothing played.
       showError(
         "Crackerbox couldn't play her voice. The reply is still here as text.",
       );
     });
-  }, [isStreaming, messages, settings]);
+  }, [isStreaming, messages, settings, spoken]);
 
   // Track previous chatId to detect chat switches
   const prevChatIdRef = useRef<number | undefined>(undefined);

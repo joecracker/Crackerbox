@@ -1,6 +1,6 @@
 import { readAvatarDataUrl } from "@/main/avatar_file";
 import { markChatSilent, readSilentChats } from "@/main/silent_chats";
-import { addEntity } from "@/main/house_entity";
+import { addEntity, updateEntity } from "@/main/house_entity";
 import {
   claudeStatus,
   listClaudeModels,
@@ -312,14 +312,18 @@ export function registerChatHandlers() {
   });
 
   createTypedHandler(chatContracts.listSisters, async () =>
-    readRoster().map(({ id, name, appId, color, initial, avatar }) => ({
-      id,
-      name,
-      appId,
-      color,
-      initial,
-      avatarUrl: readAvatarDataUrl(avatar),
-    })),
+    readRoster().map(
+      ({ id, name, appId, color, initial, avatar, voice, temperature }) => ({
+        id,
+        name,
+        appId,
+        color,
+        initial,
+        avatarUrl: readAvatarDataUrl(avatar),
+        voice,
+        temperature,
+      }),
+    ),
   );
 
   createTypedHandler(chatContracts.houseDoor, async () => doorStatus());
@@ -335,6 +339,19 @@ export function registerChatHandlers() {
       appId: s.appId,
       color: s.color,
       initial: s.initial,
+    };
+  });
+
+  createTypedHandler(chatContracts.updateEntity, async (_, params) => {
+    const s = updateEntity(params);
+    return {
+      id: s.id,
+      name: s.name,
+      appId: s.appId,
+      color: s.color,
+      initial: s.initial,
+      voice: s.voice,
+      temperature: s.temperature,
     };
   });
 

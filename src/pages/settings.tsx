@@ -57,6 +57,7 @@ import { WorkspaceColorSettings } from "@/components/settings/WorkspaceColorSett
 import { GmailIntegration } from "@/components/GmailIntegration";
 import { ModelPicker } from "@/components/ModelPicker";
 import { VoiceSettings } from "@/components/VoiceSettings";
+import { HouseSettings } from "@/components/HouseSettings";
 
 const hint = "text-[13px] leading-relaxed text-muted-foreground";
 
@@ -701,6 +702,9 @@ export function AISettings() {
       </div>
       <div id={SETTING_IDS.autoSpeak} className="space-y-1.5">
         <VoiceSettings />
+      </div>
+      <div className="space-y-1.5">
+        <HouseSettings />
       </div>
     </SettingsSection>
   );

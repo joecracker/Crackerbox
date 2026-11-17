@@ -56,6 +56,7 @@ import {
 import { ChatMessageAnnotationLayer } from "./ChatMessageAnnotationLayer";
 import { isChatMessageAnnotatable } from "./chatAnnotationEligibility";
 import { useSettings } from "@/hooks/useSettings";
+import { useSpokenVoice } from "@/hooks/useSpokenVoice";
 import { useSpeechPlayback } from "@/hooks/useSpeechPlayback";
 import { spokenTextForReply } from "@/lib/replySummary";
 import { playSpeech, stopSpeechPlayback } from "@/lib/speechPlayback";
@@ -171,6 +172,7 @@ const ChatMessage = ({
     () => spokenTextForReply(assistantTextContent, summaryViewOn),
     [assistantTextContent, summaryViewOn],
   );
+  const spoken = useSpokenVoice(selectedChatId, appId, settings);
   const isSpeakingThisMessage = speechPlayback.messageId === message.id;
   const handleSpeak = () => {
     if (isSpeakingThisMessage) {
@@ -181,9 +183,9 @@ const ChatMessage = ({
     void playSpeech({
       messageId: message.id,
       text: speechText,
-      voice: settings?.speechVoice ?? "af_bella",
+      voice: spoken.voice,
       speed: settings?.speechRate ?? 1,
-      provider: settings?.speechProvider ?? "openrouter",
+      provider: spoken.provider,
     }).catch(() => {
       // The assistant response stays usable as text, but say why nothing played.
       showError(

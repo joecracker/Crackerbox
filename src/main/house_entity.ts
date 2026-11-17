@@ -7,6 +7,7 @@ import { getDyadAppPath } from "@/paths/paths";
 import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
 import { readSettings, writeSettings } from "@/main/settings";
 import { normalizeTemperature } from "@/shared/temperament";
+import { isPocketVoice } from "@/shared/pocket_voices";
 import {
   houseDir,
   readRoster,
@@ -49,6 +50,40 @@ ${voice}
 - Your private memory is yours. Use it for things worth remembering about the person you work with.
 - Do the work you are asked to do properly. Personality is how you say it, not a reason to do less.
 `;
+}
+
+export function updateEntity(input: {
+  id: string;
+  voice?: string | null;
+  temperature?: number | null;
+}): Sister {
+  const roster = readRoster();
+  const sister = roster.find((s) => s.id === input.id);
+  if (!sister) {
+    throw new DyadError(
+      "That entity is not in the house.",
+      DyadErrorKind.Validation,
+    );
+  }
+  if (input.voice !== undefined) {
+    if (input.voice === null || input.voice === "") {
+      delete sister.voice;
+    } else if (isPocketVoice(input.voice)) {
+      sister.voice = input.voice;
+    } else {
+      throw new DyadError(
+        "That is not one of the available voices.",
+        DyadErrorKind.Validation,
+      );
+    }
+  }
+  if (input.temperature !== undefined) {
+    const temperature = normalizeTemperature(input.temperature);
+    if (temperature === undefined) delete sister.temperature;
+    else sister.temperature = temperature;
+  }
+  writeRoster(roster);
+  return sister;
 }
 
 export async function addEntity(input: {

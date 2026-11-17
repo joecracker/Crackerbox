@@ -39,6 +39,11 @@ export interface Sister {
    * engines stay behind it as backups. A request that names an engine still wins.
    */
   imageEngine?: string;
+  /**
+   * Optional voice of her own (a Pocket TTS voice name, e.g. "azelma"). When
+   * set, her replies are spoken with it. Older rosters have none.
+   */
+  voice?: string;
 }
 
 // A fresh install starts with an empty house; the user adds their own entities.

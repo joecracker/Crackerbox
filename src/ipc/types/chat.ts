@@ -372,6 +372,8 @@ export const SisterSchema = z.object({
   color: z.string(),
   initial: z.string(),
   avatarUrl: z.string().optional(),
+  voice: z.string().optional(),
+  temperature: z.number().optional(),
 });
 export type SisterSummary = z.infer<typeof SisterSchema>;
 
@@ -480,6 +482,17 @@ export const chatContracts = {
     output: SisterSchema,
     invalidates: () => [{ family: "chats" }, { family: "apps" }],
     originHandles: () => [{ family: "chats" }],
+  }),
+
+  updateEntity: defineContract({
+    channel: "house:update-entity",
+    input: z.object({
+      id: z.string(),
+      // null clears it (back to the normal voice / the model's default).
+      voice: z.string().nullable().optional(),
+      temperature: z.number().min(0).max(2).nullable().optional(),
+    }),
+    output: SisterSchema,
   }),
 
   markChatSilent: defineContract({

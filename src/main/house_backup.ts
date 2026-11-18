@@ -33,6 +33,14 @@ export interface BackupCtx {
   targets: BackupTarget[];
   houseDir: string;
   extraFiles: string[];
+  /**
+   * Writes one consistent copy of the live database to this file. The three
+   * database files (main, -wal, -shm) must never be copied one by one while the
+   * app is writing: the copies can end up out of step and not open.
+   */
+  copyDatabase?: (destFile: string) => Promise<void>;
+  /** The raw database files, copied only if `copyDatabase` is missing or fails. */
+  databaseFiles?: string[];
   now: Date;
 }
 
@@ -282,7 +290,20 @@ export async function runBackup(ctx: BackupCtx): Promise<void> {
       force: true,
     });
   }
-  for (const f of ctx.extraFiles) {
+  let databaseCopied = false;
+  if (ctx.copyDatabase) {
+    try {
+      await ctx.copyDatabase(path.join(snap, "sqlite.db"));
+      databaseCopied = true;
+    } catch (error) {
+      logger.warn(
+        "consistent database copy failed; copying the raw files instead",
+        error,
+      );
+    }
+  }
+  const rawFiles = databaseCopied ? [] : (ctx.databaseFiles ?? []);
+  for (const f of [...ctx.extraFiles, ...rawFiles]) {
     if (exists(f)) {
       try {
         await fs.promises.copyFile(f, path.join(snap, path.basename(f)));
@@ -387,9 +408,15 @@ function buildCtx(): BackupCtx {
       memoryDir: agentMemoryDir(s.appId),
     })),
     houseDir: houseDir(),
-    extraFiles: ["sqlite.db", "sqlite.db-wal", "sqlite.db-shm"].map((n) =>
+    extraFiles: [],
+    databaseFiles: ["sqlite.db", "sqlite.db-wal", "sqlite.db-shm"].map((n) =>
       path.join(dataDir, n),
     ),
+    copyDatabase: async (destFile) => {
+      // Loaded here, not at the top, so this file stays light to import.
+      const { getDb } = await import("@/db");
+      await getDb().$client.backup(destFile);
+    },
     now: new Date(),
   };
 }

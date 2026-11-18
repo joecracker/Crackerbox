@@ -254,3 +254,35 @@ describe("pruneMirror", () => {
     ).toBe(true);
   });
 });
+
+describe("database copy", () => {
+  it("uses the consistent copy and skips the raw files when it works", async () => {
+    const { ctx, base } = setup();
+    const raw = path.join(base, "sqlite.db");
+    fs.writeFileSync(raw, "raw main");
+    const copyDatabase = async (dest: string) => {
+      fs.writeFileSync(dest, "consistent");
+    };
+    await runBackup({ ...ctx, databaseFiles: [raw], copyDatabase });
+    const snaps = path.join(ctx.root, "snapshots");
+    const day = fs.readdirSync(snaps)[0];
+    expect(fs.readFileSync(path.join(snaps, day, "sqlite.db"), "utf8")).toBe(
+      "consistent",
+    );
+  });
+
+  it("falls back to the raw files when the consistent copy fails, so a backup still exists", async () => {
+    const { ctx, base } = setup();
+    const raw = path.join(base, "sqlite.db");
+    fs.writeFileSync(raw, "raw main");
+    const copyDatabase = async () => {
+      throw new Error("database not open");
+    };
+    await runBackup({ ...ctx, databaseFiles: [raw], copyDatabase });
+    const snaps = path.join(ctx.root, "snapshots");
+    const day = fs.readdirSync(snaps)[0];
+    expect(fs.readFileSync(path.join(snaps, day, "sqlite.db"), "utf8")).toBe(
+      "raw main",
+    );
+  });
+});

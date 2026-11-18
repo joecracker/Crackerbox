@@ -14,6 +14,8 @@ vi.mock("electron-log", () => ({
 
 import {
   BACKUP_RETRY_MS,
+  MIRROR_KEEP_DAYS,
+  pruneMirror,
   mayTryBackup,
   isHollow,
   pruneSnapshots,
@@ -156,5 +158,99 @@ describe("backup retry gate", () => {
     expect(mayTryBackup(1_000, 1_000 + 60_000)).toBe(false);
     expect(mayTryBackup(1_000, 1_000 + BACKUP_RETRY_MS - 1)).toBe(false);
     expect(mayTryBackup(1_000, 1_000 + BACKUP_RETRY_MS)).toBe(true);
+  });
+});
+
+describe("pruneMirror", () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  function dirs() {
+    const base = fs.mkdtempSync(path.join(os.tmpdir(), "hb-prune-"));
+    const live = path.join(base, "live");
+    const mirror = path.join(base, "mirror");
+    fs.mkdirSync(path.join(live, "pack"), { recursive: true });
+    fs.mkdirSync(path.join(mirror, "pack"), { recursive: true });
+    return { base, live, mirror, gone: path.join(base, "gone", "x.json") };
+  }
+  const put = (file: string, text = "x") => fs.writeFileSync(file, text);
+
+  it("keeps a missing file for 30 days, then removes it, and leaves live files alone", async () => {
+    const { live, mirror, gone } = dirs();
+    put(path.join(live, "pack", "new.pack"));
+    put(path.join(mirror, "pack", "new.pack"));
+    put(path.join(mirror, "pack", "old.pack"));
+    const t0 = Date.UTC(2026, 10, 1);
+
+    expect(await pruneMirror(live, mirror, gone, t0)).toBe(0);
+    expect(fs.existsSync(path.join(mirror, "pack", "old.pack"))).toBe(true);
+
+    expect(
+      await pruneMirror(live, mirror, gone, t0 + (MIRROR_KEEP_DAYS - 1) * DAY),
+    ).toBe(0);
+    expect(fs.existsSync(path.join(mirror, "pack", "old.pack"))).toBe(true);
+
+    expect(
+      await pruneMirror(live, mirror, gone, t0 + MIRROR_KEEP_DAYS * DAY),
+    ).toBe(1);
+    expect(fs.existsSync(path.join(mirror, "pack", "old.pack"))).toBe(false);
+    expect(fs.existsSync(path.join(mirror, "pack", "new.pack"))).toBe(true);
+  });
+
+  it("forgets a file that comes back, so its 30 days start over", async () => {
+    const { live, mirror, gone } = dirs();
+    put(path.join(mirror, "pack", "a.pack"));
+    const t0 = Date.UTC(2026, 10, 1);
+    await pruneMirror(live, mirror, gone, t0);
+    put(path.join(live, "pack", "a.pack")); // it came back
+    await pruneMirror(live, mirror, gone, t0 + 20 * DAY);
+    fs.rmSync(path.join(live, "pack", "a.pack")); // gone again
+    await pruneMirror(live, mirror, gone, t0 + 40 * DAY);
+    expect(fs.existsSync(path.join(mirror, "pack", "a.pack"))).toBe(true);
+    await pruneMirror(live, mirror, gone, t0 + 70 * DAY);
+    expect(fs.existsSync(path.join(mirror, "pack", "a.pack"))).toBe(false);
+  });
+
+  it("removes folders it empties, and does nothing when the live folder is not there", async () => {
+    const { base, live, mirror, gone } = dirs();
+    fs.mkdirSync(path.join(mirror, "sub"));
+    put(path.join(mirror, "sub", "b.txt"));
+    const t0 = Date.UTC(2026, 10, 1);
+    await pruneMirror(live, mirror, gone, t0);
+    await pruneMirror(live, mirror, gone, t0 + 31 * DAY);
+    expect(fs.existsSync(path.join(mirror, "sub"))).toBe(false);
+
+    fs.mkdirSync(path.join(mirror, "pack"), { recursive: true });
+    put(path.join(mirror, "pack", "c.pack"));
+    expect(
+      await pruneMirror(
+        path.join(base, "no-such"),
+        mirror,
+        gone,
+        t0 + 99 * DAY,
+      ),
+    ).toBe(0);
+    expect(fs.existsSync(path.join(mirror, "pack", "c.pack"))).toBe(true);
+  });
+
+  it("a full backup run prunes through the same rule", async () => {
+    const { ctx } = setup();
+    await runBackup(ctx);
+    const mirrorFile = path.join(
+      ctx.root,
+      "mirror",
+      "veritas",
+      "docs",
+      "old.md",
+    );
+    fs.writeFileSync(mirrorFile, "was deleted from live");
+    await runBackup(ctx);
+    expect(fs.existsSync(mirrorFile)).toBe(true);
+    await runBackup({
+      ...ctx,
+      now: new Date(ctx.now.getTime() + (MIRROR_KEEP_DAYS + 1) * DAY),
+    });
+    expect(fs.existsSync(mirrorFile)).toBe(false);
+    expect(
+      fs.existsSync(path.join(ctx.root, "mirror", "veritas", "docs", "me.md")),
+    ).toBe(true);
   });
 });

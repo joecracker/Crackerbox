@@ -88,6 +88,84 @@ async function copyTree(
   }
 }
 
+/** A file that has left the live folder stays in the mirror this long, then goes. */
+export const MIRROR_KEEP_DAYS = 30;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * The mirror never removes a file the moment it disappears from the live folder
+ * (that is the whole point of it: an accidental delete can be undone). But git
+ * rewrites its pack files all the time, and the old ones used to pile up in the
+ * mirror for ever. So a file that has been missing from the live folder for
+ * MIRROR_KEEP_DAYS in a row is removed from the mirror. `goneFile` remembers
+ * when each missing file was first noticed missing; a file that comes back is
+ * forgotten again. Returns how many files were removed.
+ */
+export async function pruneMirror(
+  liveDir: string,
+  mirrorDir: string,
+  goneFile: string,
+  nowMs: number,
+  skipDir: (name: string) => boolean = () => false,
+): Promise<number> {
+  if (!exists(liveDir) || !exists(mirrorDir)) return 0;
+  let known: Record<string, number> = {};
+  try {
+    const parsed = JSON.parse(await fs.promises.readFile(goneFile, "utf8"));
+    if (parsed && typeof parsed === "object") known = parsed;
+  } catch {
+    // first run
+  }
+  const stillGone: Record<string, number> = {};
+  let removed = 0;
+
+  const walk = async (rel: string): Promise<boolean> => {
+    const dir = path.join(mirrorDir, rel);
+    let entries: fs.Dirent[];
+    try {
+      entries = await fs.promises.readdir(dir, { withFileTypes: true });
+    } catch {
+      return false;
+    }
+    let left = 0;
+    for (const e of entries) {
+      const childRel = rel ? path.join(rel, e.name) : e.name;
+      const mirrored = path.join(mirrorDir, childRel);
+      if (e.isDirectory()) {
+        if (skipDir(e.name)) {
+          left++;
+          continue;
+        }
+        if (await walk(childRel)) left++;
+        else await fs.promises.rmdir(mirrored).catch(() => left++);
+        continue;
+      }
+      if (exists(path.join(liveDir, childRel))) {
+        left++;
+        continue;
+      }
+      const since = known[childRel] ?? nowMs;
+      if (nowMs - since >= MIRROR_KEEP_DAYS * DAY_MS) {
+        try {
+          await fs.promises.chmod(mirrored, 0o666).catch(() => {});
+          await fs.promises.rm(mirrored, { force: true });
+          removed++;
+          continue;
+        } catch (error) {
+          logger.warn(`could not remove old mirror file ${childRel}`, error);
+        }
+      }
+      stillGone[childRel] = since;
+      left++;
+    }
+    return left > 0;
+  };
+  await walk("");
+  await fs.promises.mkdir(path.dirname(goneFile), { recursive: true });
+  await fs.promises.writeFile(goneFile, JSON.stringify(stillGone));
+  return removed;
+}
+
 /** A sister's folder counts as gone when it is missing or has lost both docs and .env. */
 export function isHollow(folder: string): boolean {
   if (!exists(folder)) return true;
@@ -156,6 +234,21 @@ export async function runBackup(ctx: BackupCtx): Promise<void> {
       path.join(ctx.root, "mirror", t.id),
       (n) => n === "node_modules",
     );
+    try {
+      const removed = await pruneMirror(
+        t.folder,
+        path.join(ctx.root, "mirror", t.id),
+        path.join(ctx.root, "mirror-gone", `${t.id}.json`),
+        ctx.now.getTime(),
+        (n) => n === "node_modules",
+      );
+      if (removed > 0) {
+        logger.info(`${t.id}: removed ${removed} old file(s) from the mirror`);
+      }
+    } catch (error) {
+      // A stuck clean-up must never make the backup itself count as failed.
+      logger.warn(`${t.id}: could not tidy the mirror`, error);
+    }
     // small identity snapshot: top-level small files + docs
     const tsnap = path.join(snap, t.id);
     await fs.promises.mkdir(tsnap, { recursive: true });

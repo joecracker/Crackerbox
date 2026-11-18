@@ -35,6 +35,7 @@ import {
   gitAddAll,
   gitCommit,
   gitPush,
+  gitSnapshotPersonalFiles,
   getGitStateFingerprint,
 } from "@/ipc/utils/git_utils";
 import { GitService } from "@/ipc/services/git_service";
@@ -1252,6 +1253,85 @@ describe("personal paths", () => {
       expect(log.trim().split("\n")).toHaveLength(1);
     } finally {
       await fs.promises.rm(remote, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("gitSnapshotPersonalFiles", () => {
+  it("saves personal files in the private history and leaves the shared repo alone", async () => {
+    const repoDir = await fs.promises.mkdtemp(
+      path.join(os.tmpdir(), "git-snap-"),
+    );
+    const privateDir = await fs.promises.mkdtemp(
+      path.join(os.tmpdir(), "git-snap-private-"),
+    );
+    try {
+      await runGit(repoDir, ["init", "-b", "main"]);
+      await runGit(privateDir, ["init", "--bare", "-b", "main"]);
+      await runGit(privateDir, ["config", "core.bare", "false"]);
+      await fs.promises.mkdir(path.join(repoDir, "housemaster"), {
+        recursive: true,
+      });
+      await fs.promises.writeFile(
+        path.join(repoDir, "housemaster", "personal-paths.txt"),
+        "NOTES.md\nsecret/\nmissing.md\n",
+      );
+      await fs.promises.writeFile(
+        path.join(repoDir, ".git", "cb-private-gitdir"),
+        privateDir + "\n",
+      );
+      await fs.promises.writeFile(path.join(repoDir, "NOTES.md"), "private\n");
+      await fs.promises.mkdir(path.join(repoDir, "secret"));
+      await fs.promises.writeFile(path.join(repoDir, "secret", "a.txt"), "x\n");
+      await fs.promises.writeFile(path.join(repoDir, "shared.txt"), "s\n");
+
+      await gitSnapshotPersonalFiles({ path: repoDir });
+
+      const files = (
+        await execFileAsync("git", [`--git-dir=${privateDir}`, "ls-files"], {
+          cwd: repoDir,
+        })
+      ).stdout
+        .split("\n")
+        .filter(Boolean)
+        .sort();
+      expect(files).toEqual(["NOTES.md", "secret/a.txt"]);
+
+      // A second snapshot with nothing new adds no commit.
+      await gitSnapshotPersonalFiles({ path: repoDir });
+      const count = (
+        await execFileAsync(
+          "git",
+          [`--git-dir=${privateDir}`, "rev-list", "--count", "HEAD"],
+          { cwd: repoDir },
+        )
+      ).stdout.trim();
+      expect(count).toBe("1");
+    } finally {
+      await fs.promises.rm(repoDir, { recursive: true, force: true });
+      await fs.promises.rm(privateDir, { recursive: true, force: true });
+    }
+  });
+
+  it("does nothing when no private history is set up", async () => {
+    const repoDir = await fs.promises.mkdtemp(
+      path.join(os.tmpdir(), "git-snap-none-"),
+    );
+    try {
+      await runGit(repoDir, ["init", "-b", "main"]);
+      await fs.promises.mkdir(path.join(repoDir, "housemaster"), {
+        recursive: true,
+      });
+      await fs.promises.writeFile(
+        path.join(repoDir, "housemaster", "personal-paths.txt"),
+        "NOTES.md\n",
+      );
+      await fs.promises.writeFile(path.join(repoDir, "NOTES.md"), "private\n");
+      await expect(
+        gitSnapshotPersonalFiles({ path: repoDir }),
+      ).resolves.toBeUndefined();
+    } finally {
+      await fs.promises.rm(repoDir, { recursive: true, force: true });
     }
   });
 });

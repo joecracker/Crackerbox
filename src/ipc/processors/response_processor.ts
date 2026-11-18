@@ -34,6 +34,7 @@ import {
   gitAdd,
   gitRemove,
   gitAddAll,
+  gitSnapshotPersonalFiles,
   getGitUncommittedFiles,
   hasStagedChanges,
 } from "../utils/git_utils";
@@ -784,6 +785,10 @@ export async function processFullResponseActions(
             extraFilesError = (error as any).toString();
           }
         }
+
+        // Personal files (never part of the shared commit) get their own
+        // local-only snapshot, so they are saved without ever reaching GitHub.
+        await gitSnapshotPersonalFiles({ path: appPath });
 
         // Save the commit hash to the message
         await db

@@ -1072,6 +1072,54 @@ export async function gitStageToRevert({
 }
 
 /**
+ * Saves the personal files into the private, local-only history (`pgit`, see
+ * housemaster/pgit.mjs). Does nothing unless that history was set up for this
+ * repo (it leaves a pointer at `.git/cb-private-gitdir`). Never throws: a failed
+ * personal snapshot must not break a chat turn.
+ */
+export async function gitSnapshotPersonalFiles({
+  path,
+}: GitBaseParams): Promise<void> {
+  try {
+    const personal = readPersonalPaths(path);
+    if (personal.length === 0) return;
+    const pointer = pathModule.join(path, ".git", "cb-private-gitdir");
+    if (!fs.existsSync(pointer)) return;
+    const gitDir = (await fsPromises.readFile(pointer, "utf8")).trim();
+    if (!gitDir || !fs.existsSync(gitDir)) return;
+    const base = [`--git-dir=${gitDir}`, `--work-tree=${path}`];
+    for (const entry of personal) {
+      // A path that does not exist yet (and was never saved) just fails; skip it.
+      await execGit([...base, "add", "-A", "-f", "--", entry], path);
+    }
+    const pending = await execGit(
+      [...base, "status", "--porcelain", "--untracked-files=no"],
+      path,
+    );
+    if (pending.exitCode !== 0 || pending.stdout.toString().trim() === "") {
+      return;
+    }
+    const stamp = new Date().toISOString().slice(0, 16).replace("T", " ");
+    await execGit(
+      [
+        ...base,
+        "-c",
+        "user.name=pgit",
+        "-c",
+        "user.email=pgit@localhost",
+        "commit",
+        "-q",
+        "-m",
+        `Personal files ${stamp}`,
+      ],
+      path,
+    );
+  } catch (error) {
+    logger.warn("Personal files snapshot failed", error);
+  }
+}
+
+/**
  * Removes personal files from a list of changed paths, for the banner and the
  * "uncommitted files" lists. `git status` folds a wholly untracked folder into
  * one entry (for example `public/`); when such a folder holds personal files

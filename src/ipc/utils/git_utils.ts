@@ -14,6 +14,7 @@ import { platform, tmpdir } from "node:os";
 import log from "electron-log";
 import { normalizePath } from "../../../shared/normalizePath";
 import { safeJoin } from "./path_utils";
+import { isPersonalPath, readPersonalPaths } from "./personal_paths";
 import { ensureLibcurlShimOnLinux } from "./linux_libcurl_shim";
 import { getPathEnvKey } from "./path_env";
 import type { UncommittedFile, UncommittedFileStatus } from "@/ipc/types";
@@ -949,6 +950,7 @@ export async function gitCommit({
       // in the index instead of being swept into this commit.
       commitArgs.push("--", ...paths.map(normalizePath));
     }
+    await unstagePersonalPaths(path);
     const args = await withGitAuthor(commitArgs);
     await execOrThrow(args, path, "Failed to create commit");
     // Get the new commit hash
@@ -1069,9 +1071,131 @@ export async function gitStageToRevert({
   return hasStagedChanges({ path });
 }
 
+/**
+ * Removes personal files from a list of changed paths, for the banner and the
+ * "uncommitted files" lists. `git status` folds a wholly untracked folder into
+ * one entry (for example `public/`); when such a folder holds personal files
+ * the entry is expanded so only its shared files are listed.
+ */
+async function withoutPersonalPaths<T extends { path: string }>(
+  repoPath: string,
+  entries: T[],
+): Promise<T[]> {
+  const personal = readPersonalPaths(repoPath);
+  if (personal.length === 0) return entries;
+  const kept: T[] = [];
+  for (const entry of entries) {
+    if (isPersonalPath(entry.path, personal)) continue;
+    if (
+      entry.path.endsWith("/") &&
+      personal.some((pattern) => pattern.startsWith(entry.path))
+    ) {
+      const listed = await execGit(
+        [
+          "-c",
+          "core.quotepath=false",
+          "ls-files",
+          "--others",
+          "--exclude-standard",
+          "--",
+          entry.path,
+        ],
+        repoPath,
+      );
+      if (listed.exitCode === 0) {
+        for (const file of listed.stdout.toString().split(/\r?\n/)) {
+          if (file !== "" && !isPersonalPath(file, personal))
+            kept.push({ ...entry, path: file });
+        }
+        continue;
+      }
+    }
+    kept.push(entry);
+  }
+  return kept;
+}
+
+/**
+ * Personal files (see personal_paths.ts) are never staged for a shared commit.
+ * Anything on the repo's personal list that is staged is quietly taken back out
+ * of the index, so the auto-commit sweep and every other commit route skip it.
+ */
+async function unstagePersonalPaths(path: string): Promise<void> {
+  const personal = readPersonalPaths(path);
+  if (personal.length === 0) return;
+  const staged = await execGit(["diff", "--cached", "--name-only", "-z"], path);
+  if (staged.exitCode !== 0) return;
+  const names = staged.stdout
+    .toString()
+    .split("\0")
+    .filter((name) => name !== "" && isPersonalPath(name, personal));
+  if (names.length === 0) return;
+  let result = await execGit(["reset", "-q", "HEAD", "--", ...names], path);
+  if (result.exitCode !== 0) {
+    // No HEAD yet (first commit): drop them from the index directly.
+    result = await execGit(
+      ["rm", "--cached", "-r", "-q", "--ignore-unmatch", "--", ...names],
+      path,
+    );
+  }
+  if (result.exitCode !== 0) {
+    throw new DyadError(
+      `Could not keep personal files out of the commit: ${result.stderr.trim()}`,
+      DyadErrorKind.Precondition,
+    );
+  }
+  logger.info(`Kept ${names.length} personal file(s) out of the commit`);
+}
+
+/**
+ * Refuses a push that would send commits touching personal files. Checked
+ * against the commits that are about to leave (or the whole branch when the
+ * remote has none yet). Fails closed: if it cannot look, it does not push.
+ */
+async function assertNoPersonalFilesInPush(
+  path: string,
+  branch: string,
+): Promise<void> {
+  const personal = readPersonalPaths(path);
+  if (personal.length === 0) return;
+  const remoteRef = `refs/remotes/origin/${branch}`;
+  const hasRemote =
+    (await execGit(["rev-parse", "--verify", "-q", remoteRef], path))
+      .exitCode === 0;
+  const range = hasRemote
+    ? `${remoteRef}..refs/heads/${branch}`
+    : `refs/heads/${branch}`;
+  const result = await execGit(
+    ["-c", "core.quotepath=false", "log", "--name-only", "--format=", range],
+    path,
+  );
+  if (result.exitCode !== 0) {
+    throw new DyadError(
+      `Push blocked: could not check the commits for personal files (${result.stderr.trim()}).`,
+      DyadErrorKind.Precondition,
+    );
+  }
+  const hits = [
+    ...new Set(
+      result.stdout
+        .toString()
+        .split(/\r?\n/)
+        .filter((name) => name !== "" && isPersonalPath(name, personal)),
+    ),
+  ];
+  if (hits.length > 0) {
+    const shown = hits.slice(0, 5).join(", ");
+    throw new DyadError(
+      `Push blocked: these commits include personal files (${shown}${hits.length > 5 ? ", ..." : ""}). The shared repo is public. Keep personal files in the private history (pgit) and push only shared work.`,
+      DyadErrorKind.Precondition,
+    );
+  }
+}
+
 export async function gitAddAll({ path }: GitBaseParams): Promise<void> {
   await ensureGitLineEndingPolicy({ path });
   await execOrThrow(["add", "."], path, "Failed to stage all files");
+  await unstagePersonalPaths(path);
   return;
 }
 
@@ -1255,17 +1379,20 @@ export async function getGitUncommittedFiles({
       DyadErrorKind.Conflict,
     );
   }
-  return (
-    result.stdout
-      .toString()
-      .split("\n")
-      .filter((line) => line.trim() !== "")
-      // Decode git's C-style path quoting (including `\NNN` octal escapes for
-      // non-ASCII/control bytes) and expand rename entries into both sides, so
-      // non-ASCII paths are returned verbatim and `.dyad/` filtering matches.
-      .flatMap(getPorcelainPaths)
-      .filter(isUserVisibleGitPath)
+  const files = result.stdout
+    .toString()
+    .split("\n")
+    .filter((line) => line.trim() !== "")
+    // Decode git's C-style path quoting (including `\NNN` octal escapes for
+    // non-ASCII/control bytes) and expand rename entries into both sides, so
+    // non-ASCII paths are returned verbatim and `.dyad/` filtering matches.
+    .flatMap(getPorcelainPaths)
+    .filter(isUserVisibleGitPath);
+  const visible = await withoutPersonalPaths(
+    path,
+    files.map((file) => ({ path: file })),
   );
+  return visible.map((entry) => entry.path);
 }
 
 function countLines(content: string): number {
@@ -1595,7 +1722,10 @@ export async function getGitUncommittedFilesWithStatus({
         oldPath?: string;
       } => file !== null && isUserVisibleGitPath(file.path),
     );
-  return attachLineStats({ path, files });
+  return attachLineStats({
+    path,
+    files: await withoutPersonalPaths(path, files),
+  });
 }
 
 export async function getFileAtCommit({
@@ -1864,6 +1994,7 @@ export async function gitPush({
   const targetBranch = branch || "main";
 
   try {
+    await assertNoPersonalFilesInPush(path, targetBranch);
     const args = ["push", "origin", `${targetBranch}:${targetBranch}`];
     if (forceWithLease) {
       args.push("--force-with-lease");

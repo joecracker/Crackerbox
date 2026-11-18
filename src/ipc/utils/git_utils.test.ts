@@ -34,6 +34,7 @@ import {
   restoreGitIndexEntries,
   gitAddAll,
   gitCommit,
+  gitPush,
   getGitStateFingerprint,
 } from "@/ipc/utils/git_utils";
 import { GitService } from "@/ipc/services/git_service";
@@ -1133,4 +1134,124 @@ describe("gitFetch", () => {
     expect(remaining).not.toContain("origin/feature/gone");
     expect(remaining).toContain("origin/main");
   }, 30_000);
+});
+
+describe("personal paths", () => {
+  let repoDir: string;
+
+  async function makeRepo() {
+    repoDir = await fs.promises.mkdtemp(
+      path.join(os.tmpdir(), "git-personal-"),
+    );
+    await runGit(repoDir, ["init", "-b", "main"]);
+    await runGit(repoDir, ["config", "user.email", "t@example.com"]);
+    await runGit(repoDir, ["config", "user.name", "t"]);
+    await fs.promises.mkdir(path.join(repoDir, "housemaster"), {
+      recursive: true,
+    });
+    await fs.promises.writeFile(
+      path.join(repoDir, "housemaster", "personal-paths.txt"),
+      "# test list\nNOTES.md\nsecret/\n",
+    );
+    await fs.promises.writeFile(path.join(repoDir, "shared.txt"), "one\n");
+    await gitAddAll({ path: repoDir });
+    await gitCommit({ path: repoDir, message: "base" });
+  }
+
+  async function write(rel: string, text: string) {
+    const file = path.join(repoDir, rel);
+    await fs.promises.mkdir(path.dirname(file), { recursive: true });
+    await fs.promises.writeFile(file, text);
+  }
+
+  afterEach(async () => {
+    await fs.promises.rm(repoDir, {
+      recursive: true,
+      force: true,
+      maxRetries: 3,
+      retryDelay: 100,
+    });
+  });
+
+  it("keeps personal files out of the commit but commits shared ones", async () => {
+    await makeRepo();
+    await write("NOTES.md", "private\n");
+    await write("secret/a.jpg", "img\n");
+    await write("shared.txt", "two\n");
+    await gitAddAll({ path: repoDir });
+    await gitCommit({ path: repoDir, message: "sweep" });
+
+    const files = (
+      await runGitOutput(repoDir, ["show", "--name-only", "--format=", "HEAD"])
+    )
+      .split("\n")
+      .filter(Boolean);
+    expect(files).toEqual(["shared.txt"]);
+  });
+
+  it("still refuses to commit when only personal files changed", async () => {
+    await makeRepo();
+    await write("NOTES.md", "private\n");
+    await gitAddAll({ path: repoDir });
+    await expect(
+      gitCommit({ path: repoDir, message: "only personal" }),
+    ).rejects.toThrow();
+  });
+
+  it("leaves personal files out of the uncommitted lists", async () => {
+    await makeRepo();
+    await write("NOTES.md", "private\n");
+    await write("secret/a.jpg", "img\n");
+    await write("shared.txt", "two\n");
+    expect(await getGitUncommittedFiles({ path: repoDir })).toEqual([
+      "shared.txt",
+    ]);
+    const withStatus = await getGitUncommittedFilesWithStatus({
+      path: repoDir,
+    });
+    expect(withStatus.map((f) => f.path)).toEqual(["shared.txt"]);
+  });
+
+  it("expands an untracked folder that mixes personal and shared files", async () => {
+    await makeRepo();
+    await write("secret/a.jpg", "img\n");
+    await write("secret/b.jpg", "img\n");
+    expect(await getGitUncommittedFiles({ path: repoDir })).toEqual([]);
+  });
+
+  it("refuses to push commits that touch personal files", async () => {
+    await makeRepo();
+    const remote = await fs.promises.mkdtemp(
+      path.join(os.tmpdir(), "git-personal-remote-"),
+    );
+    try {
+      await runGit(remote, ["init", "--bare", "-b", "main"]);
+      await runGit(repoDir, ["remote", "add", "origin", remote]);
+      // A personal file committed by hand, bypassing the app's own guard.
+      await write("NOTES.md", "private\n");
+      await runGit(repoDir, ["add", "-f", "NOTES.md"]);
+      await runGit(repoDir, ["commit", "-m", "oops"]);
+      await expect(
+        gitPush({ path: repoDir, branch: "main", accessToken: "" }),
+      ).rejects.toThrow(/personal files/);
+    } finally {
+      await fs.promises.rm(remote, { recursive: true, force: true });
+    }
+  });
+
+  it("pushes when nothing personal is in the commits", async () => {
+    await makeRepo();
+    const remote = await fs.promises.mkdtemp(
+      path.join(os.tmpdir(), "git-personal-remote-"),
+    );
+    try {
+      await runGit(remote, ["init", "--bare", "-b", "main"]);
+      await runGit(repoDir, ["remote", "add", "origin", remote]);
+      await gitPush({ path: repoDir, branch: "main", accessToken: "" });
+      const log = await runGitOutput(remote, ["log", "--oneline", "main"]);
+      expect(log.trim().split("\n")).toHaveLength(1);
+    } finally {
+      await fs.promises.rm(remote, { recursive: true, force: true });
+    }
+  });
 });

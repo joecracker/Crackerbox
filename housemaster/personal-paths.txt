@@ -1,0 +1,13 @@
+# Paths that are PERSONAL to this computer and must never reach GitHub.
+# This repo is public. Names only; never put the private text itself here.
+#
+# One path per line. A line ending in "/" means that whole folder.
+# These are kept out of every shared commit and every push by:
+#   - the app (the auto-commit sweep skips them, the push button refuses them)
+#   - .husky/pre-commit and .husky/pre-push (git on the command line)
+# They get their own local-only history instead: see housemaster/README.md ("pgit").
+
+AI_RULES.md
+private/
+public/library/
+docs/dextra/

@@ -49,7 +49,7 @@ describe("SETTINGS_SEARCH_INDEX", () => {
         "secure",
       ],
       sectionId: SECTION_IDS.experiments,
-      sectionLabel: "Experiments",
+      sectionLabel: "Early features",
     });
   });
 
@@ -72,7 +72,7 @@ describe("SETTINGS_SEARCH_INDEX", () => {
         "experiment",
       ],
       sectionId: SECTION_IDS.experiments,
-      sectionLabel: "Experiments",
+      sectionLabel: "Early features",
     });
   });
 
@@ -97,7 +97,7 @@ describe("SETTINGS_SEARCH_INDEX", () => {
         "experiment",
       ],
       sectionId: SECTION_IDS.experiments,
-      sectionLabel: "Experiments",
+      sectionLabel: "Early features",
     });
   });
 
@@ -121,7 +121,7 @@ describe("SETTINGS_SEARCH_INDEX", () => {
         "experiment",
       ],
       sectionId: SECTION_IDS.experiments,
-      sectionLabel: "Experiments",
+      sectionLabel: "Early features",
     });
   });
 
@@ -136,7 +136,7 @@ describe("SETTINGS_SEARCH_INDEX", () => {
       description: "Uses socket.dev to detect unsafe packages and blocks them",
       keywords: ["socket", "npm", "firewall", "package", "unsafe", "security"],
       sectionId: SECTION_IDS.advanced,
-      sectionLabel: "Advanced",
+      sectionLabel: "Safety and packages",
     });
   });
 
@@ -161,7 +161,7 @@ describe("SETTINGS_SEARCH_INDEX", () => {
         "experiment",
       ],
       sectionId: SECTION_IDS.experiments,
-      sectionLabel: "Experiments",
+      sectionLabel: "Early features",
     });
   });
 
@@ -184,7 +184,7 @@ describe("SETTINGS_SEARCH_INDEX", () => {
         "agent",
       ],
       sectionId: SECTION_IDS.advanced,
-      sectionLabel: "Advanced",
+      sectionLabel: "Safety and packages",
     });
   });
 
@@ -200,7 +200,7 @@ describe("SETTINGS_SEARCH_INDEX", () => {
         "When many MCP tools are enabled, let the agent search for the tools on demand instead of listing every tool in its context. Requires sandbox script execution",
       keywords: ["mcp", "search", "tools", "agent", "sandbox", "context"],
       sectionId: SECTION_IDS.advanced,
-      sectionLabel: "Advanced",
+      sectionLabel: "Safety and packages",
     });
   });
 
@@ -225,7 +225,7 @@ describe("SETTINGS_SEARCH_INDEX", () => {
         "pro",
       ],
       sectionId: SECTION_IDS.experiments,
-      sectionLabel: "Experiments",
+      sectionLabel: "Early features",
     });
   });
 });

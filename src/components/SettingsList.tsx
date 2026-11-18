@@ -16,7 +16,7 @@ type SettingsSection = {
 const SETTINGS_SECTIONS: SettingsSection[] = [
   { id: SECTION_IDS.general, label: "General" },
   { id: SECTION_IDS.workflow, label: "Workflow" },
-  { id: SECTION_IDS.ai, label: "AI" },
+  { id: SECTION_IDS.ai, label: "Chat defaults" },
   { id: SECTION_IDS.voice, label: "Voice" },
   { id: SECTION_IDS.house, label: "The house" },
   { id: SECTION_IDS.cbMemory, label: "CB's Memory" },
@@ -25,8 +25,8 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
   { id: SECTION_IDS.telemetry, label: "Privacy" },
   { id: SECTION_IDS.integrations, label: "Integrations" },
   { id: SECTION_IDS.agentPermissions, label: "Build and Agent Permissions" },
-  { id: SECTION_IDS.advanced, label: "Advanced" },
-  { id: SECTION_IDS.experiments, label: "Experiments" },
+  { id: SECTION_IDS.advanced, label: "Safety and packages" },
+  { id: SECTION_IDS.experiments, label: "Early features" },
   { id: SECTION_IDS.dangerZone, label: "Danger Zone" },
 ];
 

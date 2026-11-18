@@ -280,7 +280,7 @@ export default function SettingsPage() {
 
           <SettingsSection
             id={SECTION_IDS.advanced}
-            title="Advanced"
+            title="Safety and packages"
             description="We recommend keeping the defaults unless something isn't working."
           >
             <div
@@ -347,7 +347,7 @@ export default function SettingsPage() {
 
           <SettingsSection
             id={SECTION_IDS.experiments}
-            title="Experiments"
+            title="Early features"
             description="Early features that may not be stable yet. Enable at your own risk."
           >
             <div id={SETTING_IDS.enableCloudSandbox}>
@@ -689,7 +689,7 @@ export function AISettings() {
   return (
     <SettingsSection
       id={SECTION_IDS.ai}
-      title="AI"
+      title="Chat defaults"
       description="Default model, agent limits, and conversation context."
     >
       <div id={SETTING_IDS.defaultAiModel} className="space-y-1.5">

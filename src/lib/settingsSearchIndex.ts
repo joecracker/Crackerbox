@@ -304,7 +304,7 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
     description: "Choose the model used when starting new chats",
     keywords: ["model", "default", "auto", "new chat", "provider"],
     sectionId: SECTION_IDS.ai,
-    sectionLabel: "AI",
+    sectionLabel: "Chat defaults",
   },
   {
     id: SETTING_IDS.maxToolCallSteps,
@@ -321,7 +321,7 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
       "loop",
     ],
     sectionId: SECTION_IDS.ai,
-    sectionLabel: "AI",
+    sectionLabel: "Chat defaults",
   },
   {
     id: SETTING_IDS.contextCompaction,
@@ -338,7 +338,7 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
       "memory",
     ],
     sectionId: SECTION_IDS.ai,
-    sectionLabel: "AI",
+    sectionLabel: "Chat defaults",
   },
   {
     id: SETTING_IDS.autoSpeak,
@@ -537,7 +537,7 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
   // Advanced
   {
     id: SECTION_IDS.advanced,
-    label: "Advanced",
+    label: "Safety and packages",
     description: "Power-user settings for Git, sandboxing, packages, and MCP",
     keywords: [
       "advanced",
@@ -549,7 +549,7 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
       "native",
     ],
     sectionId: SECTION_IDS.advanced,
-    sectionLabel: "Advanced",
+    sectionLabel: "Safety and packages",
   },
   {
     id: SETTING_IDS.enableSandboxScriptExecution,
@@ -565,7 +565,7 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
       "agent",
     ],
     sectionId: SECTION_IDS.advanced,
-    sectionLabel: "Advanced",
+    sectionLabel: "Safety and packages",
   },
   {
     id: SETTING_IDS.blockUnsafeNpmPackages,
@@ -573,7 +573,7 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
     description: "Uses socket.dev to detect unsafe packages and blocks them",
     keywords: ["socket", "npm", "firewall", "package", "unsafe", "security"],
     sectionId: SECTION_IDS.advanced,
-    sectionLabel: "Advanced",
+    sectionLabel: "Safety and packages",
   },
   {
     id: SETTING_IDS.autoApproveNonSchemaSql,
@@ -602,7 +602,7 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
       "Use the official local Claude Code CLI with your Claude subscription",
     keywords: ["claude", "anthropic", "subscription", "cli", "experiment"],
     sectionId: SECTION_IDS.experiments,
-    sectionLabel: "Experiments",
+    sectionLabel: "Early features",
   },
   {
     id: SETTING_IDS.autoApproveSafeMcpTools,
@@ -638,7 +638,7 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
       "secure",
     ],
     sectionId: SECTION_IDS.experiments,
-    sectionLabel: "Experiments",
+    sectionLabel: "Early features",
   },
   {
     id: SETTING_IDS.enableMcpToolSearch,
@@ -647,7 +647,7 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
       "When many MCP tools are enabled, let the agent search for the tools on demand instead of listing every tool in its context. Requires sandbox script execution",
     keywords: ["mcp", "search", "tools", "agent", "sandbox", "context"],
     sectionId: SECTION_IDS.advanced,
-    sectionLabel: "Advanced",
+    sectionLabel: "Safety and packages",
   },
   {
     id: SETTING_IDS.enablePnpmMinimumReleaseAgeWarning,
@@ -665,7 +665,7 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
       "experiment",
     ],
     sectionId: SECTION_IDS.experiments,
-    sectionLabel: "Experiments",
+    sectionLabel: "Early features",
   },
   {
     id: SETTING_IDS.enableCodeExplorer,
@@ -683,7 +683,7 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
       "experiment",
     ],
     sectionId: SECTION_IDS.experiments,
-    sectionLabel: "Experiments",
+    sectionLabel: "Early features",
   },
   {
     id: SETTING_IDS.runTypeScriptForWholeProject,
@@ -700,7 +700,7 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
       "experiment",
     ],
     sectionId: SECTION_IDS.experiments,
-    sectionLabel: "Experiments",
+    sectionLabel: "Early features",
   },
   {
     id: SETTING_IDS.enableMultiWindow,
@@ -716,7 +716,7 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
       "experiment",
     ],
     sectionId: SECTION_IDS.experiments,
-    sectionLabel: "Experiments",
+    sectionLabel: "Early features",
   },
   {
     id: SETTING_IDS.enableExplorerSubagent,
@@ -724,7 +724,7 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
     description: "Let Agent automatically delegate read-only code research",
     keywords: ["sub-agent", "explorer", "agent", "research", "pro"],
     sectionId: SECTION_IDS.experiments,
-    sectionLabel: "Experiments",
+    sectionLabel: "Early features",
   },
   {
     id: SETTING_IDS.enableAutoReview,
@@ -732,7 +732,7 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
     description: "Run Reviewer after completed Agent turns that change code",
     keywords: ["sub-agent", "review", "automatic", "agent", "pro"],
     sectionId: SECTION_IDS.experiments,
-    sectionLabel: "Experiments",
+    sectionLabel: "Early features",
   },
   {
     id: SETTING_IDS.enableReviewButton,
@@ -740,7 +740,7 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
     description: "Show a manual Reviewer action on the latest Agent response",
     keywords: ["sub-agent", "review", "manual", "button", "agent", "pro"],
     sectionId: SECTION_IDS.experiments,
-    sectionLabel: "Experiments",
+    sectionLabel: "Early features",
   },
   {
     id: SETTING_IDS.enableImplementerSubagent,
@@ -748,7 +748,7 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
     description: "Let Agent delegate scoped file edits to one writer",
     keywords: ["sub-agent", "implementer", "write", "agent", "pro"],
     sectionId: SECTION_IDS.experiments,
-    sectionLabel: "Experiments",
+    sectionLabel: "Early features",
   },
   {
     id: SETTING_IDS.enableAdvancedSubagents,
@@ -766,7 +766,7 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
       "pro",
     ],
     sectionId: SECTION_IDS.experiments,
-    sectionLabel: "Experiments",
+    sectionLabel: "Early features",
   },
   {
     id: SETTING_IDS.autoFixReviewIssues,
@@ -774,7 +774,7 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
     description: "Start an Agent remediation turn after Reviewer finds issues",
     keywords: ["sub-agent", "review", "fix", "automatic", "pro"],
     sectionId: SECTION_IDS.experiments,
-    sectionLabel: "Experiments",
+    sectionLabel: "Early features",
   },
 
   {
@@ -794,7 +794,7 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
       "experiment",
     ],
     sectionId: SECTION_IDS.experiments,
-    sectionLabel: "Experiments",
+    sectionLabel: "Early features",
   },
 
   {
@@ -812,7 +812,7 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
       "experiment",
     ],
     sectionId: SECTION_IDS.experiments,
-    sectionLabel: "Experiments",
+    sectionLabel: "Early features",
   },
 
   {
@@ -831,7 +831,7 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
       "experiment",
     ],
     sectionId: SECTION_IDS.experiments,
-    sectionLabel: "Experiments",
+    sectionLabel: "Early features",
   },
   // Danger Zone
   {

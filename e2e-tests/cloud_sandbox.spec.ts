@@ -7,7 +7,7 @@ testSkipIfWindows(
     await po.setUp({ autoApprove: true });
 
     await po.navigation.goToSettingsTab();
-    await po.page.getByRole("button", { name: "Experiments" }).click();
+    await po.page.getByRole("button", { name: "Early features" }).click();
     await po.settings.toggleCloudSandboxExperiment();
     await po.settings.changeRuntimeMode("cloud");
     expect(po.settings.recordSettings()).toMatchObject({
@@ -35,7 +35,7 @@ test.skip("cloud sandbox undo restores the remote snapshot", async ({ po }) => {
   await po.setUp({ autoApprove: true });
 
   await po.navigation.goToSettingsTab();
-  await po.page.getByRole("button", { name: "Experiments" }).click();
+  await po.page.getByRole("button", { name: "Early features" }).click();
   await po.settings.toggleCloudSandboxExperiment();
   await po.settings.changeRuntimeMode("cloud");
 

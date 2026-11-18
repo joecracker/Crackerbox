@@ -69,10 +69,8 @@ export const activeSettingsSectionAtom = atom<string | null>(
 );
 
 const SETTINGS_OPEN_KEY = "cb-settings-open-sections";
-/** Settings sections are folded by default, except the one used most. */
-const SETTINGS_DEFAULT_OPEN: Record<string, boolean> = {
-  [SECTION_IDS.ai]: true,
-};
+/** Every settings section starts folded; opening one is remembered. */
+const SETTINGS_DEFAULT_OPEN: Record<string, boolean> = {};
 
 function readSettingsOpenSections(): Record<string, boolean> {
   try {

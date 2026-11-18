@@ -309,7 +309,10 @@ export interface HouseTriggerPayload {
  */
 export function startHouseScheduler(
   send: (payload: HouseTriggerPayload) => boolean,
+  /** Called once per day per job when a job had to be skipped because its prompt file is not usable. */
+  onPromptMissing?: (job: ScheduleJob) => void,
 ): () => void {
+  const reportedMissing = new Set<string>();
   const tick = () => {
     try {
       const jobs = readSchedule();
@@ -338,6 +341,18 @@ export function startHouseScheduler(
         if (prompt === null) {
           // No prompt file: this job stays quiet and does not use up its turn.
           unmark(job.id);
+          const missingKey = `${job.id}:${dateKey(new Date())}`;
+          if (!reportedMissing.has(missingKey)) {
+            reportedMissing.add(missingKey);
+            logger.warn(
+              `Skipped ${job.id}: its prompt file ${job.promptFile ?? ""} is missing, empty, too long or outside the prompts folder`,
+            );
+            try {
+              onPromptMissing?.(job);
+            } catch (error) {
+              logger.warn("onPromptMissing failed", error);
+            }
+          }
           continue;
         }
         const ok =

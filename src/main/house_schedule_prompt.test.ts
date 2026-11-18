@@ -131,6 +131,36 @@ describe("the scheduler with a prompt file", () => {
   });
 });
 
+describe("a job skipped because its prompt file is missing", () => {
+  it("is logged and reported once a day, not every minute", () => {
+    writeRoster([
+      {
+        id: "dextra",
+        name: "Dextra",
+        appId: 9,
+        color: "#ec4899",
+        initial: "D",
+      },
+    ]);
+    writeSchedule([dextraJob()]);
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    vi.useFakeTimers({ now: new Date(2026, 10, 13, 7, 0, 0) });
+    const send = vi.fn(() => true);
+    const missing = vi.fn();
+    const stop = startHouseScheduler(send, missing);
+    vi.advanceTimersByTime(5 * 60_000);
+    expect(send).not.toHaveBeenCalled();
+    expect(missing).toHaveBeenCalledTimes(1);
+    expect(missing).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "dextra-morning" }),
+    );
+    vi.setSystemTime(new Date(2026, 10, 14, 7, 0, 30));
+    vi.advanceTimersByTime(60_000);
+    expect(missing).toHaveBeenCalledTimes(2);
+    stop();
+  });
+});
+
 describe("an older saved schedule", () => {
   it("is refreshed to the current default job, keeping only its on/off", () => {
     fs.mkdirSync(path.join(h.userData, "house"), { recursive: true });

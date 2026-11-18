@@ -7,7 +7,7 @@ import {
   readRoster,
 } from "@/pro/main/ipc/handlers/local_agent/house";
 import { agentMemoryDir } from "@/pro/main/ipc/handlers/local_agent/agent_memory";
-import { parseEnvCreds } from "./telegram_inbound";
+import { noticeOncePerDay, sendTelegramNotice } from "./house_notice";
 
 const logger = log.scope("house_backup");
 
@@ -255,25 +255,18 @@ export async function restoreTarget(
   return true;
 }
 
-async function tellTim(text: string) {
-  for (const s of readRoster()) {
-    try {
-      const env = fs.readFileSync(
-        path.join(getDyadAppPath(s.id), ".env"),
-        "utf8",
-      );
-      const { token, chat } = parseEnvCreds(env);
-      if (!token || !chat) continue;
-      await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ chat_id: chat, text }),
-      });
-      return;
-    } catch {
-      // try the next sister's bot
-    }
-  }
+const tellTim = (text: string) => sendTelegramNotice(text);
+
+/** After a failed nightly backup, wait this long before trying again. */
+export const BACKUP_RETRY_MS = 60 * 60_000;
+
+/**
+ * A backup that failed is not retried every minute (that would re-copy
+ * gigabytes over and over, worst of all when the disk is nearly full): it waits
+ * an hour. `failedAt` is when the last attempt failed, or null.
+ */
+export function mayTryBackup(failedAt: number | null, now: number): boolean {
+  return failedAt === null || now - failedAt >= BACKUP_RETRY_MS;
 }
 
 function buildCtx(): BackupCtx {
@@ -316,6 +309,7 @@ export function startHouseBackup(): () => void {
   let stopped = false;
   let busy = false;
   const restoredAt: Record<string, number> = {};
+  let failedAt: number | null = null;
 
   const tick = async () => {
     if (busy || stopped) return;
@@ -348,14 +342,29 @@ export function startHouseBackup(): () => void {
         (t) => !exists(path.join(ctx.root, "mirror", t.id)),
       );
       const today = dayKey(ctx.now);
-      if (last !== today && (ctx.now.getHours() >= 4 || noMirror)) {
-        await runBackupEverywhere(ctx);
-        fs.mkdirSync(ctx.root, { recursive: true });
-        fs.writeFileSync(
-          statePath(ctx.root),
-          JSON.stringify({ lastRun: today, at: new Date().toISOString() }),
-        );
-        logger.info("nightly backup done");
+      if (
+        last !== today &&
+        (ctx.now.getHours() >= 4 || noMirror) &&
+        mayTryBackup(failedAt, Date.now())
+      ) {
+        try {
+          await runBackupEverywhere(ctx);
+          fs.mkdirSync(ctx.root, { recursive: true });
+          fs.writeFileSync(
+            statePath(ctx.root),
+            JSON.stringify({ lastRun: today, at: new Date().toISOString() }),
+          );
+          failedAt = null;
+          logger.info("nightly backup done");
+        } catch (error) {
+          failedAt = Date.now();
+          logger.error("nightly backup failed; trying again in an hour", error);
+          const why = error instanceof Error ? error.message : String(error);
+          await noticeOncePerDay(
+            "nightly-backup-failed",
+            `Warning: tonight's backup of the house failed (${why.slice(0, 200)}). It will try again in an hour. If the disk is nearly full, that is the usual cause.`,
+          );
+        }
       }
     } catch (error) {
       logger.warn("backup tick failed", error);

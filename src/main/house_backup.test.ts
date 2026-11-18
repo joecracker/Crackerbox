@@ -13,6 +13,8 @@ vi.mock("electron-log", () => ({
 }));
 
 import {
+  BACKUP_RETRY_MS,
+  mayTryBackup,
   isHollow,
   pruneSnapshots,
   restoreTarget,
@@ -145,5 +147,14 @@ describe("house backup", () => {
       false,
     );
     expect(fs.readdirSync(path.join(ctx.root, "snapshots"))).toHaveLength(7);
+  });
+});
+
+describe("backup retry gate", () => {
+  it("tries straight away when nothing failed, and waits an hour after a failure", () => {
+    expect(mayTryBackup(null, 1_000)).toBe(true);
+    expect(mayTryBackup(1_000, 1_000 + 60_000)).toBe(false);
+    expect(mayTryBackup(1_000, 1_000 + BACKUP_RETRY_MS - 1)).toBe(false);
+    expect(mayTryBackup(1_000, 1_000 + BACKUP_RETRY_MS)).toBe(true);
   });
 });

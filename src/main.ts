@@ -28,6 +28,7 @@ import { startMailWake } from "./main/house_mail_wake";
 import { startPostInstallWake } from "./main/house_install";
 import { warmPocketVoice } from "@/ipc/services/speech_service";
 import { startHouseBackup } from "./main/house_backup";
+import { noticeOncePerDay } from "./main/house_notice";
 import { refreshIconsAfterInstall } from "./main/icon_refresh";
 import { setPhoneMediaHandler } from "./main/phone_bridge_media";
 import dotenv from "dotenv";
@@ -680,7 +681,12 @@ export async function onReady() {
     return true;
   };
   try {
-    startHouseScheduler(sendToWindow);
+    startHouseScheduler(sendToWindow, (job) => {
+      void noticeOncePerDay(
+        `prompt-missing:${job.id}`,
+        `Heads up: the scheduled job "${job.id}" was skipped today because its prompt file (${job.promptFile ?? "none"}) is missing or empty. Put the file back in the house prompts folder and it will run at its next time.`,
+      );
+    });
   } catch (error) {
     logger.error("Failed to start house scheduler", error);
   }

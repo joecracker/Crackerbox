@@ -1,7 +1,12 @@
 import { useCallback } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { useSetAtom } from "jotai";
-import { activeSettingsSectionAtom } from "@/atoms/viewAtoms";
+import { useSetAtom, useStore } from "jotai";
+import {
+  activeSettingsSectionAtom,
+  isSettingsSectionOpen,
+  setSettingsSectionOpenAtom,
+  settingsOpenSectionsAtom,
+} from "@/atoms/viewAtoms";
 
 type ScrollOptions = {
   behavior?: ScrollBehavior;
@@ -20,12 +25,32 @@ export function useScrollAndNavigateTo(
 ) {
   const navigate = useNavigate();
   const setActiveSection = useSetAtom(activeSettingsSectionAtom);
+  const store = useStore();
 
   return useCallback(
     async (id: string, sectionId?: string) => {
       await navigate({ to });
-      const element = document.getElementById(id);
-      if (element) {
+      const found = document.getElementById(id);
+      if (found) {
+        let element: HTMLElement = found;
+        // A folded settings section has to open before its content can be shown.
+        const sectionEl = element.closest("section[id]");
+        if (
+          sectionEl &&
+          !isSettingsSectionOpen(
+            store.get(settingsOpenSectionsAtom),
+            sectionEl.id,
+          )
+        ) {
+          store.set(setSettingsSectionOpenAtom, {
+            id: sectionEl.id,
+            open: true,
+          });
+          await new Promise<void>((resolve) =>
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+          );
+          element = document.getElementById(id) ?? element;
+        }
         element.scrollIntoView({
           behavior: options?.behavior ?? "smooth",
           block: options?.block ?? "start",
@@ -58,6 +83,7 @@ export function useScrollAndNavigateTo(
       options?.onScrolled,
       options?.highlight,
       setActiveSection,
+      store,
     ],
   );
 }

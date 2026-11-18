@@ -67,3 +67,48 @@ export const setUnsavedEditorFileAtom = atom(
 export const activeSettingsSectionAtom = atom<string | null>(
   SECTION_IDS.general,
 );
+
+const SETTINGS_OPEN_KEY = "cb-settings-open-sections";
+/** Settings sections are folded by default, except the one used most. */
+const SETTINGS_DEFAULT_OPEN: Record<string, boolean> = {
+  [SECTION_IDS.ai]: true,
+};
+
+function readSettingsOpenSections(): Record<string, boolean> {
+  try {
+    const raw = localStorage.getItem(SETTINGS_OPEN_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    if (parsed && typeof parsed === "object") return parsed;
+  } catch {
+    // Storage can be blocked or hold junk; fall back to the defaults.
+  }
+  return {};
+}
+
+/** Only the sections the user has opened or closed by hand; the rest use the defaults. */
+export const settingsOpenSectionsAtom = atom<Record<string, boolean>>(
+  readSettingsOpenSections(),
+);
+
+export function isSettingsSectionOpen(
+  overrides: Record<string, boolean>,
+  id: string,
+): boolean {
+  return overrides[id] ?? SETTINGS_DEFAULT_OPEN[id] ?? false;
+}
+
+export const setSettingsSectionOpenAtom = atom(
+  null,
+  (get, set, update: { id: string; open: boolean }) => {
+    const next = {
+      ...get(settingsOpenSectionsAtom),
+      [update.id]: update.open,
+    };
+    set(settingsOpenSectionsAtom, next);
+    try {
+      localStorage.setItem(SETTINGS_OPEN_KEY, JSON.stringify(next));
+    } catch {
+      // Not remembering the choice is fine.
+    }
+  },
+);

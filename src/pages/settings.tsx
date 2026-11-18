@@ -47,8 +47,14 @@ import { ClaudeCodeSubscriptionExperimentSwitch } from "@/components/ClaudeCodeS
 import { TestRunInPreviewSwitch } from "@/components/TestRunInPreviewSwitch";
 import { AutoApproveSqlSwitch } from "@/components/AutoApproveSqlSwitch";
 import { AutoApproveMcpSwitch } from "@/components/AutoApproveMcpSwitch";
-import { useSetAtom } from "jotai";
-import { activeSettingsSectionAtom } from "@/atoms/viewAtoms";
+import { useAtomValue, useSetAtom } from "jotai";
+import { ChevronRight } from "lucide-react";
+import {
+  activeSettingsSectionAtom,
+  isSettingsSectionOpen,
+  setSettingsSectionOpenAtom,
+  settingsOpenSectionsAtom,
+} from "@/atoms/viewAtoms";
 import { SECTION_IDS, SETTING_IDS } from "@/lib/settingsSearchIndex";
 import { SubagentSettings } from "@/components/settings/SubagentSettings";
 import { RunTypeScriptForWholeProjectSwitch } from "@/components/RunTypeScriptForWholeProjectSwitch";
@@ -82,27 +88,48 @@ function SettingsSection({
   tone?: "default" | "danger";
   children: ReactNode;
 }) {
+  const overrides = useAtomValue(settingsOpenSectionsAtom);
+  const setOpen = useSetAtom(setSettingsSectionOpenAtom);
+  const open = isSettingsSectionOpen(overrides, id);
   return (
     <section
       id={id}
       className={cn(
-        "grid grid-cols-1 gap-x-12 gap-y-5 border-t py-8 first:border-t-0 first:pt-0 md:grid-cols-[minmax(150px,190px)_1fr]",
+        "grid grid-cols-1 gap-x-12 gap-y-5 border-t py-6 first:border-t-0 first:pt-0 md:grid-cols-[minmax(150px,190px)_1fr]",
         "scroll-mt-20",
         tone === "danger" ? "border-destructive/20" : "border-border/60",
       )}
     >
       <div className="self-start md:sticky md:top-6">
-        <h2
-          className={cn(
-            "text-[15px] font-semibold tracking-tight",
-            tone === "danger" ? "text-destructive" : "text-foreground",
-          )}
+        <button
+          type="button"
+          onClick={() => setOpen({ id, open: !open })}
+          aria-expanded={open}
+          aria-controls={`${id}-content`}
+          className="flex w-full items-center gap-1.5 rounded-md py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
         >
-          {title}
-        </h2>
-        {description && <p className={cn("mt-1.5", hint)}>{description}</p>}
+          <ChevronRight
+            className={cn(
+              "size-4 shrink-0 text-muted-foreground transition-transform",
+              open && "rotate-90",
+            )}
+          />
+          <h2
+            className={cn(
+              "text-[15px] font-semibold tracking-tight",
+              tone === "danger" ? "text-destructive" : "text-foreground",
+            )}
+          >
+            {title}
+          </h2>
+        </button>
+        {open && description && (
+          <p className={cn("mt-1.5 pl-[22px]", hint)}>{description}</p>
+        )}
       </div>
-      <div className="min-w-0 space-y-6">{children}</div>
+      <div id={`${id}-content`} hidden={!open} className="min-w-0 space-y-6">
+        {children}
+      </div>
     </section>
   );
 }

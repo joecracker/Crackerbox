@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ChevronRight } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import {
   WORKSPACE_COLOR_FIELDS,
@@ -72,6 +73,7 @@ function hexToHsl(hex: string) {
 export function WorkspaceColorSettings() {
   const { isDarkMode, workspaceColors, setWorkspaceColor, setWorkspaceColors } =
     useTheme();
+  const [expanded, setExpanded] = useState(false);
   const [selected, setSelected] = useState<WorkspaceColorKey>("chat");
   const fallback = WORKSPACE_COLOR_FALLBACKS[isDarkMode ? "dark" : "light"];
   const selectedColor =
@@ -92,175 +94,187 @@ export function WorkspaceColorSettings() {
 
   return (
     <div className="space-y-5 border-t border-border/60 pt-6">
-      <div>
-        <h3 className="text-sm font-semibold text-foreground">
+      <button
+        type="button"
+        onClick={() => setExpanded((value) => !value)}
+        aria-expanded={expanded}
+        className="flex w-full items-center gap-1.5 text-left"
+      >
+        <ChevronRight
+          className={`size-4 shrink-0 text-muted-foreground transition-transform ${expanded ? "rotate-90" : ""}`}
+        />
+        <span className="text-sm font-semibold text-foreground">
           Workspace colors
-        </h3>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Pick a starting mood, then change any part independently. Changes
-          appear immediately on this device.
-        </p>
-      </div>
+        </span>
+      </button>
+      {expanded && (
+        <>
+          <p className="-mt-3 text-xs text-muted-foreground">
+            Pick a starting mood, then change any part independently. Changes
+            appear immediately on this device.
+          </p>
 
-      <div className="flex flex-wrap gap-2">
-        {Object.entries(WORKSPACE_COLOR_PRESETS).map(([name, colors]) => (
-          <button
-            key={name}
-            type="button"
-            onClick={() => setWorkspaceColors(colors)}
-            className="rounded-md border border-border px-3 py-1.5 text-xs text-foreground hover:bg-muted"
-          >
-            {name}
-          </button>
-        ))}
-        <button
-          type="button"
-          onClick={() => setWorkspaceColors({})}
-          className="rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted"
-        >
-          Reset all
-        </button>
-      </div>
-
-      <div className="grid gap-5 lg:grid-cols-[minmax(12rem,1fr)_minmax(0,2fr)]">
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-1">
-          {WORKSPACE_COLOR_FIELDS.map((field) => (
-            <button
-              key={field.key}
-              type="button"
-              onClick={() => setSelected(field.key)}
-              aria-pressed={selected === field.key}
-              className={`flex items-center gap-2 rounded-md border px-2.5 py-2 text-left text-xs transition-colors ${selected === field.key ? "border-foreground/40 bg-muted text-foreground" : "border-border/70 text-muted-foreground hover:text-foreground"}`}
-            >
-              <span
-                className="size-4 shrink-0 rounded border border-white/25"
-                style={{
-                  backgroundColor:
-                    workspaceColors[field.key] ?? fallback[field.key],
-                }}
-              />
-              {field.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="min-w-0 space-y-4">
-          <h4 className="text-xs font-medium text-foreground">
-            Fine-tune{" "}
-            {WORKSPACE_COLOR_FIELDS.find(
-              (field) => field.key === selected,
-            )?.label.toLowerCase()}
-          </h4>
-          <div className="flex flex-wrap items-center gap-3">
-            <label
-              className="relative size-9 overflow-hidden rounded-md border border-border"
-              aria-label="Open full color picker"
-            >
-              <input
-                type="color"
-                aria-label="Open full color picker"
-                value={selectedColor}
-                onChange={(event) =>
-                  setWorkspaceColor(selected, event.target.value)
-                }
-                className="absolute -inset-2 h-14 w-14 cursor-pointer"
-              />
-            </label>
-            <input
-              type="text"
-              aria-label="Hex color"
-              value={hexDraft}
-              onChange={(event) => setHexDraft(event.target.value)}
-              onBlur={saveHex}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") event.currentTarget.blur();
-              }}
-              className="w-24 rounded-md border border-border bg-background px-2 py-1.5 font-mono text-xs text-foreground"
-            />
-            <button
-              type="button"
-              onClick={() => setWorkspaceColor(selected, null)}
-              className="text-xs text-muted-foreground hover:text-foreground"
-            >
-              Reset this color
-            </button>
-          </div>
-
-          <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
-            {(
-              [
-                ["Hue", "hue", 359],
-                ["Vividness", "saturation", 100],
-                ["Shade", "lightness", 100],
-              ] as const
-            ).map(([label, channel, max]) => (
-              <label key={channel} className="flex min-w-0 flex-col gap-1">
-                <span>
-                  {label}: {fineTune[channel]}
-                  {channel === "hue" ? "°" : "%"}
-                </span>
-                <input
-                  type="range"
-                  min={0}
-                  max={max}
-                  value={fineTune[channel]}
-                  onChange={(event) => {
-                    const next = {
-                      ...fineTune,
-                      [channel]: Number(event.target.value),
-                    };
-                    if (channel === "hue" && next.saturation === 0)
-                      next.saturation = 42;
-                    setWorkspaceColor(
-                      selected,
-                      hslToHex(next.hue, next.saturation, next.lightness),
-                    );
-                  }}
-                  className="w-full accent-[#879b78]"
-                />
-              </label>
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(WORKSPACE_COLOR_PRESETS).map(([name, colors]) => (
+              <button
+                key={name}
+                type="button"
+                onClick={() => setWorkspaceColors(colors)}
+                className="rounded-md border border-border px-3 py-1.5 text-xs text-foreground hover:bg-muted"
+              >
+                {name}
+              </button>
             ))}
+            <button
+              type="button"
+              onClick={() => setWorkspaceColors({})}
+              className="rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted"
+            >
+              Reset all
+            </button>
           </div>
 
-          <div className="overflow-x-auto pb-1">
-            <div
-              className="grid w-max grid-cols-[repeat(14,1.45rem)] gap-1"
-              aria-label="Color shade palette"
-            >
-              {LIGHTNESS.map((lightness, row) => (
-                <div key={lightness} className="contents">
-                  <button
-                    type="button"
-                    title={`Gray shade ${row + 1}`}
-                    aria-label={`Gray shade ${row + 1}`}
-                    onClick={() => setWorkspaceColor(selected, GRAYS[row])}
-                    className="size-[1.45rem] rounded-[3px] border border-white/10"
-                    style={{ backgroundColor: GRAYS[row] }}
+          <div className="grid gap-5 lg:grid-cols-[minmax(12rem,1fr)_minmax(0,2fr)]">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-1">
+              {WORKSPACE_COLOR_FIELDS.map((field) => (
+                <button
+                  key={field.key}
+                  type="button"
+                  onClick={() => setSelected(field.key)}
+                  aria-pressed={selected === field.key}
+                  className={`flex items-center gap-2 rounded-md border px-2.5 py-2 text-left text-xs transition-colors ${selected === field.key ? "border-foreground/40 bg-muted text-foreground" : "border-border/70 text-muted-foreground hover:text-foreground"}`}
+                >
+                  <span
+                    className="size-4 shrink-0 rounded border border-white/25"
+                    style={{
+                      backgroundColor:
+                        workspaceColors[field.key] ?? fallback[field.key],
+                    }}
                   />
-                  {HUES.map((hue) => {
-                    const color = hslToHex(hue, 42, lightness);
-                    return (
-                      <button
-                        key={`${hue}-${lightness}`}
-                        type="button"
-                        title={color}
-                        aria-label={`Color ${color}`}
-                        onClick={() => setWorkspaceColor(selected, color)}
-                        className="size-[1.45rem] rounded-[3px] border border-white/10"
-                        style={{ backgroundColor: color }}
-                      />
-                    );
-                  })}
-                </div>
+                  {field.label}
+                </button>
               ))}
             </div>
+
+            <div className="min-w-0 space-y-4">
+              <h4 className="text-xs font-medium text-foreground">
+                Fine-tune{" "}
+                {WORKSPACE_COLOR_FIELDS.find(
+                  (field) => field.key === selected,
+                )?.label.toLowerCase()}
+              </h4>
+              <div className="flex flex-wrap items-center gap-3">
+                <label
+                  className="relative size-9 overflow-hidden rounded-md border border-border"
+                  aria-label="Open full color picker"
+                >
+                  <input
+                    type="color"
+                    aria-label="Open full color picker"
+                    value={selectedColor}
+                    onChange={(event) =>
+                      setWorkspaceColor(selected, event.target.value)
+                    }
+                    className="absolute -inset-2 h-14 w-14 cursor-pointer"
+                  />
+                </label>
+                <input
+                  type="text"
+                  aria-label="Hex color"
+                  value={hexDraft}
+                  onChange={(event) => setHexDraft(event.target.value)}
+                  onBlur={saveHex}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") event.currentTarget.blur();
+                  }}
+                  className="w-24 rounded-md border border-border bg-background px-2 py-1.5 font-mono text-xs text-foreground"
+                />
+                <button
+                  type="button"
+                  onClick={() => setWorkspaceColor(selected, null)}
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Reset this color
+                </button>
+              </div>
+
+              <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
+                {(
+                  [
+                    ["Hue", "hue", 359],
+                    ["Vividness", "saturation", 100],
+                    ["Shade", "lightness", 100],
+                  ] as const
+                ).map(([label, channel, max]) => (
+                  <label key={channel} className="flex min-w-0 flex-col gap-1">
+                    <span>
+                      {label}: {fineTune[channel]}
+                      {channel === "hue" ? "°" : "%"}
+                    </span>
+                    <input
+                      type="range"
+                      min={0}
+                      max={max}
+                      value={fineTune[channel]}
+                      onChange={(event) => {
+                        const next = {
+                          ...fineTune,
+                          [channel]: Number(event.target.value),
+                        };
+                        if (channel === "hue" && next.saturation === 0)
+                          next.saturation = 42;
+                        setWorkspaceColor(
+                          selected,
+                          hslToHex(next.hue, next.saturation, next.lightness),
+                        );
+                      }}
+                      className="w-full accent-[#879b78]"
+                    />
+                  </label>
+                ))}
+              </div>
+
+              <div className="overflow-x-auto pb-1">
+                <div
+                  className="grid w-max grid-cols-[repeat(14,1.45rem)] gap-1"
+                  aria-label="Color shade palette"
+                >
+                  {LIGHTNESS.map((lightness, row) => (
+                    <div key={lightness} className="contents">
+                      <button
+                        type="button"
+                        title={`Gray shade ${row + 1}`}
+                        aria-label={`Gray shade ${row + 1}`}
+                        onClick={() => setWorkspaceColor(selected, GRAYS[row])}
+                        className="size-[1.45rem] rounded-[3px] border border-white/10"
+                        style={{ backgroundColor: GRAYS[row] }}
+                      />
+                      {HUES.map((hue) => {
+                        const color = hslToHex(hue, 42, lightness);
+                        return (
+                          <button
+                            key={`${hue}-${lightness}`}
+                            type="button"
+                            title={color}
+                            aria-label={`Color ${color}`}
+                            onClick={() => setWorkspaceColor(selected, color)}
+                            className="size-[1.45rem] rounded-[3px] border border-white/10"
+                            style={{ backgroundColor: color }}
+                          />
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Choose a swatch, drag the controls for precision, or enter an
+                exact hex color.
+              </p>
+            </div>
           </div>
-          <p className="text-xs text-muted-foreground">
-            Choose a swatch, drag the controls for precision, or enter an exact
-            hex color.
-          </p>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 }

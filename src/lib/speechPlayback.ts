@@ -271,7 +271,7 @@ function splitOpening(chunks: string[]) {
 export type SpeechEngine = "openrouter" | "venice" | "local" | "pocket";
 
 /** Voice used when Pocket falls back to Kokoro, which has no Pocket names. */
-const KOKORO_FALLBACK_VOICE = "af_bella";
+const KOKORO_FALLBACK_VOICE = "af_heart";
 
 export async function playSpeech({
   messageId,

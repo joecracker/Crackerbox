@@ -52,6 +52,7 @@ import { ChevronRight } from "lucide-react";
 import {
   activeSettingsSectionAtom,
   isSettingsSectionOpen,
+  resetSettingsOpenSectionsAtom,
   setSettingsSectionOpenAtom,
   settingsOpenSectionsAtom,
 } from "@/atoms/viewAtoms";
@@ -178,9 +179,14 @@ export default function SettingsPage() {
   const { settings, updateSettings } = useSettings();
   const setActiveSettingsSection = useSetAtom(activeSettingsSectionAtom);
 
+  const foldAllSections = useSetAtom(resetSettingsOpenSectionsAtom);
+
   useEffect(() => {
     setActiveSettingsSection(SECTION_IDS.general);
   }, [setActiveSettingsSection]);
+
+  // Leaving the page folds everything, so the next visit starts closed.
+  useEffect(() => foldAllSections, [foldAllSections]);
 
   const handleResetEverything = async () => {
     setIsResetting(true);

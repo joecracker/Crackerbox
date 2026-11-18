@@ -68,24 +68,24 @@ export const activeSettingsSectionAtom = atom<string | null>(
   SECTION_IDS.general,
 );
 
-const SETTINGS_OPEN_KEY = "cb-settings-open-sections";
-/** Every settings section starts folded; opening one is remembered. */
+/** Every settings section starts folded, every time the page is opened. */
 const SETTINGS_DEFAULT_OPEN: Record<string, boolean> = {};
+// An older build remembered open sections here. Nothing is remembered any more,
+// so the saved choices are cleared the first time the page is used.
+const OLD_SETTINGS_OPEN_KEY = "cb-settings-open-sections";
 
-function readSettingsOpenSections(): Record<string, boolean> {
+function forgetOldSettingsOpenSections(): Record<string, boolean> {
   try {
-    const raw = localStorage.getItem(SETTINGS_OPEN_KEY);
-    const parsed = raw ? JSON.parse(raw) : null;
-    if (parsed && typeof parsed === "object") return parsed;
+    localStorage.removeItem(OLD_SETTINGS_OPEN_KEY);
   } catch {
-    // Storage can be blocked or hold junk; fall back to the defaults.
+    // Storage can be blocked; nothing to clean up then.
   }
   return {};
 }
 
-/** Only the sections the user has opened or closed by hand; the rest use the defaults. */
+/** Only the sections opened since the page was shown; the rest use the defaults. */
 export const settingsOpenSectionsAtom = atom<Record<string, boolean>>(
-  readSettingsOpenSections(),
+  forgetOldSettingsOpenSections(),
 );
 
 export function isSettingsSectionOpen(
@@ -98,15 +98,14 @@ export function isSettingsSectionOpen(
 export const setSettingsSectionOpenAtom = atom(
   null,
   (get, set, update: { id: string; open: boolean }) => {
-    const next = {
+    set(settingsOpenSectionsAtom, {
       ...get(settingsOpenSectionsAtom),
       [update.id]: update.open,
-    };
-    set(settingsOpenSectionsAtom, next);
-    try {
-      localStorage.setItem(SETTINGS_OPEN_KEY, JSON.stringify(next));
-    } catch {
-      // Not remembering the choice is fine.
-    }
+    });
   },
 );
+
+/** Folds everything again (used when the user leaves the settings page). */
+export const resetSettingsOpenSectionsAtom = atom(null, (_get, set) => {
+  set(settingsOpenSectionsAtom, {});
+});

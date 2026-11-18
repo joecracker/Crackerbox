@@ -199,8 +199,8 @@ describe("SETTINGS_SEARCH_INDEX", () => {
       description:
         "When many MCP tools are enabled, let the agent search for the tools on demand instead of listing every tool in its context. Requires sandbox script execution",
       keywords: ["mcp", "search", "tools", "agent", "sandbox", "context"],
-      sectionId: SECTION_IDS.experiments,
-      sectionLabel: "Experiments",
+      sectionId: SECTION_IDS.advanced,
+      sectionLabel: "Advanced",
     });
   });
 

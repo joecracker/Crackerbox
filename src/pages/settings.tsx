@@ -268,6 +268,14 @@ export default function SettingsPage() {
             description="Control what Build and Agent tools can do on your behalf."
           >
             <AgentToolsSettings />
+
+            <div id={SETTING_IDS.autoApproveNonSchemaSql}>
+              <AutoApproveSqlSwitch />
+            </div>
+
+            <div id={SETTING_IDS.autoApproveSafeMcpTools}>
+              <AutoApproveMcpSwitch />
+            </div>
           </SettingsSection>
 
           <SettingsSection
@@ -300,12 +308,40 @@ export default function SettingsPage() {
               </p>
             </div>
 
-            <div id={SETTING_IDS.blockUnsafeNpmPackages}>
-              <BlockUnsafeNpmPackagesSwitch />
+            <div id={SETTING_IDS.enableMcpToolSearch} className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="enable-mcp-tool-search"
+                  aria-label="Enable MCP tool search"
+                  disabled={!settings?.enableSandboxScriptExecution}
+                  checked={
+                    !!settings?.enableMcpToolSearch &&
+                    !!settings?.enableSandboxScriptExecution
+                  }
+                  onCheckedChange={(checked) => {
+                    updateSettings({
+                      enableMcpToolSearch: checked,
+                    });
+                  }}
+                />
+                <Label htmlFor="enable-mcp-tool-search">
+                  Enable MCP tool search
+                </Label>
+              </div>
+              <p className={hint}>
+                When many MCP tools are enabled, let the agent search for the
+                tools on demand instead of listing every tool in its context.
+                Requires sandbox script execution.
+              </p>
+              {!settings?.enableSandboxScriptExecution && (
+                <p className="text-xs text-amber-700 dark:text-amber-500">
+                  Cannot be enabled unless sandbox script execution is on.
+                </p>
+              )}
             </div>
 
-            <div id={SETTING_IDS.autoApproveNonSchemaSql}>
-              <AutoApproveSqlSwitch />
+            <div id={SETTING_IDS.blockUnsafeNpmPackages}>
+              <BlockUnsafeNpmPackagesSwitch />
             </div>
           </SettingsSection>
 
@@ -327,10 +363,6 @@ export default function SettingsPage() {
 
             <div id={SETTING_IDS.enableTestRunInPreview}>
               <TestRunInPreviewSwitch />
-            </div>
-
-            <div id={SETTING_IDS.autoApproveSafeMcpTools}>
-              <AutoApproveMcpSwitch />
             </div>
 
             <div
@@ -379,38 +411,6 @@ export default function SettingsPage() {
                 from your app when you sync changes to GitHub. Turning this off
                 hides the tab, but Workers you already connected keep deploying.
               </p>
-            </div>
-
-            <div id={SETTING_IDS.enableMcpToolSearch} className="space-y-1.5">
-              <div className="flex items-center gap-2">
-                <Switch
-                  id="enable-mcp-tool-search"
-                  aria-label="Enable MCP tool search"
-                  disabled={!settings?.enableSandboxScriptExecution}
-                  checked={
-                    !!settings?.enableMcpToolSearch &&
-                    !!settings?.enableSandboxScriptExecution
-                  }
-                  onCheckedChange={(checked) => {
-                    updateSettings({
-                      enableMcpToolSearch: checked,
-                    });
-                  }}
-                />
-                <Label htmlFor="enable-mcp-tool-search">
-                  Enable MCP tool search
-                </Label>
-              </div>
-              <p className={hint}>
-                When many MCP tools are enabled, let the agent search for the
-                tools on demand instead of listing every tool in its context.
-                Requires sandbox script execution.
-              </p>
-              {!settings?.enableSandboxScriptExecution && (
-                <p className="text-xs text-amber-700 dark:text-amber-500">
-                  Cannot be enabled unless sandbox script execution is on.
-                </p>
-              )}
             </div>
 
             <div

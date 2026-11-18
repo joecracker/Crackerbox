@@ -590,8 +590,8 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
       "supabase",
       "neon",
     ],
-    sectionId: SECTION_IDS.advanced,
-    sectionLabel: "Advanced",
+    sectionId: SECTION_IDS.agentPermissions,
+    sectionLabel: "Build and Agent Permissions",
   },
 
   // Experiments
@@ -620,8 +620,8 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
       "auto",
       "experiment",
     ],
-    sectionId: SECTION_IDS.experiments,
-    sectionLabel: "Experiments",
+    sectionId: SECTION_IDS.agentPermissions,
+    sectionLabel: "Build and Agent Permissions",
   },
   {
     id: SETTING_IDS.enableCloudSandbox,
@@ -646,8 +646,8 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
     description:
       "When many MCP tools are enabled, let the agent search for the tools on demand instead of listing every tool in its context. Requires sandbox script execution",
     keywords: ["mcp", "search", "tools", "agent", "sandbox", "context"],
-    sectionId: SECTION_IDS.experiments,
-    sectionLabel: "Experiments",
+    sectionId: SECTION_IDS.advanced,
+    sectionLabel: "Advanced",
   },
   {
     id: SETTING_IDS.enablePnpmMinimumReleaseAgeWarning,

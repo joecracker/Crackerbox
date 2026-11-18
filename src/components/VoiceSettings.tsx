@@ -1,3 +1,4 @@
+import { SETTING_IDS } from "@/lib/settingsSearchIndex";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -57,7 +58,7 @@ export function VoiceSettings() {
         Crackerbox speaks only the reply prose—not code, tool activity, or
         internal details.
       </p>
-      <div className="flex items-center space-x-2">
+      <div id={SETTING_IDS.summaryView} className="flex items-center space-x-2">
         <Switch
           id="summary-view"
           aria-label="Summary view"

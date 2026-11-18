@@ -188,7 +188,7 @@ export default function SettingsPage() {
           <AISettings />
 
           <SettingsSection
-            id="cb-memory"
+            id={SECTION_IDS.cbMemory}
             title="CB's Memory"
             description="Stuff CB should always remember about you -- carries across every chat and every app, not just this one."
           >
@@ -199,7 +199,7 @@ export default function SettingsPage() {
           </SettingsSection>
 
           <SettingsSection
-            id="add-a-phone"
+            id={SECTION_IDS.addPhone}
             title="Add a phone"
             description="Scan a code with your phone to use Crackerbox from it."
           >
@@ -260,7 +260,9 @@ export default function SettingsPage() {
               <Label className="text-sm font-medium">Preview tablet size</Label>
               <PreviewTabletSizeSettings />
             </div>
-            <GmailIntegration />
+            <div id={SETTING_IDS.gmail}>
+              <GmailIntegration />
+            </div>
           </SettingsSection>
 
           <SettingsSection
@@ -542,15 +544,19 @@ export function GeneralSettings({ appVersion }: { appVersion: string | null }) {
         </div>
       </div>
 
-      <WorkspaceColorSettings />
+      <div id={SETTING_IDS.workspaceColor}>
+        <WorkspaceColorSettings />
+      </div>
 
-      <LanguageSelector />
+      <div id={SETTING_IDS.language}>
+        <LanguageSelector />
+      </div>
 
       <div id={SETTING_IDS.zoom}>
         <ZoomSelector />
       </div>
 
-      <div className="space-y-1.5">
+      <div id={SETTING_IDS.startMinimized} className="space-y-1.5">
         <StartMinimizedSwitch />
         <p className={hint}>
           Crackerbox starts in the taskbar instead of taking over the screen.
@@ -558,7 +564,9 @@ export function GeneralSettings({ appVersion }: { appVersion: string | null }) {
         </p>
       </div>
 
-      <TrustedFoldersSetting />
+      <div id={SETTING_IDS.trustedFolders}>
+        <TrustedFoldersSetting />
+      </div>
 
       <div id={SETTING_IDS.autoUpdate} className="space-y-1.5">
         <AutoUpdateSwitch />
@@ -703,7 +711,7 @@ export function AISettings() {
       <div id={SETTING_IDS.autoSpeak} className="space-y-1.5">
         <VoiceSettings />
       </div>
-      <div className="space-y-1.5">
+      <div id={SETTING_IDS.house} className="space-y-1.5">
         <HouseSettings />
       </div>
     </SettingsSection>

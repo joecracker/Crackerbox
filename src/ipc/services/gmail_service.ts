@@ -282,9 +282,11 @@ export async function sendGmailMessage(input: {
   bcc?: string[];
   subject: string;
   body: string;
+  from?: { name: string; address: string };
   attachments?: Array<{ path: string; filename?: string }>;
 }): Promise<string> {
   const headerValues = [
+    ...(input.from ? [input.from.name, input.from.address] : []),
     ...input.to,
     ...(input.cc ?? []),
     ...(input.bcc ?? []),
@@ -300,6 +302,9 @@ export async function sendGmailMessage(input: {
     throw new Error("Attachment filenames cannot contain quotes.");
   }
   const envelopeHeaders = [
+    ...(input.from
+      ? [`From: ${encodeHeader(input.from.name)} <${input.from.address}>`]
+      : []),
     `To: ${input.to.join(", ")}`,
     ...(input.cc?.length ? [`Cc: ${input.cc.join(", ")}`] : []),
     ...(input.bcc?.length ? [`Bcc: ${input.bcc.join(", ")}`] : []),

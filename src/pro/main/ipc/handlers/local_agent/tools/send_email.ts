@@ -39,6 +39,13 @@ const sendEmailSchema = z.object({
 
 type SendEmailArgs = z.infer<typeof sendEmailSchema>;
 
+// Rooms that send under their own name. Any other room sends as the account owner.
+const HOUSE_SENDERS: Record<string, { name: string; address: string }> = {
+  dextra: { name: "Dextra", address: "dextra@crackerbox.app" },
+  nyx: { name: "Nyx", address: "nyx@crackerbox.app" },
+  veritas: { name: "Veritas", address: "veritas@crackerbox.app" },
+};
+
 function resolveReal(filePath: string): string {
   try {
     return fs.realpathSync(filePath);
@@ -124,8 +131,10 @@ export const sendEmailTool: ToolDefinition<SendEmailArgs> = {
     if (getToolConsent(sendEmailTool) !== "ask") {
       await requireToolConsentOrThrow(sendEmailTool, args, ctx);
     }
+    const room = path.basename(ctx.appPath).toLowerCase();
     const id = await sendGmailMessage({
       ...args,
+      from: HOUSE_SENDERS[room],
       attachments: args.attachments?.map((file) => ({
         ...file,
         path: resolveReal(file.path),

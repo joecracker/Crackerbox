@@ -1,6 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ipc } from "@/ipc/types";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -18,12 +17,19 @@ import {
 const NORMAL_VOICE = "normal";
 
 /** Each entity's own voice and temperament. Changes save as soon as they are made. */
-export function HouseSettings() {
-  const queryClient = useQueryClient();
-  const sisters = useQuery({
+export function useHouseSisters() {
+  return useQuery({
     queryKey: ["house", "sisters"],
     queryFn: () => ipc.chat.listSisters(),
   });
+}
+
+export const HOUSE_DESCRIPTION =
+  "Each entity can have a voice of her own (spoken with Pocket) and a temperament. Entities with no voice use the voice chosen in Voice.";
+
+export function HouseSettings() {
+  const queryClient = useQueryClient();
+  const sisters = useHouseSisters();
   if (!sisters.data || sisters.data.length === 0) return null;
 
   const save = async (
@@ -36,13 +42,6 @@ export function HouseSettings() {
 
   return (
     <div className="space-y-3">
-      <div>
-        <Label className="text-sm font-medium">The house</Label>
-        <p className="text-[13px] leading-relaxed text-muted-foreground">
-          Each entity can have a voice of her own (spoken with Pocket) and a
-          temperament. Entities with no voice use the voice chosen above.
-        </p>
-      </div>
       {sisters.data.map((sister) => {
         const index = presetIndexForTemperature(sister.temperature);
         return (

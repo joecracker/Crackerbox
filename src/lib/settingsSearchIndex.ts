@@ -2,6 +2,8 @@ export const SECTION_IDS = {
   general: "general-settings",
   workflow: "workflow-settings",
   ai: "ai-settings",
+  voice: "voice-settings",
+  house: "house-settings",
   cbMemory: "cb-memory",
   addPhone: "add-a-phone",
   providers: "provider-settings",
@@ -342,8 +344,8 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
       "openrouter",
       "cloud",
     ],
-    sectionId: SECTION_IDS.ai,
-    sectionLabel: "AI",
+    sectionId: SECTION_IDS.voice,
+    sectionLabel: "Voice",
   },
   {
     id: SETTING_IDS.summaryView,
@@ -351,8 +353,8 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
     description:
       "Show only the final message of each reply; steps fold under Show work",
     keywords: ["summary", "reply", "show work", "thinking", "tool activity"],
-    sectionId: SECTION_IDS.ai,
-    sectionLabel: "AI",
+    sectionId: SECTION_IDS.workflow,
+    sectionLabel: "Workflow",
   },
   {
     id: SETTING_IDS.house,
@@ -367,8 +369,8 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
       "temperature",
       "pocket",
     ],
-    sectionId: SECTION_IDS.ai,
-    sectionLabel: "AI",
+    sectionId: SECTION_IDS.house,
+    sectionLabel: "The house",
   },
   {
     id: SECTION_IDS.cbMemory,

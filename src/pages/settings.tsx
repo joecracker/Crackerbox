@@ -56,8 +56,12 @@ import { RunTypeScriptForWholeProjectSwitch } from "@/components/RunTypeScriptFo
 import { WorkspaceColorSettings } from "@/components/settings/WorkspaceColorSettings";
 import { GmailIntegration } from "@/components/GmailIntegration";
 import { ModelPicker } from "@/components/ModelPicker";
-import { VoiceSettings } from "@/components/VoiceSettings";
-import { HouseSettings } from "@/components/HouseSettings";
+import { VoiceSettings, SummaryViewSwitch } from "@/components/VoiceSettings";
+import {
+  HouseSettings,
+  HOUSE_DESCRIPTION,
+  useHouseSisters,
+} from "@/components/HouseSettings";
 
 const hint = "text-[13px] leading-relaxed text-muted-foreground";
 
@@ -186,6 +190,8 @@ export default function SettingsPage() {
           <GeneralSettings appVersion={appVersion} />
           <WorkflowSettings />
           <AISettings />
+          <VoiceSection />
+          <HouseSection />
 
           <SettingsSection
             id={SECTION_IDS.cbMemory}
@@ -677,6 +683,8 @@ export function WorkflowSettings() {
           questionnaire needs your input while the app is not focused.
         </p>
       </div>
+
+      <SummaryViewSwitch />
     </SettingsSection>
   );
 }
@@ -686,7 +694,7 @@ export function AISettings() {
     <SettingsSection
       id={SECTION_IDS.ai}
       title="AI"
-      description="Control conversation context and agent limits."
+      description="Default model, agent limits, and conversation context."
     >
       <div id={SETTING_IDS.defaultAiModel} className="space-y-1.5">
         <Label>Default AI Model</Label>
@@ -708,9 +716,34 @@ export function AISettings() {
           limits. Original messages are preserved in the app data directory.
         </p>
       </div>
+    </SettingsSection>
+  );
+}
+
+export function VoiceSection() {
+  return (
+    <SettingsSection
+      id={SECTION_IDS.voice}
+      title="Voice"
+      description="Read replies aloud, and pick the voice."
+    >
       <div id={SETTING_IDS.autoSpeak} className="space-y-1.5">
         <VoiceSettings />
       </div>
+    </SettingsSection>
+  );
+}
+
+export function HouseSection() {
+  const sisters = useHouseSisters();
+  // Nothing to show until the house has entities.
+  if (!sisters.data || sisters.data.length === 0) return null;
+  return (
+    <SettingsSection
+      id={SECTION_IDS.house}
+      title="The house"
+      description={HOUSE_DESCRIPTION}
+    >
       <div id={SETTING_IDS.house} className="space-y-1.5">
         <HouseSettings />
       </div>

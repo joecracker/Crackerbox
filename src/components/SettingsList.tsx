@@ -17,6 +17,8 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
   { id: SECTION_IDS.general, label: "General" },
   { id: SECTION_IDS.workflow, label: "Workflow" },
   { id: SECTION_IDS.ai, label: "AI" },
+  { id: SECTION_IDS.voice, label: "Voice" },
+  { id: SECTION_IDS.house, label: "The house" },
   { id: SECTION_IDS.cbMemory, label: "CB's Memory" },
   { id: SECTION_IDS.addPhone, label: "Add a phone" },
   { id: SECTION_IDS.providers, label: "Model Providers" },

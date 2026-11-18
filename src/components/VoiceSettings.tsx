@@ -58,21 +58,6 @@ export function VoiceSettings() {
         Crackerbox speaks only the reply prose—not code, tool activity, or
         internal details.
       </p>
-      <div id={SETTING_IDS.summaryView} className="flex items-center space-x-2">
-        <Switch
-          id="summary-view"
-          aria-label="Summary view"
-          checked={settings?.summaryView !== false}
-          onCheckedChange={(checked) =>
-            void updateSettings({ summaryView: checked })
-          }
-        />
-        <Label htmlFor="summary-view">Summary view</Label>
-      </div>
-      <p className="text-[13px] leading-relaxed text-muted-foreground">
-        Show only the final message of each reply. Her steps, file reads and
-        thinking fold under "Show work". The voice reads what the chat shows.
-      </p>
       <div className="flex flex-wrap items-center gap-3">
         <Label className="text-sm font-medium">Voice engine</Label>
         <Select
@@ -157,6 +142,30 @@ export function VoiceSettings() {
           Venice doesn't have Isabella, so it speaks with Heart instead.
         </p>
       )}
+    </div>
+  );
+}
+
+/** Show only the final message of each reply (a chat display option, so it lives in Workflow). */
+export function SummaryViewSwitch() {
+  const { settings, updateSettings } = useSettings();
+  return (
+    <div id={SETTING_IDS.summaryView} className="space-y-1.5">
+      <div className="flex items-center space-x-2">
+        <Switch
+          id="summary-view"
+          aria-label="Summary view"
+          checked={settings?.summaryView !== false}
+          onCheckedChange={(checked) =>
+            void updateSettings({ summaryView: checked })
+          }
+        />
+        <Label htmlFor="summary-view">Summary view</Label>
+      </div>
+      <p className="text-[13px] leading-relaxed text-muted-foreground">
+        Show only the final message of each reply. Her steps, file reads and
+        thinking fold under "Show work". The voice reads what the chat shows.
+      </p>
     </div>
   );
 }

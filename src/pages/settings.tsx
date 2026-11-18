@@ -30,7 +30,6 @@ import { TrustedFoldersSetting } from "@/components/TrustedFoldersSetting";
 import { ReleaseChannelSelector } from "@/components/ReleaseChannelSelector";
 import { NeonIntegration } from "@/components/NeonIntegration";
 import { HomeAssistantSettings } from "@/components/HomeAssistantSettings";
-import { OpenRouterBalanceSettings } from "@/components/OpenRouterBalanceSettings";
 import { PreviewTabletSizeSettings } from "@/components/PreviewTabletSizeSettings";
 import { LocalAiSettings } from "@/components/settings/LocalAiSettings";
 import { PhoneSettings } from "@/components/settings/PhoneSettings";
@@ -257,14 +256,6 @@ export default function SettingsPage() {
             <div id={SETTING_IDS.homeAssistant} className="space-y-1.5">
               <Label className="text-sm font-medium">Home Assistant</Label>
               <HomeAssistantSettings />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium">OpenRouter balance</Label>
-              <OpenRouterBalanceSettings />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium">Preview tablet size</Label>
-              <PreviewTabletSizeSettings />
             </div>
             <div id={SETTING_IDS.gmail}>
               <GmailIntegration />
@@ -674,6 +665,11 @@ export function WorkflowSettings() {
           Note: this may take more memory but allows faster preview loads when
           switching apps.
         </p>
+      </div>
+
+      <div id={SETTING_IDS.previewTabletSize} className="space-y-1.5">
+        <Label className="text-sm font-medium">Preview tablet size</Label>
+        <PreviewTabletSizeSettings />
       </div>
 
       <div id={SETTING_IDS.chatEventNotification} className="space-y-1.5">

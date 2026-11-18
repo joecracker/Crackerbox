@@ -24,6 +24,7 @@ import {
   fixStreamedWav,
   pocketVoiceFor,
   synthesizeSpeech,
+  warmPocketVoice,
 } from "./speech_service";
 
 describe("synthesizeSpeech", () => {
@@ -37,7 +38,7 @@ describe("synthesizeSpeech", () => {
     vi.restoreAllMocks();
   });
 
-  it("uses the existing OpenRouter key and hosted Bella voice", async () => {
+  it("uses the existing OpenRouter key and hosted Heart voice", async () => {
     readSettings.mockReturnValue({
       providerSettings: {
         openrouter: { apiKey: { value: "openrouter-test-key" } },
@@ -53,7 +54,7 @@ describe("synthesizeSpeech", () => {
     await expect(
       synthesizeSpeech({
         text: "Hello from Crackerbox.",
-        voice: "af_bella",
+        voice: "af_heart",
         speed: 1,
         provider: "openrouter",
       }),
@@ -69,7 +70,7 @@ describe("synthesizeSpeech", () => {
     expect(JSON.parse(String(request?.body))).toEqual({
       model: "hexgrad/kokoro-82m",
       input: "Hello from Crackerbox.",
-      voice: "af_bella",
+      voice: "af_heart",
       response_format: "mp3",
     });
   });
@@ -85,7 +86,7 @@ describe("synthesizeSpeech", () => {
     await expect(
       synthesizeSpeech({
         text: "Hello.",
-        voice: "af_bella",
+        voice: "af_heart",
         speed: 1,
         provider: "openrouter",
       }),
@@ -105,7 +106,7 @@ describe("synthesizeSpeech", () => {
     await expect(
       synthesizeSpeech({
         text: "Hello.",
-        voice: "af_bella",
+        voice: "af_heart",
         speed: 1,
         provider: "openrouter",
       }),
@@ -121,7 +122,7 @@ describe("synthesizeSpeech", () => {
     await expect(
       synthesizeSpeech({
         text: "Hello.",
-        voice: "af_bella",
+        voice: "af_heart",
         speed: 1,
         provider: "openrouter",
       }),
@@ -154,7 +155,7 @@ describe("synthesizeSpeech with Venice", () => {
     await expect(
       synthesizeSpeech({
         text: "Hello from Crackerbox.",
-        voice: "af_bella",
+        voice: "af_heart",
         speed: 1,
         provider: "venice",
       }),
@@ -168,7 +169,7 @@ describe("synthesizeSpeech with Venice", () => {
     expect(JSON.parse(String(request?.body))).toEqual({
       model: "tts-kokoro",
       input: "Hello from Crackerbox.",
-      voice: "af_bella",
+      voice: "af_heart",
       response_format: "mp3",
     });
   });
@@ -204,7 +205,7 @@ describe("synthesizeSpeech with Venice", () => {
     await expect(
       synthesizeSpeech({
         text: "Hello.",
-        voice: "af_bella",
+        voice: "af_heart",
         speed: 1,
         provider: "venice",
       }),
@@ -253,7 +254,7 @@ async function freshService() {
 
 const LOCAL_INPUT = {
   text: "Hello.",
-  voice: "af_bella",
+  voice: "af_heart",
   speed: 1,
   provider: "local" as const,
 };
@@ -339,7 +340,7 @@ describe("synthesizeSpeech with the built-in voice", () => {
 describe("Pocket voice helpers", () => {
   it("falls back to Azelma for a voice Pocket does not have", () => {
     expect(pocketVoiceFor("cosette")).toBe("cosette");
-    expect(pocketVoiceFor("af_bella")).toBe("azelma");
+    expect(pocketVoiceFor("af_heart")).toBe("azelma");
   });
 
   it("writes real sizes into a streamed WAV header", () => {
@@ -367,5 +368,31 @@ describe("Pocket voice helpers", () => {
     fixStreamedWav(bytes);
     expect(view.getUint32(4, true)).toBe(52);
     expect(view.getUint32(40, true)).toBe(16);
+  });
+});
+
+describe("warmPocketVoice", () => {
+  beforeEach(() => {
+    readSettings.mockReset();
+    logger.info.mockReset();
+    logger.warn.mockReset();
+  });
+
+  it("does nothing when Pocket is not the chosen voice", async () => {
+    readSettings.mockReturnValue({ speechProvider: "openrouter" });
+    warmPocketVoice();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(logger.info).not.toHaveBeenCalled();
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  it("tries to start Pocket when it is chosen, and never throws if it cannot", async () => {
+    readSettings.mockReturnValue({ speechProvider: "pocket" });
+    expect(() => warmPocketVoice()).not.toThrow();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(logger.warn).toHaveBeenCalledWith(
+      "Could not warm up Pocket TTS",
+      expect.any(Error),
+    );
   });
 });

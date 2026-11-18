@@ -11,7 +11,6 @@ import {
 import { useSettings } from "@/hooks/useSettings";
 
 const VOICES = [
-  ["af_bella", "Bella — warm American"],
   ["af_heart", "Heart — expressive American"],
   ["af_nicole", "Nicole — calm American"],
   ["af_sarah", "Sarah — clear American"],
@@ -33,7 +32,7 @@ const POCKET_VOICES = [
 export function VoiceSettings() {
   const { settings, updateSettings } = useSettings();
   const provider = settings?.speechProvider ?? "openrouter";
-  const savedVoice = settings?.speechVoice ?? "af_bella";
+  const savedVoice = settings?.speechVoice ?? "af_heart";
   const voiceList = provider === "pocket" ? POCKET_VOICES : VOICES;
   // A voice from the other engine reads as that engine's default.
   const voice = voiceList.some(([id]) => id === savedVoice)

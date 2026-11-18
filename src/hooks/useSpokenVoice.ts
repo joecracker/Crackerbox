@@ -27,7 +27,7 @@ export function useSpokenVoice(
     sisters.data?.find((s) => s.appId === appId);
   if (speaker?.voice) return { voice: speaker.voice, provider: "pocket" };
   return {
-    voice: settings?.speechVoice ?? "af_bella",
+    voice: settings?.speechVoice ?? "af_heart",
     provider: settings?.speechProvider ?? "openrouter",
   };
 }

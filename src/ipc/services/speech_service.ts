@@ -15,13 +15,7 @@ const VENICE_KOKORO_MODEL = "tts-kokoro";
 const VENICE_SPEECH_URL = "https://api.venice.ai/api/v1/audio/speech";
 // Kokoro voices Venice offers (checked against its model list on 2026-10-25).
 // Isabella is not one of them, so a voice it lacks is swapped for Heart.
-const VENICE_VOICES = new Set([
-  "af_bella",
-  "af_heart",
-  "af_nicole",
-  "af_sarah",
-  "bf_emma",
-]);
+const VENICE_VOICES = new Set(["af_heart", "af_nicole", "af_sarah", "bf_emma"]);
 const VENICE_FALLBACK_VOICE = "af_heart";
 
 const LOAD_TIMEOUT_MS = 5 * 60 * 1000;
@@ -198,6 +192,10 @@ const POCKET_VOICES = new Set([
 ]);
 const POCKET_DEFAULT_VOICE = "azelma";
 const POCKET_START_TIMEOUT_MS = 3 * 60 * 1000;
+// Starting Pocket takes about ten seconds, and until it is ready the backup
+// voice speaks. So it is kept running much longer than the Kokoro model, and
+// started ahead of time (see warmPocketVoice) rather than on the first reply.
+const POCKET_IDLE_SHUTDOWN_MS = 3 * 60 * 60 * 1000;
 const POCKET_REQUEST_TIMEOUT_MS = 60 * 1000;
 
 /**
@@ -344,8 +342,18 @@ class PocketSpeechProvider implements SpeechProvider {
         logger.info("Stopping idle Pocket TTS server");
         this.stop();
       }
-    }, IDLE_SHUTDOWN_MS);
+    }, POCKET_IDLE_SHUTDOWN_MS);
     this.idleTimer.unref();
+  }
+
+  /** Starts the server ahead of the first reply. Never throws. */
+  async warm() {
+    try {
+      await this.ensureRunning();
+      this.scheduleIdleShutdown();
+    } catch (error) {
+      logger.warn("Could not warm up Pocket TTS", error);
+    }
   }
 
   async synthesize({ text, voice }: SpeechSynthesisInput) {
@@ -485,6 +493,12 @@ const providers: Record<SpeechSynthesisInput["provider"], SpeechProvider> = {
   local: new KokoroSpeechProvider(),
   pocket: new PocketSpeechProvider(),
 };
+
+/** Gets Pocket ready at app start when it is the chosen voice, so no reply falls back to the backup voice. */
+export function warmPocketVoice() {
+  if (readSettings().speechProvider !== "pocket") return;
+  void (providers.pocket as PocketSpeechProvider).warm();
+}
 
 export async function synthesizeSpeech(input: SpeechSynthesisInput) {
   try {

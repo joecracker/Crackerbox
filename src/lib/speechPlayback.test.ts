@@ -218,7 +218,7 @@ describe("playSpeech", () => {
     const done = playSpeech({
       messageId: 1,
       text: FIRST + " " + SECOND,
-      voice: "af_bella",
+      voice: "af_heart",
       speed: 1,
       provider: "local",
     });
@@ -236,7 +236,7 @@ describe("playSpeech", () => {
     const done = playSpeech({
       messageId: 2,
       text: SHORT,
-      voice: "af_bella",
+      voice: "af_heart",
       speed: 1,
       provider: "openrouter",
     });
@@ -259,7 +259,7 @@ describe("playSpeech", () => {
     const done = playSpeech({
       messageId: 3,
       text: LONG,
-      voice: "af_bella",
+      voice: "af_heart",
       speed: 1.2,
       provider: "openrouter",
     });
@@ -295,7 +295,7 @@ describe("playSpeech", () => {
     const done = playSpeech({
       messageId: 4,
       text: LONG,
-      voice: "af_bella",
+      voice: "af_heart",
       speed: 1,
       provider: "openrouter",
     });
@@ -320,7 +320,7 @@ describe("playSpeech", () => {
     const done = playSpeech({
       messageId: 5,
       text: LONG,
-      voice: "af_bella",
+      voice: "af_heart",
       speed: 1,
       provider: "openrouter",
     });
@@ -338,7 +338,7 @@ describe("playSpeech", () => {
     const done = playSpeech({
       messageId: 6,
       text: LONG,
-      voice: "af_bella",
+      voice: "af_heart",
       speed: 1.25,
       provider: "openrouter",
     });
@@ -363,7 +363,7 @@ describe("playSpeech", () => {
     const done = playSpeech({
       messageId: 7,
       text: VERY_LONG_SENTENCES.join(" "),
-      voice: "af_bella",
+      voice: "af_heart",
       speed: 1,
       provider: "openrouter",
     });
@@ -397,7 +397,7 @@ describe("playSpeech", () => {
     const done = playSpeech({
       messageId: 8,
       text: VERY_LONG_SENTENCES.join(" "),
-      voice: "af_bella",
+      voice: "af_heart",
       speed: 1,
       provider: "openrouter",
     });
@@ -424,7 +424,7 @@ describe("playSpeech", () => {
     const done = playSpeech({
       messageId: 9,
       text: LONG,
-      voice: "af_bella",
+      voice: "af_heart",
       speed: 1,
       provider: "openrouter",
     });
@@ -444,7 +444,7 @@ describe("playSpeech", () => {
     const done = playSpeech({
       messageId: 10,
       text: LONG,
-      voice: "af_bella",
+      voice: "af_heart",
       speed: 1.25,
       provider: "openrouter",
     });
@@ -465,7 +465,7 @@ describe("playSpeech", () => {
       playSpeech({
         messageId: 11,
         text: LONG,
-        voice: "af_bella",
+        voice: "af_heart",
         speed: 1,
         provider: "openrouter",
       }),

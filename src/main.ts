@@ -26,6 +26,7 @@ import {
 import { startTelegramInbound } from "./main/telegram_inbound";
 import { startMailWake } from "./main/house_mail_wake";
 import { startPostInstallWake } from "./main/house_install";
+import { warmPocketVoice } from "@/ipc/services/speech_service";
 import { startHouseBackup } from "./main/house_backup";
 import { refreshIconsAfterInstall } from "./main/icon_refresh";
 import { setPhoneMediaHandler } from "./main/phone_bridge_media";
@@ -693,6 +694,14 @@ export async function onReady() {
   } catch (error) {
     logger.error("Failed to start post-install wake", error);
   }
+  // Get the Pocket voice ready a little after start (it takes about ten seconds).
+  setTimeout(() => {
+    try {
+      warmPocketVoice();
+    } catch (error) {
+      logger.error("Failed to warm up the Pocket voice", error);
+    }
+  }, 20_000);
   try {
     startTelegramInbound(sendToWindow);
   } catch (error) {

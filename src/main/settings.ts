@@ -87,7 +87,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   enableContextCompaction: false,
   autoSpeakResponses: false,
   speechProvider: "openrouter",
-  speechVoice: "af_bella",
+  speechVoice: "af_heart",
   speechRate: 1,
   enablePnpmMinimumReleaseAgeWarning: true,
   previewIdleTimeoutPolicy: "never",
@@ -590,6 +590,10 @@ function readExistingSettingsFile(
     ...rawSettings,
     hasRunBefore: rawSettings.hasRunBefore ?? true,
   };
+  // Bella was retired as a voice; anyone who had saved her gets Heart.
+  if (combinedSettings.speechVoice === "af_bella") {
+    combinedSettings.speechVoice = "af_heart";
+  }
   const ctx: DecryptContext = {
     preserveUndecryptable: options.preserveUndecryptable ?? false,
     preserved: [],

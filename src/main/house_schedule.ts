@@ -81,19 +81,17 @@ export function defaultJobs(): ScheduleJob[] {
       prompt: morningPrompt("veritas"),
     },
     {
-      // A dice roll in a morning window rather than a fixed clock time: at most
-      // one drop a day, at a different hour each day. Its prompt lives in a
-      // local file in the house data folder, not in the code.
+      // A fixed morning time, the same as her sisters. Her wording lives in a
+      // local file in the house data folder (never in the code: this repo is
+      // public). If the file is missing the job stays quiet and keeps its turn.
       id: "dextra-morning",
       sister: "dextra",
-      kind: "dice",
+      kind: "daily",
       enabled: true,
-      windowStart: 6,
-      windowEnd: 10,
-      oneIn: 2,
-      maxPerDay: 1,
+      time: "07:00",
+      catchUpMinutes: 90,
       prompt: "",
-      promptFile: "prompts/dextra-morning.md",
+      promptFile: "prompts/dextra-morning-0700.md",
     },
     {
       id: "nyx-surprise",
@@ -138,6 +136,14 @@ export function defaultJobs(): ScheduleJob[] {
   ];
 }
 
+/**
+ * Bumped when a default job changes shape (its kind, its time, or where its
+ * wording lives). A saved file from an older version has those jobs refreshed
+ * from the defaults on read, so a changed default really lands; only whether
+ * each job is switched on is kept from the saved copy.
+ */
+const SCHEDULE_VERSION = 3;
+
 function scheduleFile() {
   return path.join(houseDir(), "schedule.json");
 }
@@ -151,6 +157,21 @@ export function readSchedule(): ScheduleJob[] {
     const parsed = JSON.parse(fs.readFileSync(scheduleFile(), "utf8"));
     if (Array.isArray(parsed.jobs)) {
       const jobs = parsed.jobs as ScheduleJob[];
+      if ((parsed.version ?? 1) < SCHEDULE_VERSION) {
+        // The defaults changed shape since this file was written: take the new
+        // version of every job that has a default, keeping only its on/off.
+        const defaults = new Map(defaultJobs().map((j) => [j.id, j]));
+        const upgraded = jobs.map((j) => {
+          const fresh = defaults.get(j.id);
+          return fresh ? { ...fresh, enabled: j.enabled } : j;
+        });
+        const merged = [
+          ...upgraded,
+          ...defaultJobs().filter((d) => !jobs.some((j) => j.id === d.id)),
+        ];
+        writeSchedule(merged);
+        return merged;
+      }
       // A job added to the defaults after this file was first written (a new
       // sister, a new line) still lands, without wiping anyone's own settings.
       const present = new Set(jobs.map((j) => j.id));
@@ -172,7 +193,10 @@ export function readSchedule(): ScheduleJob[] {
 
 export function writeSchedule(jobs: ScheduleJob[]) {
   fs.mkdirSync(houseDir(), { recursive: true });
-  fs.writeFileSync(scheduleFile(), JSON.stringify({ jobs }, null, 2));
+  fs.writeFileSync(
+    scheduleFile(),
+    JSON.stringify({ version: SCHEDULE_VERSION, jobs }, null, 2),
+  );
 }
 
 export function readState(): ScheduleState {

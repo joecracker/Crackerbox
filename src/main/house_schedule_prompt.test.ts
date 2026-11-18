@@ -17,6 +17,7 @@ import { writeRoster } from "@/pro/main/ipc/handlers/local_agent/house";
 import {
   defaultJobs,
   readJobPrompt,
+  readSchedule,
   startHouseScheduler,
   writeSchedule,
   type ScheduleJob,
@@ -42,13 +43,13 @@ describe("a job whose prompt lives in a local file", () => {
   it("carries no prompt text in the code, only the file it reads", () => {
     const job = dextraJob();
     expect(job.prompt).toBe("");
-    expect(job.promptFile).toBe("prompts/dextra-morning.md");
+    expect(job.promptFile).toBe("prompts/dextra-morning-0700.md");
   });
 
   it("reads the file, and a plain job still uses its own prompt", () => {
     fs.mkdirSync(promptsDir(), { recursive: true });
     fs.writeFileSync(
-      path.join(promptsDir(), "dextra-morning.md"),
+      path.join(promptsDir(), "dextra-morning-0700.md"),
       "  hello there \n",
     );
     expect(readJobPrompt(dextraJob())).toBe("hello there");
@@ -59,7 +60,7 @@ describe("a job whose prompt lives in a local file", () => {
   it("gives nothing when the file is missing, empty or too long", () => {
     expect(readJobPrompt(dextraJob())).toBeNull();
     fs.mkdirSync(promptsDir(), { recursive: true });
-    const file = path.join(promptsDir(), "dextra-morning.md");
+    const file = path.join(promptsDir(), "dextra-morning-0700.md");
     fs.writeFileSync(file, "   \n");
     expect(readJobPrompt(dextraJob())).toBeNull();
     fs.writeFileSync(file, "x".repeat(20_001));
@@ -117,7 +118,7 @@ describe("the scheduler with a prompt file", () => {
 
     fs.mkdirSync(promptsDir(), { recursive: true });
     fs.writeFileSync(
-      path.join(promptsDir(), "dextra-morning.md"),
+      path.join(promptsDir(), "dextra-morning-0700.md"),
       "the local text",
     );
     vi.setSystemTime(new Date(2026, 10, 13, 8, 0, 30));
@@ -127,5 +128,35 @@ describe("the scheduler with a prompt file", () => {
       expect.objectContaining({ sisterId: "dextra", prompt: "the local text" }),
     );
     stop();
+  });
+});
+
+describe("an older saved schedule", () => {
+  it("is refreshed to the current default job, keeping only its on/off", () => {
+    fs.mkdirSync(path.join(h.userData, "house"), { recursive: true });
+    fs.writeFileSync(
+      path.join(h.userData, "house", "schedule.json"),
+      JSON.stringify({
+        jobs: [
+          {
+            id: "dextra-morning",
+            sister: "dextra",
+            kind: "dice",
+            enabled: false,
+            windowStart: 6,
+            windowEnd: 10,
+            oneIn: 2,
+            maxPerDay: 1,
+            prompt: "",
+            promptFile: "prompts/dextra-morning.md",
+          },
+        ],
+      }),
+    );
+    const job = readSchedule().find((j) => j.id === "dextra-morning")!;
+    expect(job.kind).toBe("daily");
+    expect(job.time).toBe("07:00");
+    expect(job.promptFile).toBe("prompts/dextra-morning-0700.md");
+    expect(job.enabled).toBe(false);
   });
 });

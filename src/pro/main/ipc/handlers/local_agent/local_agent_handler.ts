@@ -39,6 +39,12 @@ import { buildMcpAutoApprove } from "./mcp_auto_consent";
 import { scheduleChatSearchIndexing } from "./chat_search_indexer";
 import { trimOldToolOutput } from "./history_trim";
 import { readRoster } from "./house";
+import {
+  createModelWatchdog,
+  MODEL_SILENCE_MS,
+  ModelSilenceError,
+} from "./model_watchdog";
+import { reportStalledScheduledChat } from "@/main/house_stall";
 import { parseMcpToolKey, sanitizeMcpName } from "@/ipc/utils/mcp_tool_utils";
 import { sanitizeMcpToolResult } from "@/ipc/utils/mcp_result_sanitizer";
 import { createModelTextGuard } from "./processors/model_text_guard";
@@ -1462,6 +1468,20 @@ export async function handleLocalAgentStream(
         };
         const responseBeforeAttempt = fullResponse;
 
+        // Watchdog: a model request that goes silent is cut off (and retried
+        // once) instead of hanging the chat forever.
+        const attemptAbort = new AbortController();
+        const attemptSignal = AbortSignal.any([
+          abortController.signal,
+          attemptAbort.signal,
+        ]);
+        const watchdog = createModelWatchdog(() => {
+          logger.warn(
+            `Model silent for ${MODEL_SILENCE_MS / 1000}s on chat ${req.chatId}; cutting the request off`,
+          );
+          attemptAbort.abort();
+        });
+
         try {
           const streamResult = streamText({
             output: fastTextOutput(),
@@ -1509,7 +1529,7 @@ export async function handleLocalAgentStream(
                   ]
                 : []),
             ],
-            abortSignal: abortController.signal,
+            abortSignal: attemptSignal,
             // Inject pending user messages (e.g., images from web_crawl) between steps
             // We must re-inject all accumulated messages each step because the AI SDK
             // doesn't persist dynamically injected messages in its internal state.
@@ -1835,7 +1855,9 @@ export async function handleLocalAgentStream(
           let streamErrorFromIteration: unknown;
 
           try {
+            watchdog.start();
             for await (const part of fullStream) {
+              watchdog.onPart(part.type);
               if (abortController.signal.aborted) {
                 logger.log(`Stream aborted for chat ${req.chatId}`);
                 // Clean up pending consent/questionnaire/integration requests to prevent stale UI banners
@@ -2053,6 +2075,11 @@ export async function handleLocalAgentStream(
             }
           }
 
+          watchdog.stop();
+          if (watchdog.tripped && !abortController.signal.aborted) {
+            streamErrorFromIteration = new ModelSilenceError(MODEL_SILENCE_MS);
+          }
+
           // Close thinking block if still open
           if (inThinkingBlock) {
             const closingThinkBlock = "</think>\n";
@@ -2117,6 +2144,13 @@ export async function handleLocalAgentStream(
                 phase: "stream_iteration",
               },
             );
+            if (streamError instanceof ModelSilenceError) {
+              void reportStalledScheduledChat({
+                id: req.chatId,
+                sisterId: chat.sisterId,
+                app: { id: chat.app.id },
+              });
+            }
             throw streamError;
           }
 
@@ -2818,7 +2852,10 @@ function shouldRetryTransientStreamError(params: {
   return (
     !aborted &&
     retryCount < MAX_TERMINATED_STREAM_RETRIES &&
-    (isTerminatedStreamError(error) || isRetryableProviderStreamError(error))
+    (error instanceof ModelSilenceError
+      ? // A silent model gets one more try, not three: each takes minutes.
+        retryCount < 1
+      : isTerminatedStreamError(error) || isRetryableProviderStreamError(error))
   );
 }
 

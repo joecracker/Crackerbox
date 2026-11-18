@@ -26,7 +26,10 @@ function setup() {
   const folder = path.join(base, "apps", "veritas");
   fs.mkdirSync(path.join(folder, "docs"), { recursive: true });
   fs.mkdirSync(path.join(folder, "node_modules", "x"), { recursive: true });
-  fs.writeFileSync(path.join(folder, ".env"), "TELEGRAM_BOT_TOKEN=a\nTELEGRAM_CHAT_ID=1\n");
+  fs.writeFileSync(
+    path.join(folder, ".env"),
+    "TELEGRAM_BOT_TOKEN=a\nTELEGRAM_CHAT_ID=1\n",
+  );
   fs.writeFileSync(path.join(folder, "docs", "me.md"), "I am Veritas");
   fs.writeFileSync(path.join(folder, "node_modules", "x", "big.js"), "junk");
   const memoryDir = path.join(base, "agent-memory", "app-57");
@@ -50,11 +53,15 @@ describe("house backup", () => {
     const { ctx } = setup();
     await runBackup(ctx);
     const m = path.join(ctx.root, "mirror", "veritas");
-    expect(fs.readFileSync(path.join(m, "docs", "me.md"), "utf8")).toBe("I am Veritas");
+    expect(fs.readFileSync(path.join(m, "docs", "me.md"), "utf8")).toBe(
+      "I am Veritas",
+    );
     expect(fs.existsSync(path.join(m, "node_modules"))).toBe(false);
     const snap = path.join(ctx.root, "snapshots", "2026-11-11");
     expect(fs.existsSync(path.join(snap, "veritas", ".env"))).toBe(true);
-    expect(fs.existsSync(path.join(snap, "agent-memory", "app-57", "facts.md"))).toBe(true);
+    expect(
+      fs.existsSync(path.join(snap, "agent-memory", "app-57", "facts.md")),
+    ).toBe(true);
     expect(fs.existsSync(path.join(snap, "house", "house.json"))).toBe(true);
   });
 
@@ -66,8 +73,12 @@ describe("house backup", () => {
     expect(isHollow(folder)).toBe(true);
     expect(await restoreTarget(ctx, ctx.targets[0])).toBe(true);
     expect(isHollow(folder)).toBe(false);
-    expect(fs.readFileSync(path.join(folder, "docs", "me.md"), "utf8")).toBe("I am Veritas");
-    expect(fs.readFileSync(path.join(memoryDir, "facts.md"), "utf8")).toBe("fact");
+    expect(fs.readFileSync(path.join(folder, "docs", "me.md"), "utf8")).toBe(
+      "I am Veritas",
+    );
+    expect(fs.readFileSync(path.join(memoryDir, "facts.md"), "utf8")).toBe(
+      "fact",
+    );
   });
 
   it("does not back up a hollow folder over a good mirror", async () => {
@@ -76,15 +87,21 @@ describe("house backup", () => {
     fs.rmSync(path.join(folder, "docs"), { recursive: true });
     fs.rmSync(path.join(folder, ".env"));
     await runBackup({ ...ctx, now: new Date(2026, 10, 12, 4, 0) });
-    expect(fs.existsSync(path.join(ctx.root, "mirror", "veritas", "docs", "me.md"))).toBe(true);
+    expect(
+      fs.existsSync(path.join(ctx.root, "mirror", "veritas", "docs", "me.md")),
+    ).toBe(true);
   });
 
   it("writes a second copy when one is set", async () => {
     const { ctx, base } = setup();
     const also = path.join(base, "drive", "sisters");
     expect((await runBackupEverywhere({ ...ctx, also })).also).toBe(true);
-    expect(fs.existsSync(path.join(also, "mirror", "veritas", "docs", "me.md"))).toBe(true);
-    expect(fs.existsSync(path.join(ctx.root, "mirror", "veritas", "docs", "me.md"))).toBe(true);
+    expect(
+      fs.existsSync(path.join(also, "mirror", "veritas", "docs", "me.md")),
+    ).toBe(true);
+    expect(
+      fs.existsSync(path.join(ctx.root, "mirror", "veritas", "docs", "me.md")),
+    ).toBe(true);
   });
 
   it("returns false when there is nothing to restore from", async () => {
@@ -95,9 +112,38 @@ describe("house backup", () => {
   it("keeps only the newest 7 snapshots", () => {
     const { ctx } = setup();
     for (let d = 1; d <= 9; d++) {
-      fs.mkdirSync(path.join(ctx.root, "snapshots", `2026-11-0${d}`), { recursive: true });
+      fs.mkdirSync(path.join(ctx.root, "snapshots", `2026-11-0${d}`), {
+        recursive: true,
+      });
     }
     pruneSnapshots(ctx.root);
+    expect(fs.readdirSync(path.join(ctx.root, "snapshots"))).toHaveLength(7);
+  });
+
+  it("removes an old snapshot that holds read-only files (git packs)", () => {
+    const { ctx } = setup();
+    for (let d = 1; d <= 8; d++) {
+      fs.mkdirSync(path.join(ctx.root, "snapshots", `2026-11-0${d}`), {
+        recursive: true,
+      });
+    }
+    const packDir = path.join(
+      ctx.root,
+      "snapshots",
+      "2026-11-01",
+      "x",
+      ".git",
+      "objects",
+      "pack",
+    );
+    fs.mkdirSync(packDir, { recursive: true });
+    const pack = path.join(packDir, "pack-1.pack");
+    fs.writeFileSync(pack, "data");
+    fs.chmodSync(pack, 0o444);
+    pruneSnapshots(ctx.root);
+    expect(fs.existsSync(path.join(ctx.root, "snapshots", "2026-11-01"))).toBe(
+      false,
+    );
     expect(fs.readdirSync(path.join(ctx.root, "snapshots"))).toHaveLength(7);
   });
 });

@@ -2,7 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import log from "electron-log";
 import { getDyadAppPath, getElectron, getUserDataPath } from "@/paths/paths";
-import { houseDir, readRoster } from "@/pro/main/ipc/handlers/local_agent/house";
+import {
+  houseDir,
+  readRoster,
+} from "@/pro/main/ipc/handlers/local_agent/house";
 import { agentMemoryDir } from "@/pro/main/ipc/handlers/local_agent/agent_memory";
 import { parseEnvCreds } from "./telegram_inbound";
 
@@ -71,7 +74,12 @@ async function copyTree(
         } catch {
           // not there yet
         }
+        // git keeps its pack files read-only, and Windows will not overwrite a
+        // read-only file. Clear the flag on the old copy first, and on the new
+        // one so it can be replaced next time.
+        await fs.promises.chmod(d, 0o666).catch(() => {});
         await fs.promises.copyFile(s, d);
+        await fs.promises.chmod(d, 0o666).catch(() => {});
         await fs.promises.utimes(d, st.atime, st.mtime);
       }
     } catch (error) {
@@ -83,7 +91,9 @@ async function copyTree(
 /** A sister's folder counts as gone when it is missing or has lost both docs and .env. */
 export function isHollow(folder: string): boolean {
   if (!exists(folder)) return true;
-  return !exists(path.join(folder, "docs")) && !exists(path.join(folder, ".env"));
+  return (
+    !exists(path.join(folder, "docs")) && !exists(path.join(folder, ".env"))
+  );
 }
 
 function snapshotDirs(root: string): string[] {
@@ -97,10 +107,42 @@ function snapshotDirs(root: string): string[] {
   }
 }
 
+/** Clears the read-only flag on everything under a folder so it can be deleted. */
+function makeWritable(dir: string) {
+  let entries: fs.Dirent[] = [];
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const e of entries) {
+    const p = path.join(dir, e.name);
+    if (e.isDirectory()) makeWritable(p);
+    else {
+      try {
+        fs.chmodSync(p, 0o666);
+      } catch {
+        // leave it; the delete will report it
+      }
+    }
+  }
+}
+
+/**
+ * Deletes the oldest snapshots beyond `keep`. A snapshot that cannot be removed
+ * is logged and skipped: a stuck clean-up must never make the backup itself
+ * count as failed (it would then rerun every minute).
+ */
 export function pruneSnapshots(root: string, keep = KEEP_SNAPSHOTS) {
   const all = snapshotDirs(root);
   for (const old of all.slice(0, Math.max(0, all.length - keep))) {
-    fs.rmSync(path.join(root, "snapshots", old), { recursive: true, force: true });
+    const dir = path.join(root, "snapshots", old);
+    try {
+      makeWritable(dir);
+      fs.rmSync(dir, { recursive: true, force: true });
+    } catch (error) {
+      logger.warn(`could not remove old snapshot ${old}`, error);
+    }
   }
 }
 
@@ -109,11 +151,17 @@ export async function runBackup(ctx: BackupCtx): Promise<void> {
   await fs.promises.mkdir(snap, { recursive: true });
   for (const t of ctx.targets) {
     if (isHollow(t.folder)) continue; // never overwrite a good backup with a hollow shell
-    await copyTree(t.folder, path.join(ctx.root, "mirror", t.id), (n) => n === "node_modules");
+    await copyTree(
+      t.folder,
+      path.join(ctx.root, "mirror", t.id),
+      (n) => n === "node_modules",
+    );
     // small identity snapshot: top-level small files + docs
     const tsnap = path.join(snap, t.id);
     await fs.promises.mkdir(tsnap, { recursive: true });
-    for (const e of await fs.promises.readdir(t.folder, { withFileTypes: true })) {
+    for (const e of await fs.promises.readdir(t.folder, {
+      withFileTypes: true,
+    })) {
       if (!e.isFile()) continue;
       const s = path.join(t.folder, e.name);
       if ((await fs.promises.stat(s)).size <= SMALL_FILE) {
@@ -121,14 +169,25 @@ export async function runBackup(ctx: BackupCtx): Promise<void> {
       }
     }
     if (exists(path.join(t.folder, "docs"))) {
-      await fs.promises.cp(path.join(t.folder, "docs"), path.join(tsnap, "docs"), { recursive: true, force: true });
+      await fs.promises.cp(
+        path.join(t.folder, "docs"),
+        path.join(tsnap, "docs"),
+        { recursive: true, force: true },
+      );
     }
     if (exists(t.memoryDir)) {
-      await fs.promises.cp(t.memoryDir, path.join(snap, "agent-memory", path.basename(t.memoryDir)), { recursive: true, force: true });
+      await fs.promises.cp(
+        t.memoryDir,
+        path.join(snap, "agent-memory", path.basename(t.memoryDir)),
+        { recursive: true, force: true },
+      );
     }
   }
   if (exists(ctx.houseDir)) {
-    await fs.promises.cp(ctx.houseDir, path.join(snap, "house"), { recursive: true, force: true });
+    await fs.promises.cp(ctx.houseDir, path.join(snap, "house"), {
+      recursive: true,
+      force: true,
+    });
   }
   for (const f of ctx.extraFiles) {
     if (exists(f)) {
@@ -146,7 +205,9 @@ export async function runBackup(ctx: BackupCtx): Promise<void> {
  * Runs the backup into the main folder and, when set, a second copy (skipped
  * with a warning if that drive is not there, for example Drive signed out).
  */
-export async function runBackupEverywhere(ctx: BackupCtx): Promise<{ also: boolean }> {
+export async function runBackupEverywhere(
+  ctx: BackupCtx,
+): Promise<{ also: boolean }> {
   await runBackup(ctx);
   if (!ctx.also) return { also: false };
   if (!exists(path.parse(ctx.also).root)) {
@@ -163,16 +224,32 @@ export async function runBackupEverywhere(ctx: BackupCtx): Promise<{ also: boole
 }
 
 /** Puts a sister's folder (and, if lost, her private memory) back. Returns false if there is nothing to restore from. */
-export async function restoreTarget(ctx: BackupCtx, t: BackupTarget): Promise<boolean> {
+export async function restoreTarget(
+  ctx: BackupCtx,
+  t: BackupTarget,
+): Promise<boolean> {
   const mirror = path.join(ctx.root, "mirror", t.id);
-  if (!exists(path.join(mirror, "docs")) && !exists(path.join(mirror, ".env"))) return false;
+  if (!exists(path.join(mirror, "docs")) && !exists(path.join(mirror, ".env")))
+    return false;
   await copyTree(mirror, t.folder, (n) => n === "node_modules");
   const snaps = snapshotDirs(ctx.root);
   const latest = snaps[snaps.length - 1];
   if (latest) {
-    const memSrc = path.join(ctx.root, "snapshots", latest, "agent-memory", path.basename(t.memoryDir));
-    if (exists(memSrc) && (!exists(t.memoryDir) || fs.readdirSync(t.memoryDir).length === 0)) {
-      await fs.promises.cp(memSrc, t.memoryDir, { recursive: true, force: true });
+    const memSrc = path.join(
+      ctx.root,
+      "snapshots",
+      latest,
+      "agent-memory",
+      path.basename(t.memoryDir),
+    );
+    if (
+      exists(memSrc) &&
+      (!exists(t.memoryDir) || fs.readdirSync(t.memoryDir).length === 0)
+    ) {
+      await fs.promises.cp(memSrc, t.memoryDir, {
+        recursive: true,
+        force: true,
+      });
     }
   }
   return true;
@@ -181,7 +258,10 @@ export async function restoreTarget(ctx: BackupCtx, t: BackupTarget): Promise<bo
 async function tellTim(text: string) {
   for (const s of readRoster()) {
     try {
-      const env = fs.readFileSync(path.join(getDyadAppPath(s.id), ".env"), "utf8");
+      const env = fs.readFileSync(
+        path.join(getDyadAppPath(s.id), ".env"),
+        "utf8",
+      );
       const { token, chat } = parseEnvCreds(env);
       if (!token || !chat) continue;
       await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
@@ -199,11 +279,14 @@ async function tellTim(text: string) {
 function buildCtx(): BackupCtx {
   const dataDir = getUserDataPath();
   const documents =
-    getElectron()?.app.getPath("documents") ?? path.join(dataDir, "..", "Documents");
+    getElectron()?.app.getPath("documents") ??
+    path.join(dataDir, "..", "Documents");
   let root = path.join(documents, "cb-backups", "nightly");
   let also: string | undefined;
   try {
-    const cfg = JSON.parse(fs.readFileSync(path.join(houseDir(), "backup.json"), "utf8"));
+    const cfg = JSON.parse(
+      fs.readFileSync(path.join(houseDir(), "backup.json"), "utf8"),
+    );
     if (typeof cfg.dir === "string" && cfg.dir) root = cfg.dir;
     if (typeof cfg.also === "string" && cfg.also) also = cfg.also;
   } catch {
@@ -218,7 +301,9 @@ function buildCtx(): BackupCtx {
       memoryDir: agentMemoryDir(s.appId),
     })),
     houseDir: houseDir(),
-    extraFiles: ["sqlite.db", "sqlite.db-wal", "sqlite.db-shm"].map((n) => path.join(dataDir, n)),
+    extraFiles: ["sqlite.db", "sqlite.db-wal", "sqlite.db-shm"].map((n) =>
+      path.join(dataDir, n),
+    ),
     now: new Date(),
   };
 }
@@ -253,16 +338,23 @@ export function startHouseBackup(): () => void {
       // 2) nightly backup
       let last = "";
       try {
-        last = JSON.parse(fs.readFileSync(statePath(ctx.root), "utf8")).lastRun ?? "";
+        last =
+          JSON.parse(fs.readFileSync(statePath(ctx.root), "utf8")).lastRun ??
+          "";
       } catch {
         // never run
       }
-      const noMirror = ctx.targets.some((t) => !exists(path.join(ctx.root, "mirror", t.id)));
+      const noMirror = ctx.targets.some(
+        (t) => !exists(path.join(ctx.root, "mirror", t.id)),
+      );
       const today = dayKey(ctx.now);
       if (last !== today && (ctx.now.getHours() >= 4 || noMirror)) {
         await runBackupEverywhere(ctx);
         fs.mkdirSync(ctx.root, { recursive: true });
-        fs.writeFileSync(statePath(ctx.root), JSON.stringify({ lastRun: today, at: new Date().toISOString() }));
+        fs.writeFileSync(
+          statePath(ctx.root),
+          JSON.stringify({ lastRun: today, at: new Date().toISOString() }),
+        );
         logger.info("nightly backup done");
       }
     } catch (error) {

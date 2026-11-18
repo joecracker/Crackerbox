@@ -6,6 +6,7 @@ import {
   PHONE_INSTALL_HEAD_TAGS,
   PHONE_MANIFEST_PATH,
   PHONE_SERVICE_WORKER_PATH,
+  isPublicPhoneAsset,
   servePhoneInstallAsset,
 } from "./phone_bridge_install";
 
@@ -40,6 +41,26 @@ describe("phone install files", () => {
     const sizes = manifest.icons.map((i: { sizes: string }) => i.sizes);
     expect(sizes).toContain("192x192");
     expect(sizes).toContain("512x512");
+  });
+
+  it("puts the phone key in the shortcut's start address, when it has one", () => {
+    const { out, res } = fakeResponse();
+    expect(servePhoneInstallAsset(PHONE_MANIFEST_PATH, res, "abc123")).toBe(
+      true,
+    );
+    const manifest = JSON.parse(String(out.body));
+    expect(manifest.start_url).toBe("/?cbkey=abc123");
+    expect(manifest.id).toBe("/");
+    expect(out.headers["Cache-Control"]).toBe("no-store");
+  });
+
+  it("only the icons and the helper script are public", () => {
+    expect(isPublicPhoneAsset(PHONE_ICON_192_PATH)).toBe(true);
+    expect(isPublicPhoneAsset(PHONE_ICON_512_PATH)).toBe(true);
+    expect(isPublicPhoneAsset(PHONE_SERVICE_WORKER_PATH)).toBe(true);
+    expect(isPublicPhoneAsset(PHONE_MANIFEST_PATH)).toBe(false);
+    expect(isPublicPhoneAsset("/")).toBe(false);
+    expect(isPublicPhoneAsset("/__phone_bridge/ws")).toBe(false);
   });
 
   it("serves a helper script with a fetch handler that leaves requests alone", () => {

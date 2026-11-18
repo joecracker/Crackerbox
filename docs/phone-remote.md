@@ -15,8 +15,12 @@ setup is on you: Crackerbox does not create or run it for you.
 
 Things to know:
 
-- There is no sign-in on home Wi-Fi. Anyone on your network who can reach the
-  computer can open Crackerbox. Only use this on a network you trust.
+- The QR code carries a secret key. The phone keeps it for a year, so you scan
+  once. A phone that has not scanned it is turned away with a page that says
+  what to do, and Settings > Add a phone shows the last device turned away.
+  **Reset phone access** (same place) makes a new key and signs every phone out.
+  The connection is plain `http`, so on a network you do not trust the key could
+  still be seen. Do not post a picture of the QR code.
 - Windows Firewall may block the phone. Allow Crackerbox on **Private**
   networks (the phone connects to port 4319).
 - Home Wi-Fi uses plain `http`, so Chrome will not offer to install it as an app.
@@ -51,9 +55,9 @@ Steps:
 3. **Run the tunnel as a service** so it starts with the computer.
 4. **Lock it with Cloudflare Access.** In Cloudflare Zero Trust, add a
    self-hosted application for `remote.yourdomain.com` with a policy that allows
-   only your own email. This step is not optional. Crackerbox has no sign-in of
-   its own, so without it anyone who finds the address can use your computer's
-   Crackerbox.
+   only your own email. This step is not optional. The phone key is a second
+   lock, but Cloudflare Access is the one that keeps strangers off the internet
+   side.
 5. In Crackerbox, open **Settings > Add a phone**, type `remote.yourdomain.com`
    in **Remote address**, and press **Save**.
 6. Choose **From anywhere** and scan the code. Cloudflare asks you to sign in when

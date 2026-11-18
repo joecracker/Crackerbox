@@ -3,8 +3,9 @@
 // does, by replaying the same window.electron.ipcRenderer contract preload.ts
 // exposes -- but over a WebSocket instead of Electron's real contextBridge/IPC.
 //
-// No login of its own (a trusted local network is assumed). Reaching it from
-// the open internet goes through Cloudflare Access.
+// Every request needs the phone key (see phone_bridge_auth.ts): the QR code in
+// Settings > Add a phone carries it. Reaching it from the open internet also
+// goes through Cloudflare Access.
 import { EventEmitter } from "node:events";
 import * as http from "node:http";
 import * as fs from "node:fs";
@@ -42,8 +43,23 @@ import {
 } from "./phone_bridge_preview_host";
 import {
   PHONE_INSTALL_HEAD_TAGS,
+  isPublicPhoneAsset,
   servePhoneInstallAsset,
 } from "./phone_bridge_install";
+import {
+  PHONE_AUTH_CHECK_PATH,
+  decidePhoneAccess,
+  getLastPhoneRefusal,
+  getPhoneAccessKey,
+  isSecureRequest,
+  phoneRefusalMessage,
+  phoneRefusalPage,
+  recordPhoneRefusal,
+  withoutPhoneKeyCookie,
+  type AccessDecision,
+  type PhoneRefusal,
+  type RefusalReason,
+} from "./phone_bridge_auth";
 import {
   PHONE_SESSION_GRACE_MS,
   parsePageId,
@@ -411,6 +427,7 @@ export const PHONE_SHIM_SCRIPT = `(function () {
   }
 
   function linkLostNow(delay) {
+    if (turnedAway) return;
     if (!linkLost) {
       linkLost = true;
       showBanner("Lost connection to Crackerbox on your computer. Reconnecting...", null);
@@ -460,8 +477,25 @@ export const PHONE_SHIM_SCRIPT = `(function () {
       ) {
         return;
       }
+      checkStillAllowed();
+      if (turnedAway) return;
       connectSocket();
     }, delay);
+  }
+
+  // If the computer says no (phone access was reset, or this phone was never
+  // set up), say so on screen instead of "Reconnecting..." for ever.
+  var turnedAway = false;
+  function checkStillAllowed() {
+    if (!window.fetch) return;
+    fetch("${PHONE_AUTH_CHECK_PATH}", { credentials: "same-origin", cache: "no-store" })
+      .then(function (response) {
+        if (response.status !== 403) return;
+        turnedAway = true;
+        try { socket.close(); } catch (e) {}
+        showBanner("Crackerbox no longer recognises this phone (phone access was reset on the computer). On the computer open Settings > Add a phone and scan the QR code again. Tap here after scanning.", function () { location.reload(); });
+      })
+      .catch(function () {});
   }
 
   function forceClose() {
@@ -584,6 +618,7 @@ export const PHONE_SHIM_SCRIPT = `(function () {
     socket.addEventListener("close", function (evt) {
       console.warn("[phone bridge] connection to Crackerbox lost");
       if (thisSocket !== socket) return;
+      if (turnedAway) return;
       if (evt && evt.code === 4000) {
         takeNewPageId();
         return;
@@ -826,7 +861,7 @@ function proxyToDevServer(
       port: target.port,
       path: req.url,
       method: req.method,
-      headers: { ...req.headers, host: target.host },
+      headers: { ...withoutPhoneKeyCookie(req.headers), host: target.host },
     },
     (proxyRes) => {
       const contentType = proxyRes.headers["content-type"] ?? "";
@@ -876,7 +911,7 @@ function proxyPhonePreview(
       method: req.method,
       insecureHTTPParser: true,
       headers: {
-        ...req.headers,
+        ...withoutPhoneKeyCookie(req.headers),
         host: `localhost:${port}`,
         "accept-encoding": "identity",
       },
@@ -987,7 +1022,7 @@ function proxyPhonePreviewWebSocket(
     path: upstreamPath,
     method: req.method,
     headers: {
-      ...req.headers,
+      ...withoutPhoneKeyCookie(req.headers),
       host: `localhost:${port}`,
     },
   });
@@ -1084,8 +1119,88 @@ function servePreviewHostRequest(
 }
 
 /** What Settings needs to show a QR code for a phone on the same Wi-Fi. */
-export function getPhoneAccessInfo(): { lanUrls: string[] } {
-  return { lanUrls: getLanUrls(PHONE_BRIDGE_PORT) };
+export function getPhoneAccessInfo(): {
+  lanUrls: string[];
+  accessKey: string | null;
+  lastRefusal: PhoneRefusal | null;
+} {
+  let accessKey: string | null = null;
+  try {
+    accessKey = getPhoneAccessKey();
+  } catch (error) {
+    logger.error("Could not read or make the phone access key:", error);
+  }
+  return {
+    lanUrls: getLanUrls(PHONE_BRIDGE_PORT),
+    accessKey,
+    lastRefusal: getLastPhoneRefusal(),
+  };
+}
+
+const lastRefusalLogged = new Map<string, number>();
+
+function refuse(req: http.IncomingMessage, reason: RefusalReason) {
+  const address = req.socket.remoteAddress ?? "unknown";
+  recordPhoneRefusal(address, reason);
+  const now = Date.now();
+  // One log line per device per minute, so a phone retrying does not flood the log.
+  if (now - (lastRefusalLogged.get(address) ?? 0) > 60_000) {
+    lastRefusalLogged.set(address, now);
+    logger.warn(
+      `Phone request turned away (${reason}) from ${address}: ${phoneRefusalMessage(reason)}`,
+    );
+  }
+}
+
+/** Looks up the key. If it cannot be read, nobody gets in. */
+function decideForRequest(req: http.IncomingMessage): AccessDecision {
+  let key: string;
+  try {
+    key = getPhoneAccessKey();
+  } catch (error) {
+    logger.error("Phone access key unreadable, refusing phones:", error);
+    return { kind: "deny", reason: "no-key-file" };
+  }
+  return decidePhoneAccess(
+    req.url,
+    req.headers.cookie,
+    key,
+    isSecureRequest(req.headers),
+  );
+}
+
+/** Returns true when the request was answered here (turned away, or sent to pair). */
+export function gateHttpRequest(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  pathname: string,
+): boolean {
+  if (isPublicPhoneAsset(pathname)) return false;
+  const decision = decideForRequest(req);
+  if (pathname === PHONE_AUTH_CHECK_PATH) {
+    res.writeHead(decision.kind === "allow" ? 204 : 403, {
+      "Cache-Control": "no-store",
+    });
+    res.end();
+    return true;
+  }
+  if (decision.kind === "allow") return false;
+  if (decision.kind === "pair") {
+    res.writeHead(302, {
+      Location: decision.location,
+      "Set-Cookie": decision.setCookie,
+      "Cache-Control": "no-store",
+    });
+    res.end();
+    return true;
+  }
+  refuse(req, decision.reason);
+  res.writeHead(403, {
+    "Content-Type": "text/html; charset=utf-8",
+    "Cache-Control": "no-store",
+  });
+  res.end(phoneRefusalPage(decision.reason));
+  return true;
 }
 
 function getLanUrls(port: number): string[] {
@@ -1103,6 +1218,15 @@ export function startPhoneBridgeServer(devServerUrl: string | undefined) {
   const rendererRoot = path.join(__dirname, "../renderer/main_window");
 
   const server = http.createServer((req, res) => {
+    if (
+      gateHttpRequest(
+        req,
+        res,
+        new URL(req.url ?? "/", "http://internal").pathname,
+      )
+    ) {
+      return;
+    }
     if (req.headers["sec-fetch-dest"] === "iframe") {
       logger.info(
         `Frame request: host=${req.headers.host} path=${(req.url ?? "").replace(/cbp=\d+/, "cbp=N")}`,
@@ -1124,7 +1248,13 @@ export function startPhoneBridgeServer(devServerUrl: string | undefined) {
       return;
     }
 
-    if (servePhoneInstallAsset(pathname, res)) {
+    let phoneKey: string | undefined;
+    try {
+      phoneKey = getPhoneAccessKey();
+    } catch {
+      phoneKey = undefined;
+    }
+    if (servePhoneInstallAsset(pathname, res, phoneKey)) {
       return;
     }
 
@@ -1173,6 +1303,15 @@ export function startPhoneBridgeServer(devServerUrl: string | undefined) {
     socket.on("error", (error) =>
       logger.warn("Phone upgrade socket error:", error),
     );
+    const access = decideForRequest(req);
+    if (access.kind !== "allow") {
+      refuse(req, access.kind === "deny" ? access.reason : "no-key");
+      socket.write(
+        "HTTP/1.1 403 Forbidden\r\nConnection: close\r\nContent-Length: 0\r\n\r\n",
+      );
+      socket.destroy();
+      return;
+    }
     if (isPreviewHost(req.headers.host)) {
       const plan = planPreviewHostRequest(
         req.url ?? "/",
@@ -1260,7 +1399,7 @@ export function startPhoneBridgeServer(devServerUrl: string | undefined) {
   server.listen(PHONE_BRIDGE_PORT, "0.0.0.0", () => {
     const urls = getLanUrls(PHONE_BRIDGE_PORT);
     logger.info(
-      `Phone bridge listening on port ${PHONE_BRIDGE_PORT} (LAN only, no login yet). Try on your phone: ${
+      `Phone bridge listening on port ${PHONE_BRIDGE_PORT} (needs the phone key from the QR code in Settings > Add a phone). Addresses: ${
         urls.length
           ? urls.join(", ")
           : `http://<this computer's LAN IP>:${PHONE_BRIDGE_PORT}`

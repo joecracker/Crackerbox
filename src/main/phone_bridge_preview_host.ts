@@ -67,6 +67,7 @@ export function cookiesForPreviewApp(
       return (
         part !== "" &&
         name !== PREVIEW_COOKIE &&
+        name !== "cb_phone_key" &&
         name !== "cf_authorization" &&
         name !== "cf_appsession"
       );

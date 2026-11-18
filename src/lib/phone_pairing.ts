@@ -38,11 +38,19 @@ export function normalizeRemoteAddress(input: string): RemoteAddressResult {
   return { ok: true, origin: url.origin };
 }
 
-/** The address a QR code carries. cbpair=1 makes the phone offer to install. */
-export function buildPairingUrl(base: string): string {
+/**
+ * The address a QR code carries. cbpair=1 makes the phone offer to install;
+ * cbkey is the phone access key (the computer swaps it for a cookie on the
+ * phone and then cleans it out of the address).
+ */
+export function buildPairingUrl(
+  base: string,
+  accessKey?: string | null,
+): string {
   const url = new URL(base);
   url.pathname = "/";
   url.search = "?cbpair=1";
+  if (accessKey) url.searchParams.set("cbkey", accessKey);
   url.hash = "";
   return url.toString();
 }

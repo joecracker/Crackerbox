@@ -95,6 +95,16 @@ export const SelectCustomAppsFolderResultSchema = z.object({
 export const GetPhoneAccessInfoResultSchema = z.object({
   /** Addresses a phone on the same Wi-Fi can open, e.g. http://192.168.1.16:4319 */
   lanUrls: z.array(z.string()),
+  /** The secret the QR code carries. Null when it could not be read. */
+  accessKey: z.string().nullable(),
+  /** The last device the phone server turned away, if any. */
+  lastRefusal: z
+    .object({
+      at: z.number(),
+      address: z.string(),
+      reason: z.enum(["no-key", "wrong-key", "no-key-file"]),
+    })
+    .nullable(),
 });
 
 export const GetCustomAppsFolderResultSchema = z.object({
@@ -323,6 +333,12 @@ export const systemContracts = {
   // Phone access (the QR code in Settings)
   getPhoneAccessInfo: defineContract({
     channel: "get-phone-access-info",
+    input: z.void(),
+    output: GetPhoneAccessInfoResultSchema,
+  }),
+  // New key: every paired phone has to scan the QR code again.
+  resetPhoneAccessKey: defineContract({
+    channel: "reset-phone-access-key",
     input: z.void(),
     output: GetPhoneAccessInfoResultSchema,
   }),

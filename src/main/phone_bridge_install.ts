@@ -70,17 +70,34 @@ export const PHONE_INSTALL_HEAD_TAGS = [
 const ICON_192 = Buffer.from(PHONE_ICON_192_BASE64, "base64");
 const ICON_512 = Buffer.from(PHONE_ICON_512_BASE64, "base64");
 
+/**
+ * The icons and the install helper script hold nothing private, so they are
+ * served without the phone key. The install file (manifest) is not: it carries
+ * the key so a home-screen shortcut starts out already signed in.
+ */
+export function isPublicPhoneAsset(pathname: string): boolean {
+  return (
+    pathname === PHONE_SERVICE_WORKER_PATH ||
+    pathname === PHONE_ICON_192_PATH ||
+    pathname === PHONE_ICON_512_PATH
+  );
+}
+
 /** Answers the install files. Returns false when the path is not one of them. */
 export function servePhoneInstallAsset(
   pathname: string,
   res: http.ServerResponse,
+  phoneKey?: string,
 ): boolean {
   if (pathname === PHONE_MANIFEST_PATH) {
     res.writeHead(200, {
       "Content-Type": "application/manifest+json; charset=utf-8",
-      "Cache-Control": "no-cache",
+      "Cache-Control": "no-store",
     });
-    res.end(JSON.stringify(PHONE_MANIFEST));
+    const manifest = phoneKey
+      ? { ...PHONE_MANIFEST, start_url: "/?cbkey=" + phoneKey }
+      : PHONE_MANIFEST;
+    res.end(JSON.stringify(manifest));
     return true;
   }
   if (pathname === PHONE_SERVICE_WORKER_PATH) {

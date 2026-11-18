@@ -44,6 +44,15 @@ describe("buildPairingUrl", () => {
     );
   });
 
+  it("carries the phone access key when there is one", () => {
+    expect(buildPairingUrl("http://192.168.1.16:4319", "abc-DEF_123")).toBe(
+      "http://192.168.1.16:4319/?cbpair=1&cbkey=abc-DEF_123",
+    );
+    expect(buildPairingUrl("http://192.168.1.16:4319", null)).toBe(
+      "http://192.168.1.16:4319/?cbpair=1",
+    );
+  });
+
   it("drops any path, query or hash from the base", () => {
     expect(buildPairingUrl("https://remote.example.com/a/b?c=d#e")).toBe(
       "https://remote.example.com/?cbpair=1",

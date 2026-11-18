@@ -142,7 +142,7 @@ export function defaultJobs(): ScheduleJob[] {
  * from the defaults on read, so a changed default really lands; only whether
  * each job is switched on is kept from the saved copy.
  */
-const SCHEDULE_VERSION = 3;
+const SCHEDULE_VERSION = 4;
 
 function scheduleFile() {
   return path.join(houseDir(), "schedule.json");

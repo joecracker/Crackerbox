@@ -19,7 +19,15 @@ import {
   MAX_AUDIO_REQUEST_ID_LENGTH,
 } from "../types/audio";
 import type { TranscribeAudioParams } from "../types/audio";
-import { pocketVoicesDir, synthesizeSpeech } from "../services/speech_service";
+import {
+  findPocketExe,
+  pocketVoicesDir,
+  synthesizeSpeech,
+} from "../services/speech_service";
+import {
+  deleteCustomPocketVoice,
+  makeCustomPocketVoice,
+} from "../services/pocket_voice_maker";
 import { listCustomPocketVoices } from "../services/pocket_custom_voices";
 import fs from "node:fs";
 import { transcribeWithDyadEngine } from "../utils/llm_engine_provider";
@@ -130,6 +138,18 @@ export function registerProHandlers() {
       })),
       folder,
     };
+  });
+  typedHandle(audioContracts.createPocketVoice, async (_event, input) => {
+    return makeCustomPocketVoice({
+      dir: pocketVoicesDir(),
+      exe: findPocketExe(),
+      name: input.name,
+      extension: input.extension,
+      bytes: input.audioData,
+    });
+  });
+  typedHandle(audioContracts.deletePocketVoice, async (_event, input) => {
+    deleteCustomPocketVoice(pocketVoicesDir(), input.id);
   });
   typedHandle(audioContracts.openPocketVoicesFolder, async () => {
     const folder = pocketVoicesDir();

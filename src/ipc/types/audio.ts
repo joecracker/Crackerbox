@@ -74,6 +74,24 @@ export type ListPocketVoicesResult = z.infer<
   typeof ListPocketVoicesResultSchema
 >;
 
+export const CreatePocketVoiceParamsSchema = z.object({
+  name: z.string().trim().min(1).max(56),
+  /** ".wav", ".flac", ".mp3" or ".ogg" */
+  extension: z.string().min(1).max(8),
+  audioData: z
+    .instanceof(Uint8Array)
+    .refine((data) => data.byteLength > 0, "Recording cannot be empty")
+    .refine(
+      (data) => data.byteLength <= 25 * 1024 * 1024,
+      "Recording cannot exceed 25 MB",
+    ),
+});
+
+export const CreatePocketVoiceResultSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+});
+
 // =============================================================================
 // Contracts
 // =============================================================================
@@ -88,6 +106,16 @@ export const audioContracts = {
     channel: "speech:list-pocket-voices" as const,
     input: z.void(),
     output: ListPocketVoicesResultSchema,
+  }),
+  createPocketVoice: defineContract({
+    channel: "speech:create-pocket-voice" as const,
+    input: CreatePocketVoiceParamsSchema,
+    output: CreatePocketVoiceResultSchema,
+  }),
+  deletePocketVoice: defineContract({
+    channel: "speech:delete-pocket-voice" as const,
+    input: z.object({ id: z.string().min(1).max(64) }),
+    output: z.void(),
   }),
   openPocketVoicesFolder: defineContract({
     channel: "speech:open-pocket-voices-folder" as const,

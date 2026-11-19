@@ -264,7 +264,7 @@ export function buildPocketRequest(
   };
 }
 
-function findPocketExe(): string | null {
+export function findPocketExe(): string | null {
   const home = app.getPath("home");
   const candidates = [
     path.join(

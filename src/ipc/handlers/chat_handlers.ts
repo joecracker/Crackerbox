@@ -339,6 +339,7 @@ export function registerChatHandlers() {
       appId: s.appId,
       color: s.color,
       initial: s.initial,
+      askEveryStep: s.askEveryStep,
     };
   });
 

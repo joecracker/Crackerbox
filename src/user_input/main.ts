@@ -5,6 +5,10 @@ import log from "electron-log";
 import { db } from "../db";
 import { mcpToolConsents } from "../db/schema";
 import { readSettings, writeSettings } from "../main/settings";
+import {
+  rememberEntityAlways,
+  strictEntityForChat,
+} from "../main/house_consent";
 import { systemClock, uuidIdSource } from "../state_machines/clock";
 import { safeSend } from "../ipc/utils/safe_sender";
 import { createUserInputRegistry } from "./registry";
@@ -101,6 +105,13 @@ export const userInputRegistry = createUserInputRegistry({
       response.kind === "agent-consent" &&
       response.decision === "accept-always"
     ) {
+      // A helper that asks every step keeps its own list; "Always allow" there
+      // must not loosen the tool for the other entities.
+      const strict = await strictEntityForChat(descriptor.chatId);
+      if (strict) {
+        rememberEntityAlways(strict.id, descriptor.toolName);
+        return;
+      }
       const settings = readSettings();
       writeSettings({
         agentToolConsents: {

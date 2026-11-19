@@ -22,6 +22,7 @@ import { getNeonProjectInfoTool } from "./tools/get_neon_project_info";
 import { getDatabaseTableSchemaTool } from "./tools/get_database_table_schema";
 
 import { readFileTool } from "./tools/read_file";
+import { entityConsentFor, strictEntityForChat } from "@/main/house_consent";
 import { readOfficeFileTool } from "./tools/office/read_office_file";
 import {
   writeSpreadsheetTool,
@@ -361,7 +362,13 @@ export async function requireAgentToolConsent(
     };
   },
 ): Promise<boolean> {
-  const current = getAgentToolConsent(params.toolName);
+  let current = getAgentToolConsent(params.toolName);
+  // A helper that asks before every step has its own list; the global setting
+  // and the tool's default never loosen it. "never" still switches a tool off.
+  const strict = await strictEntityForChat(params.chatId);
+  if (strict && current !== "never") {
+    current = entityConsentFor(strict, params.toolName) ?? current;
+  }
 
   if (current === "always" && !params.forceAsk) return true;
   if (current === "never")

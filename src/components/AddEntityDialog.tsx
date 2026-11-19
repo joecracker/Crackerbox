@@ -45,6 +45,7 @@ export function AddEntityDialog({
   const [name, setName] = useState("");
   const [color, setColor] = useState(COLORS[0]);
   const [personality, setPersonality] = useState("");
+  const [helper, setHelper] = useState(false);
   const [temperamentIndex, setTemperamentIndex] = useState(
     DEFAULT_TEMPERAMENT_INDEX,
   );
@@ -55,6 +56,7 @@ export function AddEntityDialog({
   const create = useMutation({
     mutationFn: () => {
       const temperature = temperatureForPresetIndex(temperamentIndex);
+      if (helper) return ipc.chat.addEntity({ name, color, helper: true });
       return ipc.chat.addEntity({
         name,
         color,
@@ -67,6 +69,7 @@ export function AddEntityDialog({
       await queryClient.invalidateQueries({ queryKey: ["apps"] });
       setName("");
       setPersonality("");
+      setHelper(false);
       setTemperamentIndex(DEFAULT_TEMPERAMENT_INDEX);
       onOpenChange(false);
       openApp(sister.appId);
@@ -113,14 +116,38 @@ export function AddEntityDialog({
             />
           ))}
         </div>
-        <Textarea
-          placeholder="Personality, in your own words (optional). e.g. A calm professor who explains things simply and loves a good metaphor."
-          value={personality}
-          rows={4}
-          onChange={(e) => setPersonality(e.target.value)}
-          data-testid="add-entity-personality"
-        />
-        <div className="space-y-1" data-testid="add-entity-temperament">
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={helper}
+            onChange={(e) => setHelper(e.target.checked)}
+            className="mt-1"
+            data-testid="add-entity-helper"
+          />
+          <span>
+            <span className="font-medium">
+              Helper (no personality, asks before every step)
+            </span>
+            <span className="block text-xs text-muted-foreground">
+              Runs on your Claude Code subscription and does coding and PC work
+              when another entity hands it a task. Needs Claude Code signed in.
+            </span>
+          </span>
+        </label>
+        {!helper && (
+          <Textarea
+            placeholder="Personality, in your own words (optional). e.g. A calm professor who explains things simply and loves a good metaphor."
+            value={personality}
+            rows={4}
+            onChange={(e) => setPersonality(e.target.value)}
+            data-testid="add-entity-personality"
+          />
+        )}
+        <div
+          className="space-y-1"
+          data-testid="add-entity-temperament"
+          hidden={helper}
+        >
           <div className="flex items-baseline justify-between">
             <label
               htmlFor="add-entity-temperament-slider"

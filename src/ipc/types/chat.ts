@@ -374,6 +374,7 @@ export const SisterSchema = z.object({
   avatarUrl: z.string().optional(),
   voice: z.string().optional(),
   temperature: z.number().optional(),
+  askEveryStep: z.boolean().optional(),
 });
 export type SisterSummary = z.infer<typeof SisterSchema>;
 
@@ -478,6 +479,7 @@ export const chatContracts = {
       color: z.string().optional(),
       personality: z.string().optional(),
       temperature: z.number().min(0).max(2).optional(),
+      helper: z.boolean().optional(),
     }),
     output: SisterSchema,
     invalidates: () => [{ family: "chats" }, { family: "apps" }],

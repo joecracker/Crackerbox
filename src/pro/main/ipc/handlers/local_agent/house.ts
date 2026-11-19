@@ -44,6 +44,15 @@ export interface Sister {
    * set, her replies are spoken with it. Older rosters have none.
    */
   voice?: string;
+  /**
+   * A helper that asks before every step (Dex's laptop). Every tool starts on
+   * "ask" for this entity, whatever the global defaults say, and "Always allow"
+   * is remembered in toolConsents here rather than in the global settings, so
+   * it never loosens anything for the other entities. Older rosters have none.
+   */
+  askEveryStep?: boolean;
+  /** Tools Tim has said "Always allow" to for this entity only. */
+  toolConsents?: Record<string, "always">;
 }
 
 // A fresh install starts with an empty house; the user adds their own entities.

@@ -7,7 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { POCKET_VOICES } from "@/shared/pocket_voices";
+import { usePocketVoices } from "@/hooks/usePocketVoices";
 import {
   TEMPERAMENT_PRESETS,
   presetIndexForTemperature,
@@ -30,6 +30,7 @@ export const HOUSE_DESCRIPTION =
 export function HouseSettings() {
   const queryClient = useQueryClient();
   const sisters = useHouseSisters();
+  const pocketVoices = usePocketVoices();
   if (!sisters.data || sisters.data.length === 0) return null;
 
   const save = async (
@@ -67,7 +68,7 @@ export function HouseSettings() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={NORMAL_VOICE}>Normal voice</SelectItem>
-                  {POCKET_VOICES.map(([id, label]) => (
+                  {pocketVoices.voices.map(([id, label]) => (
                     <SelectItem key={id} value={id}>
                       {label}
                     </SelectItem>

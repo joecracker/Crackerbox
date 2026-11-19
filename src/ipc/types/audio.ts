@@ -63,6 +63,17 @@ export const SynthesizeSpeechResultSchema = z.object({
   mimeType: z.enum(["audio/wav", "audio/mpeg"]),
 });
 
+export const ListPocketVoicesResultSchema = z.object({
+  /** Voices made from sound files in the My voices folder. */
+  custom: z.array(z.object({ id: z.string(), label: z.string() })),
+  /** The My voices folder, so Settings can say where it is. */
+  folder: z.string(),
+});
+
+export type ListPocketVoicesResult = z.infer<
+  typeof ListPocketVoicesResultSchema
+>;
+
 // =============================================================================
 // Contracts
 // =============================================================================
@@ -72,6 +83,16 @@ export const audioContracts = {
     channel: "speech:synthesize" as const,
     input: SynthesizeSpeechParamsSchema,
     output: SynthesizeSpeechResultSchema,
+  }),
+  listPocketVoices: defineContract({
+    channel: "speech:list-pocket-voices" as const,
+    input: z.void(),
+    output: ListPocketVoicesResultSchema,
+  }),
+  openPocketVoicesFolder: defineContract({
+    channel: "speech:open-pocket-voices-folder" as const,
+    input: z.void(),
+    output: z.void(),
   }),
   transcribeAudio: defineContract({
     channel: "pro:transcribe-audio" as const,

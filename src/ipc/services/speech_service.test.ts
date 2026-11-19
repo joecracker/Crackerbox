@@ -20,7 +20,11 @@ vi.mock("electron-log", () => ({
 vi.mock("@/main/settings", () => ({ readSettings: () => readSettings() }));
 
 import { EventEmitter } from "node:events";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import {
+  buildPocketRequest,
   fixStreamedWav,
   pocketVoiceFor,
   synthesizeSpeech,
@@ -394,5 +398,38 @@ describe("warmPocketVoice", () => {
       "Could not warm up Pocket TTS",
       expect.any(Error),
     );
+  });
+});
+
+describe("buildPocketRequest", () => {
+  it("sends a built-in voice by name and an unknown one as the default voice", () => {
+    const named = buildPocketRequest("hi", "anna", os.tmpdir());
+    expect(named.custom).toBe(false);
+    expect((named.body as URLSearchParams).get("voice_url")).toBe("anna");
+    const unknown = buildPocketRequest("hi", "nobody", os.tmpdir());
+    expect((unknown.body as URLSearchParams).get("voice_url")).toBe("azelma");
+  });
+
+  it("uploads the file for a voice from the My voices folder", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cb-pocketreq-"));
+    try {
+      fs.writeFileSync(path.join(dir, "Ann.wav"), "RIFFfake");
+      const request = buildPocketRequest("hello", "custom:Ann", dir);
+      expect(request.custom).toBe(true);
+      const form = request.body as FormData;
+      expect(form.get("text")).toBe("hello");
+      expect(form.get("voice_url")).toBeNull();
+      const file = form.get("voice_wav") as File;
+      expect(file.name).toBe("Ann.wav");
+      expect(await file.text()).toBe("RIFFfake");
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("speaks with the default voice when the custom file is gone", () => {
+    const request = buildPocketRequest("hi", "custom:Gone", os.tmpdir());
+    expect(request.custom).toBe(false);
+    expect((request.body as URLSearchParams).get("voice_url")).toBe("azelma");
   });
 });

@@ -19,7 +19,9 @@ import {
   MAX_AUDIO_REQUEST_ID_LENGTH,
 } from "../types/audio";
 import type { TranscribeAudioParams } from "../types/audio";
-import { synthesizeSpeech } from "../services/speech_service";
+import { pocketVoicesDir, synthesizeSpeech } from "../services/speech_service";
+import { listCustomPocketVoices } from "../services/pocket_custom_voices";
+import fs from "node:fs";
 import { transcribeWithDyadEngine } from "../utils/llm_engine_provider";
 import { getDyadEngineBaseUrl } from "../utils/dyad_engine_url";
 import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
@@ -118,6 +120,27 @@ export function parseBillingActionUrl(value: string) {
 export function registerProHandlers() {
   typedHandle(audioContracts.synthesizeSpeech, async (_event, input) => {
     return synthesizeSpeech(input);
+  });
+  typedHandle(audioContracts.listPocketVoices, async () => {
+    const folder = pocketVoicesDir();
+    return {
+      custom: listCustomPocketVoices(folder).map(({ id, label }) => ({
+        id,
+        label,
+      })),
+      folder,
+    };
+  });
+  typedHandle(audioContracts.openPocketVoicesFolder, async () => {
+    const folder = pocketVoicesDir();
+    fs.mkdirSync(folder, { recursive: true });
+    const failure = await shell.openPath(folder);
+    if (failure) {
+      throw new DyadError(
+        `Could not open the My voices folder: ${failure}`,
+        DyadErrorKind.External,
+      );
+    }
   });
   // This method should try to avoid throwing errors because this is auxiliary
   // information and isn't critical to using the app

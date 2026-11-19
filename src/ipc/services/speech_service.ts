@@ -6,6 +6,8 @@ import log from "electron-log";
 import type { z } from "zod";
 import type { SynthesizeSpeechParamsSchema } from "../types/audio";
 import { readSettings } from "@/main/settings";
+import { isBuiltInPocketVoice } from "@/shared/pocket_voices";
+import { resolveCustomPocketVoice } from "./pocket_custom_voices";
 import { getOpenRouterAppAttributionHeaders } from "../utils/openrouter_attribution";
 
 const logger = log.scope("speech");
@@ -180,16 +182,6 @@ class KokoroSpeechProvider implements SpeechProvider {
 // Crackerbox starts its own little server on first use, talks to it over the
 // local loopback only, and shuts it down after a quiet spell or on exit.
 const POCKET_PORT = 8745;
-const POCKET_VOICES = new Set([
-  "alba",
-  "azelma",
-  "cosette",
-  "eponine",
-  "fantine",
-  "marius",
-  "javert",
-  "jean",
-]);
 const POCKET_DEFAULT_VOICE = "azelma";
 const POCKET_START_TIMEOUT_MS = 3 * 60 * 1000;
 // Starting Pocket takes about ten seconds, and until it is ready the backup
@@ -223,7 +215,53 @@ export function fixStreamedWav(data: Uint8Array<ArrayBuffer>) {
 }
 
 export function pocketVoiceFor(voice: string) {
-  return POCKET_VOICES.has(voice) ? voice : POCKET_DEFAULT_VOICE;
+  return isBuiltInPocketVoice(voice) ? voice : POCKET_DEFAULT_VOICE;
+}
+
+/** The "My voices" folder: sound files that become the user's own Pocket voices. */
+export function pocketVoicesDir(): string {
+  return path.join(app.getPath("userData"), "pocket-voices");
+}
+
+// A voice file is read whole and sent with every request, so keep it sensible.
+const MAX_CUSTOM_VOICE_BYTES = 25 * 1024 * 1024;
+
+/**
+ * The request body for Pocket's /tts. A built-in voice goes by name; a voice
+ * from the My voices folder goes as an uploaded file. If a custom voice file is
+ * gone or too big, Pocket's default voice speaks instead of nothing.
+ */
+export function buildPocketRequest(
+  text: string,
+  voice: string,
+  dir: string,
+): { body: URLSearchParams | FormData; custom: boolean } {
+  const file = resolveCustomPocketVoice(dir, voice);
+  if (file) {
+    try {
+      if (fs.statSync(file).size <= MAX_CUSTOM_VOICE_BYTES) {
+        const form = new FormData();
+        form.set("text", text);
+        // A File (not a bare Blob) so the file name, and with it the format
+        // Pocket reads the sound as, travels with the upload.
+        form.set(
+          "voice_wav",
+          new File(
+            [new Uint8Array(fs.readFileSync(file))],
+            path.basename(file),
+          ),
+        );
+        return { body: form, custom: true };
+      }
+      logger.warn(`My voice file is too big, using the default: ${file}`);
+    } catch (error) {
+      logger.warn(`Could not read my voice file ${file}`, error);
+    }
+  }
+  return {
+    body: new URLSearchParams({ text, voice_url: pocketVoiceFor(voice) }),
+    custom: false,
+  };
 }
 
 function findPocketExe(): string | null {
@@ -363,17 +401,26 @@ class PocketSpeechProvider implements SpeechProvider {
       await this.ensureRunning();
       logger.info(`Generating Pocket speech (${text.length} chars)`);
       const started = Date.now();
-      const body = new URLSearchParams({
+      const { body, custom } = buildPocketRequest(
         text,
-        voice_url: pocketVoiceFor(voice),
-      });
+        voice,
+        pocketVoicesDir(),
+      );
       const response = await fetch(`http://127.0.0.1:${POCKET_PORT}/tts`, {
         method: "POST",
         signal: AbortSignal.timeout(POCKET_REQUEST_TIMEOUT_MS),
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        // A form upload sets its own content type; a plain form needs it stated.
+        ...(body instanceof URLSearchParams
+          ? { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+          : {}),
         body,
       });
       if (!response.ok) {
+        if (custom) {
+          logger.warn(
+            `Pocket could not use a My voices file (HTTP ${response.status}). Voice cloning needs a one-time unlock: accept the terms at huggingface.co/kyutai/pocket-tts and sign in with "hf auth login" on this PC. See Settings > Voice.`,
+          );
+        }
         throw new Error(`Pocket TTS returned HTTP ${response.status}`);
       }
       const data = new Uint8Array(await response.arrayBuffer());

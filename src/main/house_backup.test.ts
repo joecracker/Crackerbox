@@ -69,6 +69,24 @@ describe("house backup", () => {
     expect(fs.existsSync(path.join(snap, "house", "house.json"))).toBe(true);
   });
 
+  it("leaves her pictures out of the mirror but keeps everything else under .dyad", async () => {
+    const { ctx, folder } = setup();
+    fs.mkdirSync(path.join(folder, ".dyad", "media"), { recursive: true });
+    fs.mkdirSync(path.join(folder, ".dyad", "screenshot"), { recursive: true });
+    fs.mkdirSync(path.join(folder, ".dyad", "chats"), { recursive: true });
+    fs.mkdirSync(path.join(folder, "docs", "media"), { recursive: true });
+    fs.writeFileSync(path.join(folder, ".dyad", "media", "a.png"), "pic");
+    fs.writeFileSync(path.join(folder, ".dyad", "screenshot", "b.png"), "pic");
+    fs.writeFileSync(path.join(folder, ".dyad", "chats", "c.json"), "{}");
+    fs.writeFileSync(path.join(folder, "docs", "media", "keep.md"), "note");
+    await runBackup(ctx);
+    const m = path.join(ctx.root, "mirror", "veritas");
+    expect(fs.existsSync(path.join(m, ".dyad", "media"))).toBe(false);
+    expect(fs.existsSync(path.join(m, ".dyad", "screenshot"))).toBe(false);
+    expect(fs.existsSync(path.join(m, ".dyad", "chats", "c.json"))).toBe(true);
+    expect(fs.existsSync(path.join(m, "docs", "media", "keep.md"))).toBe(true);
+  });
+
   it("detects a deleted folder and restores it with her memory", async () => {
     const { ctx, folder, memoryDir } = setup();
     await runBackup(ctx);

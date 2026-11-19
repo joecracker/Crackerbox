@@ -60,10 +60,22 @@ const exists = (p: string) => {
   }
 };
 
+/**
+ * Folders the mirror leaves out: node_modules, and the pictures an app keeps
+ * under .dyad (media and screenshot). Pictures are not part of who a sister is
+ * and made the mirror (and her git history copy) several times bigger.
+ * `rel` is the folder's path inside the sister's folder, with "/" separators.
+ */
+export const mirrorSkip = (name: string, rel: string): boolean =>
+  name === "node_modules" ||
+  rel === ".dyad/media" ||
+  rel === ".dyad/screenshot";
+
 async function copyTree(
   src: string,
   dst: string,
-  skipDir: (name: string) => boolean = () => false,
+  skipDir: (name: string, rel: string) => boolean = () => false,
+  rel = "",
 ): Promise<void> {
   await fs.promises.mkdir(dst, { recursive: true });
   const entries = await fs.promises.readdir(src, { withFileTypes: true });
@@ -72,8 +84,9 @@ async function copyTree(
     const d = path.join(dst, e.name);
     try {
       if (e.isDirectory()) {
-        if (skipDir(e.name)) continue;
-        await copyTree(s, d, skipDir);
+        const childRel = rel ? `${rel}/${e.name}` : e.name;
+        if (skipDir(e.name, childRel)) continue;
+        await copyTree(s, d, skipDir, childRel);
       } else if (e.isFile()) {
         const st = await fs.promises.stat(s);
         try {
@@ -114,7 +127,7 @@ export async function pruneMirror(
   mirrorDir: string,
   goneFile: string,
   nowMs: number,
-  skipDir: (name: string) => boolean = () => false,
+  skipDir: (name: string, rel: string) => boolean = () => false,
 ): Promise<number> {
   if (!exists(liveDir) || !exists(mirrorDir)) return 0;
   let known: Record<string, number> = {};
@@ -140,7 +153,7 @@ export async function pruneMirror(
       const childRel = rel ? path.join(rel, e.name) : e.name;
       const mirrored = path.join(mirrorDir, childRel);
       if (e.isDirectory()) {
-        if (skipDir(e.name)) {
+        if (skipDir(e.name, childRel.split(path.sep).join("/"))) {
           left++;
           continue;
         }
@@ -237,18 +250,14 @@ export async function runBackup(ctx: BackupCtx): Promise<void> {
   await fs.promises.mkdir(snap, { recursive: true });
   for (const t of ctx.targets) {
     if (isHollow(t.folder)) continue; // never overwrite a good backup with a hollow shell
-    await copyTree(
-      t.folder,
-      path.join(ctx.root, "mirror", t.id),
-      (n) => n === "node_modules",
-    );
+    await copyTree(t.folder, path.join(ctx.root, "mirror", t.id), mirrorSkip);
     try {
       const removed = await pruneMirror(
         t.folder,
         path.join(ctx.root, "mirror", t.id),
         path.join(ctx.root, "mirror-gone", `${t.id}.json`),
         ctx.now.getTime(),
-        (n) => n === "node_modules",
+        mirrorSkip,
       );
       if (removed > 0) {
         logger.info(`${t.id}: removed ${removed} old file(s) from the mirror`);
@@ -345,7 +354,7 @@ export async function restoreTarget(
   const mirror = path.join(ctx.root, "mirror", t.id);
   if (!exists(path.join(mirror, "docs")) && !exists(path.join(mirror, ".env")))
     return false;
-  await copyTree(mirror, t.folder, (n) => n === "node_modules");
+  await copyTree(mirror, t.folder, mirrorSkip);
   const snaps = snapshotDirs(ctx.root);
   const latest = snaps[snaps.length - 1];
   if (latest) {

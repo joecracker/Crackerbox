@@ -41,6 +41,13 @@ import { getLmStudioBaseUrl } from "./lm_studio_utils";
 import { createOllamaProvider } from "./ollama_provider";
 import { getOllamaApiUrl } from "../handlers/local_model_ollama_handler";
 import { createFallback } from "./fallback_ai_model";
+import {
+  CHAT_BACKUP_MODEL,
+  CHAT_BACKUP_PROVIDER,
+  createChatBackupModel,
+  shouldUseChatBackup,
+  withChatBackup,
+} from "./chat_backup";
 import { getDyadEngineBaseUrl } from "./dyad_engine_url";
 import { getTestFetchOption } from "./test_fetch_override";
 import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
@@ -477,8 +484,57 @@ export async function getModelClient(
   }
   const regular = getRegularModelClient(model, settings, providerConfig);
   return {
-    ...regular,
+    ...withChatBackupClient(regular, model, settings, providerConfig),
     runtimeModel: model,
+  };
+}
+
+// A custom provider (Venice) gets the OpenRouter backup chat model behind it,
+// but only when there is an OpenRouter key to use. See chat_backup.ts.
+function withChatBackupClient(
+  regular: { modelClient: ModelClient; backupModelClients: ModelClient[] },
+  model: LargeLanguageModel,
+  settings: UserSettings,
+  providerConfig: LanguageModelProvider,
+): { modelClient: ModelClient; backupModelClients: ModelClient[] } {
+  if (!shouldUseChatBackup(providerConfig.type)) return regular;
+  const openRouter = settings.providerSettings?.openrouter;
+  let apiKey: string | undefined;
+  try {
+    apiKey = getProviderApiKeyForRequest(
+      openRouter?.apiKey?.value || getEnvVar("OPENROUTER_API_KEY"),
+      "OpenRouter",
+    );
+  } catch {
+    apiKey = undefined; // a bad backup key must never break the main chat
+  }
+  const backup = createChatBackupModel({
+    apiKey,
+    primaryName: `${model.provider}/${model.name}`,
+    baseFetch: getModelClientFetchOption().fetch ?? fetch,
+  });
+  if (!backup) return regular;
+  const chain = withChatBackup(regular.modelClient.model, backup);
+  const primarySelection: ModelSelection = {
+    ...model,
+    effortLevel: FALLBACK_EFFORT_LEVEL,
+  };
+  const backupSelection: ModelSelection = {
+    provider: CHAT_BACKUP_PROVIDER,
+    name: CHAT_BACKUP_MODEL,
+    connection: "api-key",
+    effortLevel: FALLBACK_EFFORT_LEVEL,
+  };
+  return {
+    ...regular,
+    modelClient: {
+      ...regular.modelClient,
+      model: chain,
+      getRuntimeModel: () =>
+        fallbackModelId(chain) === CHAT_BACKUP_MODEL
+          ? backupSelection
+          : primarySelection,
+    },
   };
 }
 

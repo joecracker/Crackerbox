@@ -7,6 +7,11 @@ import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
 
 const logger = log.scope("release_note_handlers");
 
+// Crackerbox has no release notes on dyad.sh (its versions are our own), so
+// asking that site on every launch only told it our IP address and version.
+// A named switch keeps the fetch code below reachable for the type checker.
+const RELEASE_NOTE_LOOKUP_ENABLED = false as boolean;
+
 export function registerReleaseNoteHandlers() {
   createTypedHandler(
     systemContracts.doesReleaseNoteExist,
@@ -22,7 +27,7 @@ export function registerReleaseNoteHandlers() {
 
       // For E2E tests, we don't want to check for release notes
       // or show release notes, as it interferes with the tests.
-      if (IS_TEST_BUILD) {
+      if (IS_TEST_BUILD || !RELEASE_NOTE_LOOKUP_ENABLED) {
         return { exists: false };
       }
       const releaseNoteUrl = `https://www.dyad.sh/docs/releases/${version}`;

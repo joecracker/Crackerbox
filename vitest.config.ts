@@ -38,6 +38,7 @@ export default defineConfig({
   plugins: [react()],
   test: {
     globals: true,
+    setupFiles: ["src/testing/no_file_log.setup.ts"],
     maxWorkers: maxTestWorkers,
     onConsoleLog(log, _type) {
       // Suppress known noisy logs while allowing useful debugging output
@@ -73,7 +74,10 @@ export default defineConfig({
             },
           },
           include: hybridIntegrationTests,
-          setupFiles: ["src/testing/hybrid.setup.ts"],
+          setupFiles: [
+            "src/testing/no_file_log.setup.ts",
+            "src/testing/hybrid.setup.ts",
+          ],
           pool: "forks",
         },
       },

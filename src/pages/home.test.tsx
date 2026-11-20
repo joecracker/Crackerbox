@@ -111,7 +111,6 @@ vi.mock("@/components/chat/HomeChatInput", () => ({
     </button>
   ),
 }));
-vi.mock("@/components/TelemetryBanner", () => ({ PrivacyBanner: () => null }));
 vi.mock("@/components/ImportAppButton", () => ({
   ImportAppButton: () => null,
 }));

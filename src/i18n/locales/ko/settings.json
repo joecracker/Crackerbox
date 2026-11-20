@@ -125,21 +125,6 @@
     "failedSaveApiKey": "API 키 저장에 실패했습니다.",
     "failedDeleteApiKey": "API 키 삭제에 실패했습니다."
   },
-  "telemetry": {
-    "title": "텔레메트리",
-    "description": "제품 개선을 위해 익명 사용 데이터를 기록합니다.",
-    "telemetryId": "텔레메트리 ID:",
-    "enable": "텔레메트리 사용",
-    "privacyNotice": "제품 개선을 위해 익명 텔레메트리 데이터를 사용합니다. 개인 정보는 수집되지 않습니다.",
-    "acceptAndContinue": "수락하고 계속하기",
-    "shareAnonymousData": "익명 데이터를 공유하시겠습니까?",
-    "helpImprove": "익명 사용 데이터로 Crackerbox 개선에 도움을 주세요.",
-    "noCodeOrMessages": "참고: 코드나 메시지는 기록되지 않습니다.",
-    "learnMore": "자세히 알아보기",
-    "accept": "수락",
-    "reject": "거부",
-    "later": "나중에"
-  },
   "integrations": {
     "title": "연동"
   },

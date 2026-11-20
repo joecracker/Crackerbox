@@ -123,21 +123,6 @@
     "failedSaveApiKey": "Error al guardar la clave API.",
     "failedDeleteApiKey": "Error al eliminar la clave API."
   },
-  "telemetry": {
-    "title": "Telemetría",
-    "description": "Esto registra datos de uso anónimos para mejorar el producto.",
-    "telemetryId": "ID de Telemetría:",
-    "enable": "Habilitar Telemetría",
-    "privacyNotice": "Usamos datos de telemetría anónimos para mejorar el producto. No se recopilan datos personales.",
-    "acceptAndContinue": "Aceptar y Continuar",
-    "shareAnonymousData": "¿Compartir datos anónimos?",
-    "helpImprove": "Ayuda a mejorar Crackerbox con datos de uso anónimos.",
-    "noCodeOrMessages": "Nota: esto no registra tu código ni tus mensajes.",
-    "learnMore": "Saber más",
-    "accept": "Aceptar",
-    "reject": "Rechazar",
-    "later": "Más tarde"
-  },
   "integrations": {
     "title": "Integraciones"
   },

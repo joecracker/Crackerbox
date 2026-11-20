@@ -125,21 +125,6 @@
     "failedSaveApiKey": "Failed to save API key.",
     "failedDeleteApiKey": "Failed to delete API key."
   },
-  "telemetry": {
-    "title": "Telemetry",
-    "description": "This records anonymous usage data to improve the product.",
-    "telemetryId": "Telemetry ID:",
-    "enable": "Enable Telemetry",
-    "privacyNotice": "We use anonymous telemetry data to improve the product. No personal data is collected.",
-    "acceptAndContinue": "Accept and Continue",
-    "shareAnonymousData": "Share anonymous data?",
-    "helpImprove": "Help improve Crackerbox with anonymous usage data.",
-    "noCodeOrMessages": "Note: this does not log your code or messages.",
-    "learnMore": "Learn more",
-    "accept": "Accept",
-    "reject": "Reject",
-    "later": "Later"
-  },
   "integrations": {
     "title": "Integrations"
   },

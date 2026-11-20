@@ -125,21 +125,6 @@
     "failedSaveApiKey": "API anahtarı kaydedilemedi.",
     "failedDeleteApiKey": "API anahtarı silinemedi."
   },
-  "telemetry": {
-    "title": "Telemetri",
-    "description": "Bu, ürünü geliştirmek için anonim kullanım verilerini kaydeder.",
-    "telemetryId": "Telemetri Kimliği:",
-    "enable": "Telemetriyi Etkinleştir",
-    "privacyNotice": "Ürünü geliştirmek için anonim telemetri verilerini kullanıyoruz. Kişisel veri toplanmaz.",
-    "acceptAndContinue": "Kabul Et ve Devam Et",
-    "shareAnonymousData": "Anonim veriler paylaşılsın mı?",
-    "helpImprove": "Anonim kullanım verileriyle Crackerbox'ın gelişmesine yardımcı olun.",
-    "noCodeOrMessages": "Not: bu, kodunuzu veya mesajlarınızı kaydetmez.",
-    "learnMore": "Daha fazla bilgi edinin",
-    "accept": "Kabul Et",
-    "reject": "Reddet",
-    "later": "Daha Sonra"
-  },
   "integrations": {
     "title": "Entegrasyonlar"
   },

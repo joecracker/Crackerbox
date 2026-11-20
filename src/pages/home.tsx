@@ -12,7 +12,6 @@ import { useEffect, useCallback, useMemo } from "react";
 import { HomeChatInput } from "@/components/chat/HomeChatInput";
 import { NewProjectButton } from "@/components/NewProjectButton";
 import { usePostHog } from "posthog-js/react";
-import { PrivacyBanner } from "@/components/TelemetryBanner";
 
 import { FeaturedAppShowcase } from "@/components/FeaturedAppShowcase";
 import { Button } from "@/components/ui/button";
@@ -236,7 +235,6 @@ export default function HomePage() {
             </div>
           )}
         </div>
-        <PrivacyBanner />
       </div>
       <div className="relative">
         <FeaturedAppShowcase />

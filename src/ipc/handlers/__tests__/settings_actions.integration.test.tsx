@@ -46,7 +46,6 @@ describe("settings actions (integration)", () => {
 
   function resetSettings(settings: Partial<UserSettings> = {}) {
     writeSettings({
-      telemetryConsent: "unset",
       maxToolCallSteps: undefined,
       enableDyadPro: false,
       providerSettings: {},
@@ -59,42 +58,6 @@ describe("settings actions (integration)", () => {
       ...settings,
     });
   }
-
-  it("accepts telemetry from the privacy banner", async () => {
-    resetSettings();
-
-    harness.mountSurface({ route: "/", withPrivacyBanner: true });
-    fireEvent.click(await screen.findByTestId("telemetry-accept-button"));
-
-    await waitFor(() =>
-      expect(readSettings().telemetryConsent).toBe("opted_in"),
-    );
-    expect(screen.queryByTestId("telemetry-accept-button")).toBeNull();
-  });
-
-  it("rejects telemetry from the privacy banner", async () => {
-    resetSettings();
-
-    harness.mountSurface({ route: "/", withPrivacyBanner: true });
-    fireEvent.click(await screen.findByTestId("telemetry-reject-button"));
-
-    await waitFor(() =>
-      expect(readSettings().telemetryConsent).toBe("opted_out"),
-    );
-    expect(screen.queryByTestId("telemetry-reject-button")).toBeNull();
-  });
-
-  it("hides the privacy banner for later without changing telemetry settings", async () => {
-    resetSettings();
-
-    harness.mountSurface({ route: "/", withPrivacyBanner: true });
-    fireEvent.click(await screen.findByTestId("telemetry-later-button"));
-
-    await waitFor(() =>
-      expect(screen.queryByTestId("telemetry-later-button")).toBeNull(),
-    );
-    expect(readSettings().telemetryConsent).toBe("unset");
-  });
 
   it("persists max tool call step selections from settings", async () => {
     resetSettings(PRO_SETTINGS);

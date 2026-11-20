@@ -1,6 +1,4 @@
-import { showError } from "@/lib/toast";
 import { modelForChatBackend } from "@/shared/execution_backend";
-import { ClaudeCodeSubscriptionMenu } from "./ClaudeCodeSubscriptionMenu";
 import {
   claudeCodeModelId,
   claudeCodeModelIdentity,
@@ -45,16 +43,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  CheckIcon,
-  ChevronRightIcon,
-  LockIcon,
-  SparklesIcon,
-  StarIcon,
-} from "lucide-react";
+import { CheckIcon, ChevronRightIcon, LockIcon, StarIcon } from "lucide-react";
 import { ProviderIcon } from "@/components/ProviderIcon";
 import { SubscriptionModelMenu } from "@/components/SubscriptionModelMenu";
-import { PRO_BILLING_FEATURES_ENABLED } from "@/lib/proBillingFlags";
 import { useSubscriptionAccount } from "@/hooks/useSubscriptionAccount";
 import { usesChatGPTSubscription } from "@/lib/subscriptionModels";
 import { stripMakerPrefix } from "@/lib/modelDisplayName";
@@ -108,9 +99,6 @@ const PRO_PILL_CLASS = cn(
   PILL_CLASS,
   "bg-gradient-to-r from-indigo-600 via-indigo-500 to-indigo-600 bg-[length:200%_100%] animate-[shimmer_5s_ease-in-out_infinite] text-white",
 );
-
-const DYAD_PRO_UPGRADE_BASE_URL =
-  "https://www.dyad.sh/pro?utm_source=dyad-app&utm_medium=app";
 
 const NAVIGATION_SUBMENU_HOVER_PROPS = {
   openOnHover: true,
@@ -411,11 +399,6 @@ export function ModelPicker({
       setPendingBackend(null);
     },
   });
-  const [unlockTarget, setUnlockTarget] = useState<{
-    providerId: string;
-    model: LanguageModel;
-  } | null>(null);
-
   const handleOpenChange = (nextOpen: boolean) => {
     setOpen(nextOpen);
     if (nextOpen) {
@@ -947,62 +930,11 @@ export function ModelPicker({
       model: model.apiName,
     });
     setOpen(false);
-    if (!PRO_BILLING_FEATURES_ENABLED) {
-      navigate({
-        to: providerSettingsRoute.id,
-        params: { provider: providerId },
-      });
-      return;
-    }
-    setUnlockTarget({ providerId, model });
-  };
-
-  const handleUnlockAllClick = () => {
-    posthog.capture("model-picker:upgrade-click", {
-      source: "unlock-all-footer",
-    });
-    ipc.system.openExternalUrl(
-      `${DYAD_PRO_UPGRADE_BASE_URL}&utm_campaign=model-picker-unlock-all`,
-    );
-    setOpen(false);
-  };
-
-  const handleUnlockDialogUpgradeClick = () => {
-    if (!unlockTarget) {
-      return;
-    }
-    posthog.capture("model-picker:upgrade-click", {
-      source: "locked-model-dialog",
-      provider: unlockTarget.providerId,
-      model: unlockTarget.model.apiName,
-    });
-    ipc.system.openExternalUrl(
-      `${DYAD_PRO_UPGRADE_BASE_URL}&utm_campaign=model-picker-locked-model`,
-    );
-    setUnlockTarget(null);
-  };
-
-  const handleUnlockDialogOwnKeyClick = () => {
-    if (!unlockTarget) {
-      return;
-    }
-    posthog.capture("model-picker:add-own-key-click", {
-      provider: unlockTarget.providerId,
-    });
-    const providerId = unlockTarget.providerId;
-    setUnlockTarget(null);
     navigate({
       to: providerSettingsRoute.id,
       params: { provider: providerId },
     });
   };
-
-  const unlockTargetIsFreeModel = unlockTarget
-    ? isFreeOpenRouterModelName(unlockTarget.model.apiName)
-    : false;
-  const unlockTargetProviderName = unlockTarget
-    ? getProviderDisplayName(unlockTarget.providerId)
-    : "";
 
   const handleCloudModelSelect = (
     providerId: string,
@@ -1885,44 +1817,6 @@ export function ModelPicker({
           </span>
         </DropdownMenuTrigger>
         <DropdownMenuContent className={MODEL_MENU_WIDTH_CLASS} align="start">
-          {PRO_BILLING_FEATURES_ENABLED && (
-            <ClaudeCodeSubscriptionMenu
-              enabled={
-                !!settings.enableClaudeCodeSubscription &&
-                settings.proModelUsage !== "pro"
-              }
-              onEnabledChange={(enabled) =>
-                updateSettings({
-                  enableClaudeCodeSubscription: enabled,
-                  ...(enabled
-                    ? { proModelUsage: "subscription" as const }
-                    : {}),
-                })
-              }
-              connected={
-                !!claudeStatus.data?.connected &&
-                !!claudeStatus.data?.compatible
-              }
-              detail={
-                claudeStatus.data?.detail ?? "Checking Claude Code connection…"
-              }
-              onRefresh={() => {
-                void queryClient
-                  .fetchQuery({
-                    queryKey: queryKeys.system.claudeCodeStatus,
-                    queryFn: () => ipc.chat.claudeCodeStatus({ force: true }),
-                    staleTime: 0,
-                  })
-                  .catch((error) => showError(error));
-                void claudeModels.refetch();
-              }}
-              catalogMessage={
-                claudeModels.isError
-                  ? "Could not load Claude Code suggestions. Try refreshing."
-                  : undefined
-              }
-            />
-          )}
           <SubscriptionModelMenu>
             <DropdownMenuSeparator />
             {/* Trial user upgrade banner */}
@@ -2215,95 +2109,9 @@ export function ModelPicker({
                 )}
               </>
             )}
-
-            {/* Upgrade footer for non-Pro users */}
-            {PRO_BILLING_FEATURES_ENABLED && !isTrial && !dyadProEnabled && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  data-testid="model-picker-unlock-all"
-                  className="px-2 py-2 bg-gradient-to-r from-indigo-50 to-sky-50 dark:from-indigo-950/50 dark:to-sky-950/50 focus:from-indigo-100 focus:to-sky-100 dark:focus:from-indigo-950 dark:focus:to-sky-950"
-                  onClick={handleUnlockAllClick}
-                >
-                  <div className="flex items-center gap-2 w-full">
-                    <SparklesIcon className="size-3.5 text-indigo-600 dark:text-indigo-300 shrink-0" />
-                    <span className="text-[13px] font-medium text-indigo-700 dark:text-indigo-300">
-                      Unlock all models with Dyad Pro
-                    </span>
-                  </div>
-                </DropdownMenuItem>
-              </>
-            )}
           </SubscriptionModelMenu>
         </DropdownMenuContent>
       </DropdownMenu>
-
-      {/* Unlock dialog for locked models */}
-      <Dialog
-        open={unlockTarget !== null}
-        onOpenChange={(dialogOpen) => {
-          if (!dialogOpen) {
-            setUnlockTarget(null);
-          }
-        }}
-      >
-        <DialogContent
-          className="sm:max-w-md"
-          data-testid="unlock-model-dialog"
-        >
-          {/* Free models aren't a Pro feature, so don't sell Pro for them —
-              they just need the user's own (free) provider API key. */}
-          {unlockTargetIsFreeModel ? (
-            <>
-              <DialogHeader>
-                <DialogTitle>
-                  Use {unlockTarget?.model.displayName} with your own{" "}
-                  {unlockTargetProviderName} API key
-                </DialogTitle>
-                <DialogDescription>
-                  Free models run through your own {unlockTargetProviderName}{" "}
-                  account. Add an API key in provider settings to use this
-                  model.
-                </DialogDescription>
-              </DialogHeader>
-              <Button
-                className="cursor-pointer w-full"
-                onClick={handleUnlockDialogOwnKeyClick}
-              >
-                Add {unlockTargetProviderName} API key
-              </Button>
-            </>
-          ) : (
-            <>
-              <DialogHeader>
-                <DialogTitle>
-                  Unlock {unlockTarget?.model.displayName} with Dyad Pro
-                </DialogTitle>
-                <DialogDescription>
-                  Dyad Pro gives you {unlockTarget?.model.displayName} and every
-                  other leading AI model with one subscription — no API keys
-                  needed.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="flex flex-col gap-3">
-                <Button
-                  className="cursor-pointer w-full"
-                  onClick={handleUnlockDialogUpgradeClick}
-                >
-                  Get Dyad Pro
-                </Button>
-                <button
-                  type="button"
-                  className="cursor-pointer text-sm text-primary hover:underline underline-offset-4"
-                  onClick={handleUnlockDialogOwnKeyClick}
-                >
-                  Or use your own {unlockTargetProviderName} API key
-                </button>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
       {savedDefaultUnavailable && (
         <p
           role="status"

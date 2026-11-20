@@ -9,9 +9,7 @@ import {
 } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ModelPicker } from "./ModelPicker";
-import { PRO_BILLING_FEATURES_ENABLED } from "@/lib/proBillingFlags";
 
-const proBillingIt = PRO_BILLING_FEATURES_ENABLED ? it : it.skip;
 vi.mock("./SubscriptionModelMenu", () => ({
   SubscriptionModelMenu: ({ children }: { children: React.ReactNode }) =>
     children,
@@ -1715,75 +1713,7 @@ describe("ModelPicker", () => {
     ).toBeUndefined();
   });
 
-  proBillingIt(
-    "opens the unlock dialog instead of selecting a locked model",
-    () => {
-      mocks.subscriptionConnected = false;
-      mocks.settings.enableDyadPro = false;
-      mocks.settings.providerSettings.auto.apiKey.value = "";
-      mocks.renderSubContent = true;
-
-      render(<ModelPicker />);
-
-      fireEvent.click(screen.getByText("GPT 5").closest("button")!);
-
-      expect(mocks.updateSettings).not.toHaveBeenCalled();
-      expect(mocks.posthogCapture).toHaveBeenCalledWith(
-        "model-picker:locked-model-click",
-        { provider: "openai", model: "gpt-5" },
-      );
-      expect(screen.getByText("Unlock GPT 5 with Dyad Pro")).toBeTruthy();
-    },
-  );
-
-  proBillingIt("opens the Pro upgrade page from the unlock dialog", () => {
-    mocks.subscriptionConnected = false;
-    mocks.settings.enableDyadPro = false;
-    mocks.settings.providerSettings.auto.apiKey.value = "";
-    mocks.renderSubContent = true;
-
-    render(<ModelPicker />);
-
-    fireEvent.click(screen.getByText("GPT 5").closest("button")!);
-    fireEvent.click(screen.getByText("Get Dyad Pro"));
-
-    expect(mocks.openExternalUrl).toHaveBeenCalledWith(
-      expect.stringContaining("utm_campaign=model-picker-locked-model"),
-    );
-    expect(mocks.posthogCapture).toHaveBeenCalledWith(
-      "model-picker:upgrade-click",
-      {
-        source: "locked-model-dialog",
-        provider: "openai",
-        model: "gpt-5",
-      },
-    );
-    expect(screen.queryByText("Get Dyad Pro")).toBeNull();
-  });
-
-  proBillingIt(
-    "navigates to provider settings from the unlock dialog own-key link",
-    () => {
-      mocks.subscriptionConnected = false;
-      mocks.settings.enableDyadPro = false;
-      mocks.settings.providerSettings.auto.apiKey.value = "";
-      mocks.renderSubContent = true;
-
-      render(<ModelPicker />);
-
-      fireEvent.click(screen.getByText("GPT 5").closest("button")!);
-      fireEvent.click(screen.getByText(/use your own/));
-
-      expect(mocks.navigate).toHaveBeenCalledWith({
-        to: "/settings/providers/$provider",
-        params: { provider: "openai" },
-      });
-      expect(mocks.openExternalUrl).not.toHaveBeenCalled();
-    },
-  );
-
-  it("sends a locked model straight to its provider key page while Pro billing is off", () => {
-    if (PRO_BILLING_FEATURES_ENABLED) return;
+  it("sends a locked model straight to its provider key page", () => {
     mocks.subscriptionConnected = false;
     mocks.settings.enableDyadPro = false;
     mocks.settings.providerSettings.auto.apiKey.value = "";
@@ -1849,61 +1779,7 @@ describe("ModelPicker", () => {
 
     expect(
       screen.getByText("GPT 5").closest("button")?.getAttribute("aria-label"),
-    ).toBe(
-      PRO_BILLING_FEATURES_ENABLED
-        ? "GPT 5 — requires Dyad Pro or an API key from OpenAI"
-        : "GPT 5 — requires an API key from OpenAI",
-    );
-  });
-
-  proBillingIt(
-    "points locked free models at an OpenRouter key instead of Pro",
-    () => {
-      mocks.settings.enableDyadPro = false;
-      mocks.settings.providerSettings.auto.apiKey.value = "";
-      mocks.renderSubContent = true;
-
-      render(<ModelPicker />);
-
-      fireEvent.click(
-        document.querySelector(
-          '[data-model-provider="openrouter"][data-model-name="openrouter/free"]',
-        )!,
-      );
-
-      expect(mocks.posthogCapture).toHaveBeenCalledWith(
-        "model-picker:locked-model-click",
-        { provider: "openrouter", model: "openrouter/free" },
-      );
-      expect(screen.queryByText("Get Dyad Pro")).toBeNull();
-
-      fireEvent.click(screen.getByText("Add OpenRouter API key"));
-
-      expect(mocks.navigate).toHaveBeenCalledWith({
-        to: "/settings/providers/$provider",
-        params: { provider: "openrouter" },
-      });
-      expect(mocks.openExternalUrl).not.toHaveBeenCalled();
-    },
-  );
-
-  proBillingIt("shows the unlock-all footer only for non-Pro users", () => {
-    mocks.settings.enableDyadPro = false;
-    mocks.settings.providerSettings.auto.apiKey.value = "";
-
-    render(<ModelPicker />);
-
-    fireEvent.click(
-      screen.getByText("Unlock all models with Dyad Pro").closest("button")!,
-    );
-
-    expect(mocks.openExternalUrl).toHaveBeenCalledWith(
-      expect.stringContaining("utm_campaign=model-picker-unlock-all"),
-    );
-    expect(mocks.posthogCapture).toHaveBeenCalledWith(
-      "model-picker:upgrade-click",
-      { source: "unlock-all-footer" },
-    );
+    ).toBe("GPT 5 — requires an API key from OpenAI");
   });
 
   it("hides the unlock-all footer for Pro users", () => {
@@ -2167,30 +2043,6 @@ describe("Claude Code subscription picker", () => {
       expect(trigger.getAttribute("title")).toBe(`${shortName} (Claude Code)`);
     },
   );
-  proBillingIt.each(["loading", "error", "empty"])(
-    "shows the %s catalog state without hardcoded choices",
-    (state) => {
-      mocks.claudeModels = state === "empty" ? [] : undefined;
-      mocks.claudeModelsError = state === "error";
-      render(<ModelPicker />);
-      expect(screen.queryByText("Claude Code — sonnet")).toBeNull();
-      expect(
-        document.querySelector(
-          '[data-model-provider="claude-code"][data-model-name="claude-sonnet-4-5"]',
-        ),
-      ).not.toBeNull();
-      if (state === "error")
-        expect(
-          screen.getByText(/Could not load Claude Code suggestions/),
-        ).toBeTruthy();
-    },
-  );
-  proBillingIt("refreshes both the connection and the model catalog", () => {
-    render(<ModelPicker />);
-    fireEvent.click(screen.getByRole("button", { name: "Refresh connection" }));
-    expect(mocks.refetchClaudeModels).toHaveBeenCalledOnce();
-    expect(mocks.forceStatus).toHaveBeenCalledWith({ force: true });
-  });
   it.each(["claude-fable-5", "claude-fable-5-1"])(
     "routes %s through Claude Code without substituting versions",
     async (name) => {
@@ -2288,20 +2140,6 @@ describe("Claude Code subscription picker", () => {
       }),
     );
   });
-  proBillingIt(
-    "places Claude Code status and usage in a branded subscription submenu",
-    () => {
-      mocks.renderSubContent = false;
-      render(<ModelPicker />);
-      const trigger = screen.getByRole("button", {
-        name: "Claude Code subscription. Experimental. Open submenu.",
-      });
-      expect(trigger.querySelector("svg")).not.toBeNull();
-      expect(screen.queryByText("Connected")).toBeNull();
-      expect(screen.queryByText("Refresh connection")).toBeNull();
-      expect(screen.queryByText("Claude Code — sonnet")).toBeNull();
-    },
-  );
   it("keeps Claude Code catalog choices available during a Dyad trial", () => {
     mocks.isTrial = true;
     render(<ModelPicker />);
@@ -2398,35 +2236,6 @@ describe("Claude Code subscription picker", () => {
     await waitFor(() => expect(mocks.setChatSelection).toHaveBeenCalled());
     expect(mocks.createChat).not.toHaveBeenCalled();
   });
-  proBillingIt(
-    "shows the experiment toggle when disabled while hiding Claude Code model choices",
-    async () => {
-      Object.assign(mocks.settings, {
-        enableClaudeCodeSubscription: false,
-        proModelUsage: "pro",
-        recentModels: [{ provider: "claude-code", name: "sonnet" }],
-      });
-      render(<ModelPicker />);
-      expect(
-        screen.getByRole("button", {
-          name: "Claude Code subscription. Experimental. Open submenu.",
-        }),
-      ).toBeTruthy();
-      expect(screen.queryByText("Claude Code — sonnet")).toBeNull();
-      expect(screen.queryByText("Checking Claude Code connection…")).toBeNull();
-      fireEvent.click(
-        screen.getByRole("menuitemcheckbox", {
-          name: "Use Claude subscription",
-        }),
-      );
-      await waitFor(() =>
-        expect(mocks.updateSettings).toHaveBeenCalledWith({
-          enableClaudeCodeSubscription: true,
-          proModelUsage: "subscription",
-        }),
-      );
-    },
-  );
   it("preserves the existing chat when backend switching is cancelled", () => {
     render(<ModelPicker />);
     fireEvent.click(

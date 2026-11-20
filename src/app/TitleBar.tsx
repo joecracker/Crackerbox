@@ -1,22 +1,14 @@
-import { SubscriptionConnectionStatus } from "@/components/SubscriptionConnectionStatus";
-import { PRO_BILLING_FEATURES_ENABLED } from "@/lib/proBillingFlags";
 import { useAtom, useAtomValue } from "jotai";
 import { selectedAppIdAtom } from "@/atoms/appAtoms";
 import { useLoadApps } from "@/hooks/useLoadApps";
 import { useRouter } from "@tanstack/react-router";
-import { useSettings } from "@/hooks/useSettings";
 import { Button } from "@/components/ui/button";
 import { AppAvatar } from "@/components/AppAvatar";
-import { providerSettingsRoute } from "@/routes/settings/providers/$provider";
 import { cn } from "@/lib/utils";
-import { useDeepLink } from "@/contexts/DeepLinkContext";
-import { useEffect, useState } from "react";
-import { DyadProSuccessDialog } from "@/components/DyadProSuccessDialog";
+import { useState } from "react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { ipc } from "@/ipc/types";
 import { useSystemPlatform } from "@/hooks/useSystemPlatform";
-import { useUserBudgetInfo } from "@/hooks/useUserBudgetInfo";
-import type { UserBudgetInfo } from "@/ipc/types";
 import {
   Tooltip,
   TooltipContent,
@@ -26,24 +18,12 @@ import { ChatTabs } from "@/components/chat/ChatTabs";
 import { MobileChatListSheet } from "@/components/chat/MobileChatListSheet";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { selectedChatIdAtom } from "@/atoms/chatAtoms";
-import { useQueryClient } from "@tanstack/react-query";
-import { queryKeys } from "@/lib/queryKeys";
-import {
-  useFirstPromptProviderResume,
-  useFirstPromptSaga,
-} from "@/first_prompt/FirstPromptProvider";
-import type { UserSettings } from "@/lib/schemas";
 
 export const TitleBar = () => {
   const [selectedAppId] = useAtom(selectedAppIdAtom);
   const selectedChatId = useAtomValue(selectedChatIdAtom);
-  const { hasArmedPayload } = useFirstPromptSaga();
-  const resumeFirstPrompt = useFirstPromptProviderResume();
   const { apps } = useLoadApps();
   const { navigate } = useRouter();
-  const { settings, refreshSettings } = useSettings();
-  const queryClient = useQueryClient();
-  const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false);
   const platform = useSystemPlatform();
   const isMobile = useIsMobile();
   const [chatsOpen, setChatsOpen] = useState(false);
@@ -54,34 +34,6 @@ export const TitleBar = () => {
   // flyout to appear on hover, which a custom HTML button can never trigger.
   const reserveWindowsOverlaySpace = platform === "win32";
 
-  const { lastDeepLink, clearLastDeepLink } = useDeepLink();
-  useEffect(() => {
-    const handleDeepLink = async () => {
-      if (lastDeepLink?.type === "dyad-pro-return") {
-        await refreshSettings();
-        // Refetch user budget when Dyad Pro key is set via deep link
-        queryClient.invalidateQueries({ queryKey: queryKeys.userBudget.info });
-        if (hasArmedPayload) {
-          const refreshedSettings = queryClient.getQueryData<UserSettings>(
-            queryKeys.settings.user,
-          );
-          resumeFirstPrompt(refreshedSettings);
-        } else {
-          setIsSuccessDialogOpen(true);
-        }
-        clearLastDeepLink();
-      }
-    };
-    handleDeepLink();
-  }, [
-    clearLastDeepLink,
-    lastDeepLink,
-    hasArmedPayload,
-    queryClient,
-    refreshSettings,
-    resumeFirstPrompt,
-  ]);
-
   const selectedApp = apps.find((app) => app.id === selectedAppId);
   const displayText = selectedApp ? selectedApp.name : "No project selected";
 
@@ -90,9 +42,6 @@ export const TitleBar = () => {
       navigate({ to: "/app-details", search: { appId: selectedApp.id } });
     }
   };
-
-  const isDyadPro = !!settings?.providerSettings?.auto?.apiKey?.value;
-  const isDyadProEnabled = Boolean(settings?.enableDyadPro);
 
   return (
     <>
@@ -163,9 +112,6 @@ export const TitleBar = () => {
             </TooltipTrigger>
             <TooltipContent>{displayText}</TooltipContent>
           </Tooltip>
-          {PRO_BILLING_FEATURES_ENABLED && isDyadPro && (
-            <DyadProButton isDyadProEnabled={isDyadProEnabled} />
-          )}
         </div>
 
         <div className="flex-1 min-w-0 overflow-hidden self-end">
@@ -178,12 +124,6 @@ export const TitleBar = () => {
       {isMobile && (
         <MobileChatListSheet open={chatsOpen} onOpenChange={setChatsOpen} />
       )}
-
-      {PRO_BILLING_FEATURES_ENABLED && <SubscriptionConnectionStatus />}
-      <DyadProSuccessDialog
-        isOpen={PRO_BILLING_FEATURES_ENABLED && isSuccessDialogOpen}
-        onClose={() => setIsSuccessDialogOpen(false)}
-      />
     </>
   );
 };
@@ -265,76 +205,5 @@ function WindowsControls() {
         </svg>
       </button>
     </div>
-  );
-}
-
-export function DyadProButton({
-  isDyadProEnabled,
-}: {
-  isDyadProEnabled: boolean;
-}) {
-  const { navigate } = useRouter();
-  const { userBudget } = useUserBudgetInfo();
-  return (
-    <Button
-      data-testid="title-bar-dyad-pro-button"
-      onClick={() => {
-        navigate({
-          to: providerSettingsRoute.id,
-          params: { provider: "auto" },
-        });
-      }}
-      variant="outline"
-      className={cn(
-        "hidden @2xl:block ml-1 no-app-region-drag h-7 text-xs px-2 pt-1 pb-1",
-        isDyadProEnabled &&
-          "bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-900 dark:hover:bg-indigo-900/40",
-      )}
-      size="sm"
-    >
-      {isDyadProEnabled
-        ? userBudget?.isTrial
-          ? "Pro Trial"
-          : "Pro"
-        : "Pro (off)"}
-      {userBudget && isDyadProEnabled && (
-        <AICreditStatus userBudget={userBudget} />
-      )}
-    </Button>
-  );
-}
-
-export function AICreditStatus({
-  userBudget,
-}: {
-  userBudget: NonNullable<UserBudgetInfo>;
-}) {
-  const total = Math.round(userBudget.totalCredits);
-  const used = Math.round(userBudget.usedCredits);
-  const remaining = Math.max(0, total - used);
-  const resetDate = userBudget.budgetResetDate
-    ? new Date(userBudget.budgetResetDate).toLocaleDateString(undefined, {
-        month: "short",
-        day: "numeric",
-      })
-    : null;
-  return (
-    <Tooltip>
-      <TooltipTrigger>
-        <div className="text-xs pl-1 mt-0.5 opacity-90">· {remaining}</div>
-      </TooltipTrigger>
-      <TooltipContent>
-        <div className="flex flex-col gap-0.5 text-xs">
-          <p className="font-medium">
-            {remaining.toLocaleString()} of {total.toLocaleString()} credits
-            remaining
-          </p>
-          {resetDate && <p className="opacity-80">Resets on {resetDate}</p>}
-          <p className="opacity-60">
-            Note: credit status may take a moment to update.
-          </p>
-        </div>
-      </TooltipContent>
-    </Tooltip>
   );
 }

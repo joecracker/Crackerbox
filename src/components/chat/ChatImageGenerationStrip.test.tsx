@@ -54,7 +54,7 @@ describe("ChatImageGenerationStrip", () => {
   it("keeps a failed job visible when retry admission is rejected", async () => {
     const admission = deferred<string | null>();
     mocks.start.mockReturnValue(admission.promise);
-    render(<ChatImageGenerationStrip onGenerateImage={vi.fn()} />);
+    render(<ChatImageGenerationStrip />);
     const retry = screen.getByRole("button", { name: "Retry generation" });
 
     fireEvent.click(retry);
@@ -69,7 +69,7 @@ describe("ChatImageGenerationStrip", () => {
 
   it("dismisses the failed job only after a replacement is admitted", async () => {
     mocks.start.mockResolvedValue("image-generation-job:replacement");
-    render(<ChatImageGenerationStrip onGenerateImage={vi.fn()} />);
+    render(<ChatImageGenerationStrip />);
 
     fireEvent.click(screen.getByRole("button", { name: "Retry generation" }));
 

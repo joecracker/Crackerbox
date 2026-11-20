@@ -1,12 +1,9 @@
 import { useState } from "react";
 import { useAppMediaFiles } from "@/hooks/useAppMediaFiles";
 import { useLoadApps } from "@/hooks/useLoadApps";
-import { Image, ImagePlus, Loader2 } from "lucide-react";
+import { Image, Loader2 } from "lucide-react";
 import { DyadAppMediaFolder } from "@/components/DyadAppMediaFolder";
 import { LibrarySearchBar } from "@/components/LibrarySearchBar";
-import { Button } from "@/components/ui/button";
-import { ImageGeneratorDialog } from "@/components/ImageGeneratorDialog";
-import { DYAD_CLOUD_FEATURES_ENABLED } from "@/lib/proBillingFlags";
 import { ImageGenerationProgressButton } from "@/components/ImageGenerationProgressButton";
 import { filterMediaAppsByQuery } from "@/lib/mediaUtils";
 import { MediaStorageBar } from "@/components/media-library/MediaStorageBar";
@@ -24,7 +21,6 @@ export default function MediaPage() {
   } = useAppMediaFiles();
   const { apps: allApps } = useLoadApps();
   const [searchQuery, setSearchQuery] = useState("");
-  const [imageGeneratorOpen, setImageGeneratorOpen] = useState(false);
 
   const filteredMediaApps = filterMediaAppsByQuery(mediaApps, searchQuery);
 
@@ -38,12 +34,6 @@ export default function MediaPage() {
           </h1>
           <div className="flex items-center gap-2">
             <ImageGenerationProgressButton />
-            {DYAD_CLOUD_FEATURES_ENABLED && (
-              <Button onClick={() => setImageGeneratorOpen(true)}>
-                <ImagePlus className="mr-2 h-4 w-4" />
-                Generate Image
-              </Button>
-            )}
           </div>
         </div>
 
@@ -86,13 +76,6 @@ export default function MediaPage() {
           </div>
         )}
       </div>
-
-      {DYAD_CLOUD_FEATURES_ENABLED && (
-        <ImageGeneratorDialog
-          open={imageGeneratorOpen}
-          onOpenChange={setImageGeneratorOpen}
-        />
-      )}
     </div>
   );
 }

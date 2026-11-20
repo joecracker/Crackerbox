@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useAtom, useAtomValue } from "jotai";
-import { X, Loader2, Plus, AlertCircle, RotateCcw } from "lucide-react";
+import { X, Loader2, AlertCircle, RotateCcw } from "lucide-react";
 import { dismissedImageGenerationJobIdsAtom } from "@/atoms/imageGenerationAtoms";
 import { useChatImageGenerationJobs } from "@/image_generation/hooks";
 import { selectedAppIdAtom } from "@/atoms/appAtoms";
@@ -9,13 +9,7 @@ import { buildDyadMediaUrlForApp } from "@/lib/dyadMediaUrl";
 import { ImageLightbox } from "./ImageLightbox";
 import type { ImageGenerationJobView } from "@/image_generation/state";
 
-interface ChatImageGenerationStripProps {
-  onGenerateImage: () => void;
-}
-
-export function ChatImageGenerationStrip({
-  onGenerateImage,
-}: ChatImageGenerationStripProps) {
+export function ChatImageGenerationStrip() {
   const jobs = useChatImageGenerationJobs();
   const selectedAppId = useAtomValue(selectedAppIdAtom);
   const { start, cancel } = useGenerateImage();
@@ -183,17 +177,6 @@ export function ChatImageGenerationStrip({
             )}
           </div>
         ))}
-        <button
-          onClick={onGenerateImage}
-          className="group flex items-center justify-center w-12 h-12 shrink-0 cursor-pointer"
-          aria-label="Generate another image"
-          title="Generate another image"
-        >
-          <Plus
-            size={18}
-            className="text-muted-foreground group-hover:text-foreground transition-colors"
-          />
-        </button>
       </div>
 
       {lightboxJob?.result && (

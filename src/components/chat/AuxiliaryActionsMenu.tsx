@@ -8,7 +8,6 @@ import {
   Brush,
   PlusCircle,
   MoreHorizontal,
-  ImageIcon,
   FolderOpen,
   Upload,
   ArrowRight,
@@ -47,7 +46,6 @@ export interface AuxiliaryActionsMenuProps {
   showTokenBar?: boolean;
   toggleShowTokenBar?: () => void;
   appId?: number;
-  onGenerateImage?: () => void;
   onSelectApp?: () => void;
   onImportApp?: () => void;
   /** A handoff entry for the menu. Only a chat page passes one. */
@@ -60,7 +58,6 @@ export function AuxiliaryActionsMenu({
   showTokenBar,
   toggleShowTokenBar,
   appId,
-  onGenerateImage,
   onSelectApp,
   onImportApp,
   handoffItem,
@@ -307,21 +304,6 @@ export function AuxiliaryActionsMenu({
               </>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
-
-          {/* Generate Image */}
-          {onGenerateImage && (
-            <DropdownMenuItem
-              onClick={() => {
-                setIsOpen(false);
-                onGenerateImage();
-              }}
-              className="py-2 px-3"
-              data-testid="generate-image-menu-item"
-            >
-              <ImageIcon size={16} className="mr-2" />
-              Generate Image
-            </DropdownMenuItem>
-          )}
 
           {/* Handoff: available in any chat, not only when it gets long */}
           {handoffItem && (

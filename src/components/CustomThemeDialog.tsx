@@ -10,13 +10,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Sparkles, PenLine } from "lucide-react";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { Loader2 } from "lucide-react";
 import { useCreateCustomTheme } from "@/hooks/useCustomThemes";
 import { showError } from "@/lib/toast";
 import { toast } from "sonner";
-import { AIGeneratorTab } from "./AIGeneratorTab";
-import { DYAD_CLOUD_FEATURES_ENABLED } from "@/lib/proBillingFlags";
 
 interface CustomThemeDialogProps {
   open: boolean;
@@ -29,9 +27,7 @@ export function CustomThemeDialog({
   onOpenChange,
   onThemeCreated,
 }: CustomThemeDialogProps) {
-  const [activeTab, setActiveTab] = useState<"manual" | "ai">(
-    DYAD_CLOUD_FEATURES_ENABLED ? "ai" : "manual",
-  );
+  const [activeTab, setActiveTab] = useState<"manual" | "ai">("manual");
 
   // Manual tab state
   const [manualName, setManualName] = useState("");
@@ -52,7 +48,7 @@ export function CustomThemeDialog({
     setAiName("");
     setAiDescription("");
     setAiGeneratedPrompt("");
-    setActiveTab(DYAD_CLOUD_FEATURES_ENABLED ? "ai" : "manual");
+    setActiveTab("manual");
   }, []);
 
   const handleClose = useCallback(async () => {
@@ -114,9 +110,7 @@ export function CustomThemeDialog({
         <DialogHeader>
           <DialogTitle>Create Custom Theme</DialogTitle>
           <DialogDescription>
-            {DYAD_CLOUD_FEATURES_ENABLED
-              ? "Create a custom theme using manual configuration or AI-powered generation."
-              : "Create a custom theme by describing the look you want."}
+            "Create a custom theme by describing the look you want."
           </DialogDescription>
         </DialogHeader>
 
@@ -125,36 +119,6 @@ export function CustomThemeDialog({
           onValueChange={(v) => setActiveTab(v as "manual" | "ai")}
           className="mt-4"
         >
-          {DYAD_CLOUD_FEATURES_ENABLED && (
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="ai" className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4" />
-                AI-Powered Generator
-              </TabsTrigger>
-              <TabsTrigger value="manual" className="flex items-center gap-2">
-                <PenLine className="h-4 w-4" />
-                Manual Configuration
-              </TabsTrigger>
-            </TabsList>
-          )}
-
-          {/* AI-Powered Generator Tab */}
-          {DYAD_CLOUD_FEATURES_ENABLED && (
-            <TabsContent value="ai">
-              <AIGeneratorTab
-                aiName={aiName}
-                setAiName={setAiName}
-                aiDescription={aiDescription}
-                setAiDescription={setAiDescription}
-                aiGeneratedPrompt={aiGeneratedPrompt}
-                setAiGeneratedPrompt={setAiGeneratedPrompt}
-                onSave={handleSave}
-                isSaving={isSaving}
-                isDialogOpen={open}
-              />
-            </TabsContent>
-          )}
-
           {/* Manual Configuration Tab */}
           <TabsContent value="manual" className="space-y-4 mt-4">
             <div className="space-y-2">

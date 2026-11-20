@@ -15,8 +15,6 @@ import {
   type FilterType,
 } from "@/components/LibraryFilterTabs";
 import { DyadAppMediaFolder } from "@/components/DyadAppMediaFolder";
-import { ImageGeneratorDialog } from "@/components/ImageGeneratorDialog";
-import { DYAD_CLOUD_FEATURES_ENABLED } from "@/lib/proBillingFlags";
 import { ImageGenerationProgressButton } from "@/components/ImageGenerationProgressButton";
 import { filterMediaAppsByQuery } from "@/lib/mediaUtils";
 // ---------------------------------------------------------------------------
@@ -52,7 +50,6 @@ export default function LibraryHomePage() {
   } = useAppMediaFiles();
   const { apps: allApps } = useLoadApps();
   const [createThemeDialogOpen, setCreateThemeDialogOpen] = useState(false);
-  const [imageGeneratorOpen, setImageGeneratorOpen] = useState(false);
 
   // Deep link support
   const {
@@ -136,11 +133,6 @@ export default function LibraryHomePage() {
               <NewLibraryItemMenu
                 onNewPrompt={() => setPromptDialogOpen(true)}
                 onNewTheme={() => setCreateThemeDialogOpen(true)}
-                onNewImage={
-                  DYAD_CLOUD_FEATURES_ENABLED
-                    ? () => setImageGeneratorOpen(true)
-                    : undefined
-                }
               />
             </div>
           </div>
@@ -215,13 +207,6 @@ export default function LibraryHomePage() {
           open={createThemeDialogOpen}
           onOpenChange={setCreateThemeDialogOpen}
         />
-
-        {DYAD_CLOUD_FEATURES_ENABLED && (
-          <ImageGeneratorDialog
-            open={imageGeneratorOpen}
-            onOpenChange={setImageGeneratorOpen}
-          />
-        )}
       </div>
     </div>
   );

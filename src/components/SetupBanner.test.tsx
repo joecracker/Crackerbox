@@ -58,7 +58,6 @@ vi.mock("@/hooks/useSettings", () => ({
         },
   }),
 }));
-vi.mock("./ProBanner", () => ({ SetupDyadProButton: () => null }));
 vi.mock("@/ipc/types", () => ({
   ipc: {
     settings: {

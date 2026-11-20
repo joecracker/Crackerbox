@@ -33,9 +33,10 @@ import { useIsMac } from "@/hooks/useChatModeToggle";
 import { ReleaseNotesDialog } from "@/components/ReleaseNotesDialog";
 import { ForceCloseDialog } from "@/components/ForceCloseDialog";
 import { HelpDialog } from "@/components/HelpDialog";
-import { SubscriptionStatusBanner } from "@/components/SubscriptionStatusBanner";
-import { PRO_BILLING_FEATURES_ENABLED } from "@/lib/proBillingFlags";
-import { MobileBottomNav, MOBILE_BOTTOM_NAV_HEIGHT_PX } from "@/components/mobile-bottom-nav";
+import {
+  MobileBottomNav,
+  MOBILE_BOTTOM_NAV_HEIGHT_PX,
+} from "@/components/mobile-bottom-nav";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { ImageGenerationProvider } from "@/image_generation/ImageGenerationProvider";
@@ -219,7 +220,6 @@ function RootLayoutContent({ children }: { children: ReactNode }) {
                       : undefined
                   }
                 >
-                  {PRO_BILLING_FEATURES_ENABLED && <SubscriptionStatusBanner />}
                   <div
                     id="layout-main-content-container"
                     className="flex min-h-0 w-full flex-1 overflow-x-hidden"

@@ -12,12 +12,7 @@ import { ipc } from "@/ipc/types";
 import { showError } from "@/lib/toast";
 import { toast } from "sonner";
 import { useUserBudgetInfo } from "@/hooks/useUserBudgetInfo";
-import { AiAccessBanner } from "./ProBanner";
-import { PRO_BILLING_FEATURES_ENABLED } from "@/lib/proBillingFlags";
-import type {
-  ThemeGenerationMode,
-  ThemeGenerationModel,
-} from "@/ipc/types";
+import type { ThemeGenerationMode, ThemeGenerationModel } from "@/ipc/types";
 
 // Image upload constants
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB per image (raw file size)
@@ -293,7 +288,6 @@ export function AIGeneratorTab({
             Pro-only feature
           </p>
         </div>
-        {PRO_BILLING_FEATURES_ENABLED && <AiAccessBanner />}
       </div>
     );
   }
@@ -322,62 +316,62 @@ export function AIGeneratorTab({
 
       {/* Image Upload Section */}
       <div className="space-y-2">
-          <Label>Reference Images</Label>
-          <div
-            className={`border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 text-center cursor-pointer hover:border-muted-foreground/50 transition-colors ${isUploading ? "opacity-50 pointer-events-none" : ""}`}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={handleImageUpload}
-              disabled={isUploading}
-            />
-            {isUploading ? (
-              <Loader2 className="h-8 w-8 mx-auto text-muted-foreground mb-2 animate-spin" />
-            ) : (
-              <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-            )}
-            <p className="text-sm text-muted-foreground">
-              {isUploading ? "Uploading..." : "Click to upload images"}
-            </p>
-            <p className="text-xs text-muted-foreground/70 mt-1">
-              Upload UI screenshots to inspire your theme
-            </p>
-          </div>
-
-          {/* Image counter */}
-          <p className="text-xs text-muted-foreground mt-2 text-center">
-            {aiImages.length} / {MAX_IMAGES} images
-            {aiImages.length >= MAX_IMAGES && (
-              <span className="text-destructive ml-2">• Maximum reached</span>
-            )}
-          </p>
-
-          {/* Image Preview */}
-          {aiImages.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-2">
-              {aiImages.map((img, index) => (
-                <div key={img.path} className="relative group">
-                  <img
-                    src={img.preview}
-                    alt={`Upload ${index + 1}`}
-                    className="h-16 w-16 object-cover rounded-md border"
-                  />
-                  <button
-                    onClick={() => handleRemoveImage(index)}
-                    className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              ))}
-            </div>
+        <Label>Reference Images</Label>
+        <div
+          className={`border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 text-center cursor-pointer hover:border-muted-foreground/50 transition-colors ${isUploading ? "opacity-50 pointer-events-none" : ""}`}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={handleImageUpload}
+            disabled={isUploading}
+          />
+          {isUploading ? (
+            <Loader2 className="h-8 w-8 mx-auto text-muted-foreground mb-2 animate-spin" />
+          ) : (
+            <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
           )}
+          <p className="text-sm text-muted-foreground">
+            {isUploading ? "Uploading..." : "Click to upload images"}
+          </p>
+          <p className="text-xs text-muted-foreground/70 mt-1">
+            Upload UI screenshots to inspire your theme
+          </p>
         </div>
+
+        {/* Image counter */}
+        <p className="text-xs text-muted-foreground mt-2 text-center">
+          {aiImages.length} / {MAX_IMAGES} images
+          {aiImages.length >= MAX_IMAGES && (
+            <span className="text-destructive ml-2">• Maximum reached</span>
+          )}
+        </p>
+
+        {/* Image Preview */}
+        {aiImages.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-2">
+            {aiImages.map((img, index) => (
+              <div key={img.path} className="relative group">
+                <img
+                  src={img.preview}
+                  alt={`Upload ${index + 1}`}
+                  className="h-16 w-16 object-cover rounded-md border"
+                />
+                <button
+                  onClick={() => handleRemoveImage(index)}
+                  className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Keywords Input */}
       <div className="space-y-2">
@@ -505,8 +499,8 @@ export function AIGeneratorTab({
           />
         ) : (
           <div className="min-h-[100px] border rounded-md p-4 flex items-center justify-center text-muted-foreground text-sm text-center">
-            No prompt generated yet.{" "}
-            Upload images and click "Generate" to create a theme prompt.
+            No prompt generated yet. Upload images and click "Generate" to
+            create a theme prompt.
           </div>
         )}
       </div>

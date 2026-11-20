@@ -14,19 +14,16 @@ import { NewProjectButton } from "@/components/NewProjectButton";
 import { usePostHog } from "posthog-js/react";
 
 import { FeaturedAppShowcase } from "@/components/FeaturedAppShowcase";
-import { Button } from "@/components/ui/button";
 
 import type { FileAttachment } from "@/ipc/types";
 import type { ListedApp } from "@/ipc/types/app";
 import { hasDyadProKey, type ChatMode } from "@/lib/schemas";
-import { PRO_BILLING_FEATURES_ENABLED } from "@/lib/proBillingFlags";
 import {
   FREE_PRO_MODEL_FALLBACK_CHAT_MODE,
   isFreeProBuildModeCombination,
 } from "@/lib/freeProModel";
 import { useLanguageModelProviders } from "@/hooks/useLanguageModelProviders";
-import { Sparkles, Zap } from "lucide-react";
-import { ipc } from "@/ipc/types";
+import { Zap } from "lucide-react";
 import {
   useFirstPromptSaga,
   useFirstPromptSend,
@@ -205,21 +202,6 @@ export default function HomePage() {
       </div>
       <div className="relative flex flex-col items-center justify-center max-w-3xl w-full m-auto p-8">
         <div className="w-full">
-          {PRO_BILLING_FEATURES_ENABLED && !hasDyadProApiKey && (
-            <div className="mb-4 flex justify-center">
-              <Button
-                size="sm"
-                onClick={() =>
-                  ipc.system.openExternalUrl(
-                    "https://www.dyad.sh/pro?utm_source=dyad-app&utm_medium=app&utm_campaign=home-upgrade-to-pro",
-                  )
-                }
-              >
-                <Sparkles aria-hidden="true" />
-                Upgrade to Pro
-              </Button>
-            </div>
-          )}
           <div className="mb-4 flex justify-center md:hidden">
             <NewProjectButton />
           </div>

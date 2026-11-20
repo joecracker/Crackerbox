@@ -92,7 +92,6 @@ import { useAppBlueprintEvents } from "@/hooks/useAppBlueprintEvents";
 import { ChatPanel } from "@/components/ChatPanel";
 import { AppList } from "@/components/AppList";
 import { ChatList } from "@/components/ChatList";
-import { SubscriptionStatusBanner } from "@/components/SubscriptionStatusBanner";
 import { VersionPreviewProvider } from "@/version_preview/VersionPreviewProvider";
 import { PreviewIframeProvider } from "@/preview_iframe/PreviewIframeProvider";
 import { PreviewIframeManager } from "@/preview_iframe/manager";
@@ -262,8 +261,6 @@ export interface MountOptions {
   withAppList?: boolean;
   /** Render the real chat sidebar list next to the mounted route. */
   withChatList?: boolean;
-  /** Render the real global subscription status banner. */
-  withSubscriptionStatusBanner?: boolean;
 }
 
 export interface MountSurfaceOptions extends MountOptions {
@@ -781,9 +778,6 @@ export async function setupHybridChatHarness(
               {opts.withTitleBar && <TitleBar />}
               {opts.withAppList && <AppList show />}
               {opts.withChatList && <ChatList show />}
-              {opts.withSubscriptionStatusBanner && (
-                <SubscriptionStatusBanner />
-              )}
               <Outlet />
             </div>
           </PlanHandoffProvider>

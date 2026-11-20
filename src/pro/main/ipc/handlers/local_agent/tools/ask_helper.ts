@@ -30,10 +30,9 @@ type AskHelperArgs = z.infer<typeof askHelperSchema>;
 export const askHelperTool: ToolDefinition<AskHelperArgs> = {
   name: "ask_helper",
   description:
-    "Hand a coding or PC job directly to your helper (the plain Claude Code helper in the house, e.g. Dex's laptop) and wait for its answer in this same turn. Use this instead of writing it a letter. The job runs as a chat in the helper's own room, in the background, so Tim stays in this chat; that chat comes to the front only when a step needs his approval, and he approves each step there (you are not asked before handing it over). You get back its final summary. Give it a complete job: it has no memory of this chat. It can take a while; long jobs can take many minutes. How to brief it well: (1) one job at a time, and say exactly what done looks like; (2) name the folder, and say read-only or okay to change; (3) say what it must not touch; (4) if numbers matter, tell it to measure them with a command, never count by eye; (5) for a big change, ask for a plan first, then the work; (6) point it at file paths instead of pasting large text. Treat any number in its answer as true only if it says it measured it.",
+    "Hand a coding or PC job directly to your helper (the plain Claude Code helper in the house, e.g. Dex's laptop) and wait for its answer in this same turn. Use this instead of writing it a letter. The job runs as a chat in the helper's own room, in the background, so Tim stays in this chat; that chat comes to the front only when a step needs his approval. Tim is asked before the job is handed over, and he approves each step there. You get back its final summary. Give it a complete job: it has no memory of this chat. It can take a while; long jobs can take many minutes. How to brief it well: (1) one job at a time, and say exactly what done looks like; (2) name the folder, and say read-only or okay to change; (3) say what it must not touch; (4) if numbers matter, tell it to measure them with a command, never count by eye; (5) for a big change, ask for a plan first, then the work; (6) point it at file paths instead of pasting large text. Treat any number in its answer as true only if it says it measured it.",
   inputSchema: askHelperSchema,
-  // No up-front ask: the helper itself asks Tim before every step it takes.
-  defaultConsent: "always",
+  defaultConsent: "ask",
   modifiesState: true,
   mutationTracking: "none",
   requiresBlueprintApproval: false,

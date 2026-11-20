@@ -25,6 +25,7 @@ import {
 } from "./main/house_schedule";
 import { startTelegramInbound } from "./main/telegram_inbound";
 import { startMailWake } from "./main/house_mail_wake";
+import { registerHouseJobSender } from "./main/house_job";
 import { startPostInstallWake } from "./main/house_install";
 import { warmPocketVoice } from "@/ipc/services/speech_service";
 import { startHouseBackup } from "./main/house_backup";
@@ -690,6 +691,7 @@ export async function onReady() {
   } catch (error) {
     logger.error("Failed to start house scheduler", error);
   }
+  registerHouseJobSender(sendToWindow);
   try {
     startMailWake(sendToWindow);
   } catch (error) {

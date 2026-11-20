@@ -40,6 +40,7 @@ export function HouseTriggerListener() {
 
   useEffect(() => {
     return ipc.events.misc.onHouseTrigger((payload) => {
+      const jobId = payload.jobId;
       queue = queue.then(async () => {
         try {
           const isTelegram = payload.thread === "telegram";
@@ -59,9 +60,24 @@ export function HouseTriggerListener() {
             chatId,
             appId: payload.appId,
             showOptimisticMessage: false,
+            // A direct hand-off waits in main for this turn to settle.
+            onSettled: jobId
+              ? (result) => {
+                  if (result.queued) return;
+                  void ipc.chat.houseJobDone({
+                    jobId,
+                    chatId,
+                    success: result.success,
+                    pausedByStepLimit: result.pausedByStepLimit,
+                  });
+                }
+              : undefined,
           });
         } catch (error) {
           console.error("House trigger failed", error);
+          if (jobId) {
+            void ipc.chat.houseJobDone({ jobId, chatId: 0, success: false });
+          }
         }
       });
     });

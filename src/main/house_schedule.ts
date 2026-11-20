@@ -300,6 +300,8 @@ export interface HouseTriggerPayload {
    * Without it a trigger runs quietly (kept, but hidden from the lists).
    */
   visible?: boolean;
+  /** A direct hand-off to a helper: the window reports back when the turn settles. */
+  jobId?: string;
 }
 
 /**

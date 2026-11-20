@@ -545,6 +545,7 @@ export const miscEvents = {
       title: z.string(),
       thread: z.literal("telegram").optional(),
       visible: z.boolean().optional(),
+      jobId: z.string().optional(),
     }),
   }),
 

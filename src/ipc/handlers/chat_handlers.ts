@@ -2,6 +2,7 @@ import { readAvatarDataUrl } from "@/main/avatar_file";
 import { markChatSilent, readSilentChats } from "@/main/silent_chats";
 import { addEntity, updateEntity } from "@/main/house_entity";
 import { forgetEntityAlways, listEntityAlways } from "@/main/house_consent";
+import { finishHelperJob } from "@/main/house_job";
 import {
   claudeStatus,
   listClaudeModels,
@@ -375,6 +376,14 @@ export function registerChatHandlers() {
   createTypedHandler(chatContracts.forgetEntityAlways, async (_, params) => {
     forgetEntityAlways(params.id, params.toolName);
     return listEntityAlways(params.id);
+  });
+
+  createTypedHandler(chatContracts.houseJobDone, async (_, params) => {
+    finishHelperJob(params.jobId, {
+      chatId: params.chatId,
+      success: params.success,
+      pausedByStepLimit: params.pausedByStepLimit,
+    });
   });
 
   createTypedHandler(chatContracts.markChatSilent, async (_, params) => {

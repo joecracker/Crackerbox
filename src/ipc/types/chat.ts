@@ -510,6 +510,18 @@ export const chatContracts = {
     output: z.array(z.string()),
   }),
 
+  // The window tells main a direct hand-off to a helper has settled.
+  houseJobDone: defineContract({
+    channel: "house:job-done",
+    input: z.object({
+      jobId: z.string(),
+      chatId: z.number(),
+      success: z.boolean(),
+      pausedByStepLimit: z.boolean().optional(),
+    }),
+    output: z.void(),
+  }),
+
   markChatSilent: defineContract({
     channel: "chat:mark-silent",
     input: z.object({ chatId: z.number() }),

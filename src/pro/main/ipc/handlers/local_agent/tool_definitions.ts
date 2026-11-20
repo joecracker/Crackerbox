@@ -40,6 +40,7 @@ import { updateMemoryTool } from "./tools/update_memory";
 import { readMemoryTool } from "./tools/read_memory";
 import { houseTool } from "./tools/house";
 import { installUpdateTool } from "./tools/install_update";
+import { askHelperTool } from "./tools/ask_helper";
 import { proposeChangeTool } from "./tools/propose_change";
 import { writeHandoffTool } from "./tools/write_handoff";
 import { addIntegrationTool } from "./tools/add_integration";
@@ -216,6 +217,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinition[] = [
   readMemoryTool,
   houseTool,
   installUpdateTool,
+  askHelperTool,
   proposeChangeTool,
   writeHandoffTool,
   addIntegrationTool,

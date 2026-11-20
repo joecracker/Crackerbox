@@ -9,7 +9,6 @@ export const SECTION_IDS = {
   providers: "provider-settings",
   integrations: "integrations",
   agentPermissions: "agent-permissions",
-  advanced: "advanced",
   experiments: "experiments",
   dangerZone: "danger-zone",
 } as const;
@@ -518,7 +517,7 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
   // Build and Agent Permissions
   {
     id: SECTION_IDS.agentPermissions,
-    label: "Build and Agent Permissions",
+    label: "Permissions and safety",
     description: "Configure permissions for Build and Agent built-in tools",
     keywords: [
       "build",
@@ -530,25 +529,7 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
       "consent",
     ],
     sectionId: SECTION_IDS.agentPermissions,
-    sectionLabel: "Build and Agent Permissions",
-  },
-
-  // Advanced
-  {
-    id: SECTION_IDS.advanced,
-    label: "Safety and packages",
-    description: "Power-user settings for Git, sandboxing, packages, and MCP",
-    keywords: [
-      "advanced",
-      "git",
-      "sandbox",
-      "npm",
-      "mcp",
-      "security",
-      "native",
-    ],
-    sectionId: SECTION_IDS.advanced,
-    sectionLabel: "Safety and packages",
+    sectionLabel: "Permissions and safety",
   },
   {
     id: SETTING_IDS.enableSandboxScriptExecution,
@@ -563,16 +544,16 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
       "mustard",
       "agent",
     ],
-    sectionId: SECTION_IDS.advanced,
-    sectionLabel: "Safety and packages",
+    sectionId: SECTION_IDS.agentPermissions,
+    sectionLabel: "Permissions and safety",
   },
   {
     id: SETTING_IDS.blockUnsafeNpmPackages,
     label: "Block unsafe npm packages",
     description: "Uses socket.dev to detect unsafe packages and blocks them",
     keywords: ["socket", "npm", "firewall", "package", "unsafe", "security"],
-    sectionId: SECTION_IDS.advanced,
-    sectionLabel: "Safety and packages",
+    sectionId: SECTION_IDS.agentPermissions,
+    sectionLabel: "Permissions and safety",
   },
   {
     id: SETTING_IDS.autoApproveNonSchemaSql,
@@ -590,7 +571,7 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
       "neon",
     ],
     sectionId: SECTION_IDS.agentPermissions,
-    sectionLabel: "Build and Agent Permissions",
+    sectionLabel: "Permissions and safety",
   },
 
   // Experiments
@@ -620,7 +601,7 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
       "experiment",
     ],
     sectionId: SECTION_IDS.agentPermissions,
-    sectionLabel: "Build and Agent Permissions",
+    sectionLabel: "Permissions and safety",
   },
   {
     id: SETTING_IDS.enableCloudSandbox,
@@ -645,8 +626,8 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
     description:
       "When many MCP tools are enabled, let the agent search for the tools on demand instead of listing every tool in its context. Requires sandbox script execution",
     keywords: ["mcp", "search", "tools", "agent", "sandbox", "context"],
-    sectionId: SECTION_IDS.advanced,
-    sectionLabel: "Safety and packages",
+    sectionId: SECTION_IDS.agentPermissions,
+    sectionLabel: "Permissions and safety",
   },
   {
     id: SETTING_IDS.enablePnpmMinimumReleaseAgeWarning,

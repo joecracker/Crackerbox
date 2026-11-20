@@ -13,7 +13,7 @@ describe("SETTINGS_SEARCH_INDEX", () => {
       ),
     ).toEqual({
       id: SECTION_IDS.agentPermissions,
-      label: "Build and Agent Permissions",
+      label: "Permissions and safety",
       description: "Configure permissions for Build and Agent built-in tools",
       keywords: [
         "build",
@@ -25,7 +25,7 @@ describe("SETTINGS_SEARCH_INDEX", () => {
         "consent",
       ],
       sectionId: SECTION_IDS.agentPermissions,
-      sectionLabel: "Build and Agent Permissions",
+      sectionLabel: "Permissions and safety",
     });
   });
 
@@ -135,8 +135,8 @@ describe("SETTINGS_SEARCH_INDEX", () => {
       label: "Block unsafe npm packages",
       description: "Uses socket.dev to detect unsafe packages and blocks them",
       keywords: ["socket", "npm", "firewall", "package", "unsafe", "security"],
-      sectionId: SECTION_IDS.advanced,
-      sectionLabel: "Safety and packages",
+      sectionId: SECTION_IDS.agentPermissions,
+      sectionLabel: "Permissions and safety",
     });
   });
 
@@ -183,8 +183,8 @@ describe("SETTINGS_SEARCH_INDEX", () => {
         "mustard",
         "agent",
       ],
-      sectionId: SECTION_IDS.advanced,
-      sectionLabel: "Safety and packages",
+      sectionId: SECTION_IDS.agentPermissions,
+      sectionLabel: "Permissions and safety",
     });
   });
 
@@ -199,8 +199,8 @@ describe("SETTINGS_SEARCH_INDEX", () => {
       description:
         "When many MCP tools are enabled, let the agent search for the tools on demand instead of listing every tool in its context. Requires sandbox script execution",
       keywords: ["mcp", "search", "tools", "agent", "sandbox", "context"],
-      sectionId: SECTION_IDS.advanced,
-      sectionLabel: "Safety and packages",
+      sectionId: SECTION_IDS.agentPermissions,
+      sectionLabel: "Permissions and safety",
     });
   });
 

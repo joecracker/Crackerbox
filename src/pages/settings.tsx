@@ -287,8 +287,8 @@ export default function SettingsPage() {
 
           <SettingsSection
             id={SECTION_IDS.agentPermissions}
-            title="Build and Agent Permissions"
-            description="Control what Build and Agent tools can do on your behalf."
+            title="Permissions and safety"
+            description="Control what Build and Agent tools can do on your behalf, and the safety checks around them. The defaults are recommended unless something isn't working."
           >
             <AgentToolsSettings />
 
@@ -299,13 +299,7 @@ export default function SettingsPage() {
             <div id={SETTING_IDS.autoApproveSafeMcpTools}>
               <AutoApproveMcpSwitch />
             </div>
-          </SettingsSection>
 
-          <SettingsSection
-            id={SECTION_IDS.advanced}
-            title="Safety and packages"
-            description="We recommend keeping the defaults unless something isn't working."
-          >
             <div
               id={SETTING_IDS.enableSandboxScriptExecution}
               className="space-y-1.5"

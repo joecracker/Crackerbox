@@ -23,8 +23,7 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
   { id: SECTION_IDS.house, label: "The house" },
   { id: SECTION_IDS.addPhone, label: "Add a phone" },
   { id: SECTION_IDS.integrations, label: "Integrations" },
-  { id: SECTION_IDS.agentPermissions, label: "Build and Agent Permissions" },
-  { id: SECTION_IDS.advanced, label: "Safety and packages" },
+  { id: SECTION_IDS.agentPermissions, label: "Permissions and safety" },
   { id: SECTION_IDS.experiments, label: "Early features" },
   { id: SECTION_IDS.dangerZone, label: "Danger Zone" },
 ];

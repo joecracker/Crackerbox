@@ -4,13 +4,10 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import type { McpServer } from "@/ipc/types";
-import { CatalogBadge } from "./CatalogBadge";
 import type { ConnectFeedback } from "./usePluginConnect";
 
 export function PluginSummaryCard({
   server: s,
-  needsSetup,
-  setupLocked,
   toolCount,
   enabledToolCount,
   discoveryFailed,
@@ -22,10 +19,6 @@ export function PluginSummaryCard({
   onOpen,
 }: {
   server: McpServer;
-  /** A catalog server with declared setup fields still unfilled. */
-  needsSetup: boolean;
-  /** Setup is unfinished or its catalog entry hasn't resolved; lock controls. */
-  setupLocked: boolean;
   toolCount: number | null;
   enabledToolCount: number | null;
   /** Discovery settled without a tool list (unreachable or unauthorized). */
@@ -58,15 +51,9 @@ export function PluginSummaryCard({
       <CardHeader className="p-4">
         <CardTitle className="text-lg font-medium mb-1 flex items-center gap-2 min-w-0">
           <span className="truncate">{s.name}</span>
-          {s.catalogSlug && <CatalogBadge />}
-          {needsSetup ? (
-            <span className="text-xs font-medium px-2 py-1 rounded-full shrink-0 text-amber-600 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-500/50">
-              Needs setup
-            </span>
-          ) : feedback ? (
+          {feedback ? (
             <span className="text-xs font-medium px-2 py-1 rounded-full text-red-600 bg-red-50 border border-red-500/50 dark:bg-red-900/30 dark:text-red-300 shrink-0">
-              {feedback.kind === "unauthorized" ||
-              feedback.kind === "credentials"
+              {feedback.kind === "unauthorized"
                 ? "Needs auth"
                 : "Connection error"}
             </span>
@@ -99,7 +86,7 @@ export function PluginSummaryCard({
           </span>
           <div className="flex items-center gap-2">
             <div className="relative z-10 flex items-center gap-2">
-              {s.oauthEnabled && !s.oauthConnected && !setupLocked && (
+              {s.oauthEnabled && !s.oauthConnected && (
                 <Button
                   size="sm"
                   onClick={() => onConnect(s.id)}
@@ -118,7 +105,6 @@ export function PluginSummaryCard({
                 id={`plugin-enabled-${s.id}`}
                 aria-label={`Enabled toggle for ${s.name}`}
                 checked={!!s.enabled}
-                disabled={setupLocked}
                 onCheckedChange={() => onToggleEnabled(s.id, !!s.enabled)}
               />
             </div>

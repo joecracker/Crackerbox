@@ -1,8 +1,7 @@
 import log from "electron-log";
-import { getRemoteMcpCatalog } from "@/ipc/shared/remote_mcp_catalog";
 import { db } from "../../db";
 import { mcpServers, mcpToolConsents } from "../../db/schema";
-import { eq, and, isNotNull } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { createTypedHandler } from "./base";
 import { DyadError, DyadErrorKind } from "../../errors/dyad_error";
 
@@ -27,7 +26,6 @@ import {
   type McpConsentValue,
 } from "../types/mcp";
 import { findAvailablePort } from "../utils/port_utils";
-import { readSettings, tryWriteSettings } from "../../main/settings";
 import net from "node:net";
 import { safeStorage } from "electron";
 import {
@@ -36,28 +34,6 @@ import {
 } from "./mcp_error_classifiers";
 
 const logger = log.scope("mcp_handlers");
-
-// Adding a plugin by hand is a clear signal the user wants it, so a stored
-// "don't suggest again" for it no longer applies. The chat card never
-// reaches this for such a plugin, because opted-out plugins are not offered.
-// Best-effort: the add has already succeeded by the time this runs, so a
-// settings problem here must not turn it into a failure.
-function clearNeverSuggestPlugin(slug: string) {
-  try {
-    const slugs = readSettings().neverSuggestPluginSlugs;
-    if (!slugs?.includes(slug)) return;
-    tryWriteSettings(
-      {
-        neverSuggestPluginSlugs: slugs.filter(
-          (candidate) => candidate !== slug,
-        ),
-      },
-      "clearing a plugin's never-suggest choice",
-    );
-  } catch (error) {
-    logger.warn("Failed to clear a plugin's never-suggest choice", error);
-  }
-}
 
 // EADDRINUSE on either stack disqualifies the port; a stack that's
 // unavailable system-wide (e.g. IPv6 disabled) is OK if the other is
@@ -78,16 +54,6 @@ async function isPortFreeOnBothLoopbacks(port: number): Promise<boolean> {
   const [v4, v6] = await Promise.all([probeOne("127.0.0.1"), probeOne("::1")]);
   if (v4 === "in_use" || v6 === "in_use") return false;
   return v4 === "free" || v6 === "free";
-}
-
-function envsEqual(
-  a: Record<string, string>,
-  b: Record<string, string>,
-): boolean {
-  const keys = Object.keys(a);
-  return (
-    keys.length === Object.keys(b).length && keys.every((k) => a[k] === b[k])
-  );
 }
 
 // Parse a JSON string from the renderer and surface a clear error
@@ -174,128 +140,6 @@ export function registerMcpHandlers() {
     const servers = await db.select().from(mcpServers);
     return servers.map(toMcpServer);
   });
-
-  createTypedHandler(mcpContracts.listCatalog, async () => {
-    // The catalog fetch and the added-slugs read are independent.
-    const [entries, rows] = await Promise.all([
-      getRemoteMcpCatalog(),
-      db
-        .select({ catalogSlug: mcpServers.catalogSlug })
-        .from(mcpServers)
-        .where(isNotNull(mcpServers.catalogSlug)),
-    ]);
-    const addedSlugs = rows
-      .map((r) => r.catalogSlug)
-      .filter((slug): slug is string => slug !== null);
-    return { entries, addedSlugs };
-  });
-
-  createTypedHandler(
-    mcpContracts.addFromCatalog,
-    async (_, { slug, expectedStdioConfig }) => {
-      const entries = await getRemoteMcpCatalog();
-      // The user reached this from a populated catalog, so an empty list
-      // here means the fetch failed rather than the slug being unknown.
-      // Surface that as a connectivity problem instead of a not-found.
-      if (entries.length === 0) {
-        throw new DyadError(
-          "Could not reach the plugin catalog. Please check your connection and try again.",
-          DyadErrorKind.Precondition,
-        );
-      }
-      const entry = entries.find((e) => e.slug === slug);
-      if (!entry) {
-        throw new DyadError(
-          `Unknown catalog entry: ${slug}`,
-          DyadErrorKind.NotFound,
-        );
-      }
-
-      // Adding the same entry twice returns the existing server. The
-      // unique index on catalog_slug makes this safe against concurrent
-      // adds: onConflictDoNothing skips the duplicate insert, and we read
-      // the winning row back.
-      const existing = await db
-        .select()
-        .from(mcpServers)
-        .where(eq(mcpServers.catalogSlug, slug));
-      if (existing.length > 0) {
-        clearNeverSuggestPlugin(slug);
-        return toMcpServer(existing[0]);
-      }
-
-      // A stdio add must run exactly the command the consent prompt showed.
-      // Abort if the fetched entry wasn't reviewed, no longer matches, or
-      // the slug changed transport since the prompt.
-      const stdioMatchesReview =
-        entry.transport === "stdio" &&
-        expectedStdioConfig != null &&
-        entry.command === expectedStdioConfig.command &&
-        entry.args.length === expectedStdioConfig.args.length &&
-        entry.args.every((arg, i) => arg === expectedStdioConfig.args[i]) &&
-        envsEqual(entry.env ?? {}, expectedStdioConfig.env ?? {});
-      const transportMismatch =
-        (entry.transport === "stdio") !== (expectedStdioConfig != null);
-      if (
-        (entry.transport === "stdio" && !stdioMatchesReview) ||
-        transportMismatch
-      ) {
-        throw new DyadError(
-          "The plugin catalog changed since you reviewed this plugin. Please try adding it again.",
-          DyadErrorKind.Precondition,
-        );
-      }
-
-      // An entry that declares inputs needs the user to fill them on the
-      // setup page first, so it's added disabled and doesn't connect or
-      // spawn until configured.
-      const needsSetup = (entry.inputs?.length ?? 0) > 0;
-      const values =
-        entry.transport === "stdio"
-          ? {
-              name: entry.name,
-              transport: "stdio" as const,
-              command: entry.command,
-              args: entry.args,
-              envJson: null,
-              envEncrypted: encryptSecretMap(entry.env),
-              enabled: !needsSetup,
-              catalogSlug: entry.slug,
-            }
-          : {
-              name: entry.name,
-              transport: "http" as const,
-              url: entry.url,
-              headersJson: null,
-              headersEncrypted: encryptSecretMap(entry.headers),
-              enabled: !needsSetup,
-              oauthEnabled: entry.oauth != null,
-              oauthScope: entry.oauth?.scope ?? null,
-              catalogSlug: entry.slug,
-            };
-      const [created] = await db
-        .insert(mcpServers)
-        .values(values)
-        .onConflictDoNothing({ target: mcpServers.catalogSlug })
-        .returning();
-      if (!created) {
-        const [row] = await db
-          .select()
-          .from(mcpServers)
-          .where(eq(mcpServers.catalogSlug, slug));
-        if (!row) {
-          throw new DyadError(
-            `Unknown catalog entry: ${slug}`,
-            DyadErrorKind.NotFound,
-          );
-        }
-        clearNeverSuggestPlugin(slug);
-        return toMcpServer(row);
-      }
-      clearNeverSuggestPlugin(slug);
-      return toMcpServer(created);
-    },
-  );
 
   createTypedHandler(mcpContracts.createServer, async (_, params) => {
     const {

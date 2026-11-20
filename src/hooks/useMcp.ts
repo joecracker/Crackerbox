@@ -154,8 +154,6 @@ export function useMcp() {
       await queryClient.invalidateQueries({
         queryKey: queryKeys.mcp.toolsByServer.all,
       });
-      // A deleted catalog plugin becomes addable again.
-      await queryClient.invalidateQueries({ queryKey: queryKeys.mcp.catalog });
     },
     meta: { showErrorToast: true },
   });

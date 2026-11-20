@@ -1,7 +1,5 @@
-import { useMemo } from "react";
 import { atom, useAtom } from "jotai";
 import { useMcp } from "@/hooks/useMcp";
-import { useMcpCatalog } from "@/hooks/useMcpCatalog";
 import type { McpServer } from "@/ipc/types";
 import { ipc } from "@/ipc/types";
 import { showError, showInfo, showSuccess } from "@/lib/toast";
@@ -11,7 +9,7 @@ import { useOauthCallbackPort } from "./AddPluginDialog";
 // render it as a badge or alert.
 export type ConnectFeedback = {
   serverId: number;
-  kind: "discovery_failed" | "unauthorized" | "credentials";
+  kind: "discovery_failed" | "unauthorized";
   message: string;
 };
 
@@ -41,24 +39,6 @@ export function usePluginConnect() {
   const [connectFeedback, setConnectFeedback] = useAtom(connectFeedbackAtom);
 
   const callbackPort = useOauthCallbackPort();
-
-  const catalogQuery = useMcpCatalog();
-  // Catalog slugs whose entries authenticate via a user-supplied key, so
-  // a 401 means "check the key", not "enable OAuth" -- even before the
-  // key has been entered.
-  const slugsNeedingKey = useMemo(
-    () =>
-      new Set(
-        (catalogQuery.data?.entries ?? [])
-          .filter((e) =>
-            (e.inputs ?? []).some(
-              (i) => i.kind === "header" || i.kind === "env",
-            ),
-          )
-          .map((e) => e.slug),
-      ),
-    [catalogQuery.data],
-  );
 
   // Sole owner of the shared connect slot: claims it for the duration
   // of `fn`. Buttons that start a connect flow disable while the slot
@@ -175,11 +155,10 @@ export function usePluginConnect() {
 
   const onConnect = async (serverId: number) => {
     const server = servers.find((s) => s.id === serverId);
-    // Catalog rows are added without a saved callback port, so a
-    // Connect from the card would fall back to the default port and
-    // fail if it's occupied. Use the probed port for rows with none
-    // saved; rows with a saved port keep it so it matches their
-    // registered redirect URI.
+    // A row with no saved callback port would fall back to the default port
+    // and fail if it's occupied. Use the probed port for rows with none
+    // saved; rows with a saved port keep it so it matches their registered
+    // redirect URI.
     const usesProbedPort =
       server != null &&
       server.oauthCallbackPort == null &&
@@ -234,18 +213,6 @@ export function usePluginConnect() {
       return connectFeedback;
     }
     if (!server.oauthEnabled && statusByServer[server.id] === "unauthorized") {
-      // If the catalog says this server needs an API key, treat a 401 as
-      // a bad key rather than a sign that OAuth is required.
-      const wantsKey =
-        server.catalogSlug != null && slugsNeedingKey.has(server.catalogSlug);
-      if (wantsKey) {
-        return {
-          serverId: server.id,
-          kind: "credentials",
-          message:
-            "This server rejected the provided credentials. Check that your API key or token is correct.",
-        };
-      }
       return {
         serverId: server.id,
         kind: "unauthorized",

@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { McpCatalogEntrySchema } from "./mcp_catalog";
 import { defineContract, createClient } from "../contracts/core";
 
 // Arbitrary loopback port for the OAuth callback listener -- not from
@@ -46,7 +45,7 @@ export const McpServerSchema = z.object({
   // would otherwise show.
   envUnreadable: z.boolean(),
   headersUnreadable: z.boolean(),
-  // Set when the server was added from the curated catalog.
+  // Kept in the database for servers added before the catalog was removed.
   catalogSlug: z.string().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
@@ -177,44 +176,6 @@ export const mcpContracts = {
     output: z.array(McpServerSchema),
   }),
 
-  listCatalog: defineContract({
-    channel: "mcp:list-catalog",
-    input: z.void(),
-    output: z.object({
-      entries: z.array(McpCatalogEntrySchema),
-      // Slugs that already have a configured server row.
-      addedSlugs: z.array(z.string()),
-    }),
-  }),
-
-  addFromCatalog: defineContract({
-    channel: "mcp:add-from-catalog",
-    // expectedStdioConfig is the command the consent prompt showed. The
-    // handler aborts if the catalog it re-fetches no longer matches, so a
-    // stale dialog can't add something the user didn't review.
-    input: z.object({
-      slug: z.string().min(1),
-      expectedStdioConfig: z
-        .object({
-          command: z.string(),
-          args: z.array(z.string()),
-          env: z.record(z.string(), z.string()).nullable().optional(),
-        })
-        .optional(),
-    }),
-    output: McpServerSchema,
-    invalidates: () => [
-      { family: "mcp-servers" },
-      { family: "mcp-catalog" },
-      { family: "mcp-tools" },
-    ],
-    originHandles: () => [
-      { family: "mcp-servers" },
-      { family: "mcp-catalog" },
-      { family: "mcp-tools" },
-    ],
-  }),
-
   createServer: defineContract({
     channel: "mcp:create-server",
     input: CreateMcpServerSchema,
@@ -233,16 +194,8 @@ export const mcpContracts = {
     channel: "mcp:delete-server",
     input: z.number(), // serverId
     output: z.object({ success: z.boolean() }),
-    invalidates: () => [
-      { family: "mcp-servers" },
-      { family: "mcp-tools" },
-      { family: "mcp-catalog" },
-    ],
-    originHandles: () => [
-      { family: "mcp-servers" },
-      { family: "mcp-tools" },
-      { family: "mcp-catalog" },
-    ],
+    invalidates: () => [{ family: "mcp-servers" }, { family: "mcp-tools" }],
+    originHandles: () => [{ family: "mcp-servers" }, { family: "mcp-tools" }],
   }),
 
   listTools: defineContract({

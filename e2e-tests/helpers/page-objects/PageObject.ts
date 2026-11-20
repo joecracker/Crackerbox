@@ -35,7 +35,6 @@ import { Settings } from "./components/Settings";
 import { AppManagement } from "./components/AppManagement";
 import { PromptLibrary } from "./components/PromptLibrary";
 import { Plugins } from "./components/Plugins";
-import { Catalog } from "./components/Catalog";
 import { BrowserNotifications } from "./components/BrowserNotifications";
 
 // Import dialog page objects
@@ -177,7 +176,6 @@ export class PageObject {
   public appManagement: AppManagement;
   public promptLibrary: PromptLibrary;
   public plugins: Plugins;
-  public catalog: Catalog;
   public browserNotifications: BrowserNotifications;
   private stableMessageSnapshotIndex = 0;
 
@@ -208,7 +206,6 @@ export class PageObject {
     this.appManagement = new AppManagement(this.page, electronApp, userDataDir);
     this.promptLibrary = new PromptLibrary(this.page);
     this.plugins = new Plugins(this.page);
-    this.catalog = new Catalog(this.page);
     this.browserNotifications = new BrowserNotifications(this.page);
   }
 

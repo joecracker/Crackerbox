@@ -5,7 +5,6 @@ import { queryKeys } from "@/lib/queryKeys";
 export async function invalidateMcpQueries(queryClient: QueryClient) {
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: queryKeys.mcp.servers }),
-    queryClient.invalidateQueries({ queryKey: queryKeys.mcp.catalog }),
     queryClient.invalidateQueries({
       queryKey: queryKeys.mcp.toolsByServer.all,
     }),

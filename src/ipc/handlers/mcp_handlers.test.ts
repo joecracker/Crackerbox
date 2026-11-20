@@ -155,20 +155,8 @@ vi.mock("drizzle-orm", () => ({
   isNotNull: (_col: unknown) => ({ notNull: true }),
 }));
 
-let catalogEntries: unknown[] = [];
-vi.mock("@/ipc/shared/remote_mcp_catalog", async (importOriginal) => ({
-  ...(await importOriginal<object>()),
-  getRemoteMcpCatalog: vi.fn(async () => catalogEntries),
-}));
-
 const getClientMock = vi.fn();
 const disposeMock = vi.fn(async () => {});
-let neverSuggestSlugs: string[] | undefined;
-const writeSettingsMock = vi.fn();
-vi.mock("@/main/settings", () => ({
-  readSettings: () => ({ neverSuggestPluginSlugs: neverSuggestSlugs }),
-  tryWriteSettings: (settings: unknown) => writeSettingsMock(settings),
-}));
 
 vi.mock("@/ipc/utils/mcp_manager", () => ({
   mcpManager: {
@@ -562,110 +550,5 @@ describe("mcp listTools handler", () => {
     const result = await invoke("mcp:list-tools", 2);
     expect(result).toEqual({ tools: [], status: "unauthorized" });
     expect(failingTools).toHaveBeenCalled();
-  });
-});
-
-describe("mcp catalog handlers", () => {
-  const FIGMA = {
-    slug: "figma",
-    name: "Figma",
-    transport: "http",
-    url: "https://mcp.figma.com/mcp",
-    oauth: { required: true },
-  };
-  const CONTEXT7 = {
-    slug: "context7",
-    name: "Context7",
-    transport: "http",
-    url: "https://mcp.context7.com/mcp",
-    headers: { "X-Test": "1" },
-  };
-
-  beforeEach(() => {
-    dbStore.clear();
-    lastInsertPayload = null;
-    catalogEntries = [FIGMA, CONTEXT7];
-    vi.clearAllMocks();
-  });
-
-  it("lists catalog entries with already-added slugs", async () => {
-    seedRow({ id: 1, catalogSlug: "figma" });
-    seedRow({ id: 2 }); // manual server, no slug
-    const result = await invoke<{ entries: unknown[]; addedSlugs: string[] }>(
-      "mcp:list-catalog",
-      undefined,
-    );
-    expect(result.entries).toHaveLength(2);
-    expect(result.addedSlugs).toEqual(["figma"]);
-  });
-
-  it("adds a catalog entry with oauth enabled and provenance slug", async () => {
-    const created = await invoke<{ catalogSlug: string | null }>(
-      "mcp:add-from-catalog",
-      { slug: "figma" },
-    );
-    expect(created.catalogSlug).toBe("figma");
-    expect(lastInsertPayload).toMatchObject({
-      name: "Figma",
-      transport: "http",
-      url: "https://mcp.figma.com/mcp",
-      enabled: true,
-      oauthEnabled: true,
-      catalogSlug: "figma",
-    });
-  });
-
-  it("maps oauth: none entries to oauthEnabled: false and keeps headers", async () => {
-    await invoke("mcp:add-from-catalog", { slug: "context7" });
-    expect(lastInsertPayload).toMatchObject({
-      oauthEnabled: false,
-      headersJson: null,
-    });
-    const stored = lastInsertPayload!.headersEncrypted as string;
-    expect(Buffer.from(stored, "base64").toString("utf8")).toBe(
-      `enc:{"X-Test":"1"}`,
-    );
-  });
-
-  it("returns the existing server when the slug was already added", async () => {
-    seedRow({ id: 7, catalogSlug: "figma" });
-    const result = await invoke<{ id: number }>("mcp:add-from-catalog", {
-      slug: "figma",
-    });
-    expect(result.id).toBe(7);
-    expect(lastInsertPayload).toBeNull();
-  });
-
-  it("forgets a stored never-suggest choice when the user adds the plugin", async () => {
-    neverSuggestSlugs = ["stripe", "figma"];
-    try {
-      await invoke("mcp:add-from-catalog", { slug: "figma" });
-      expect(writeSettingsMock).toHaveBeenCalledWith({
-        neverSuggestPluginSlugs: ["stripe"],
-      });
-
-      // Nothing stored for this plugin: settings are left alone.
-      writeSettingsMock.mockClear();
-      await invoke("mcp:add-from-catalog", { slug: "context7" });
-      expect(writeSettingsMock).not.toHaveBeenCalled();
-    } finally {
-      neverSuggestSlugs = undefined;
-    }
-  });
-
-  it("rejects unknown slugs", async () => {
-    await expect(
-      invoke("mcp:add-from-catalog", { slug: "not-in-catalog" }),
-    ).rejects.toThrow(/Unknown catalog entry/);
-  });
-
-  it("reports a connectivity error when the catalog is unreachable", async () => {
-    // Transient failure after the user already saw a populated catalog:
-    // the fetch now returns []. The add should read as a connectivity
-    // problem, not an unknown slug.
-    catalogEntries = [];
-    await expect(
-      invoke("mcp:add-from-catalog", { slug: "figma" }),
-    ).rejects.toThrow(/Could not reach the plugin catalog/);
   });
 });

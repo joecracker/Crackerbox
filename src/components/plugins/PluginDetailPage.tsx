@@ -14,14 +14,10 @@ import {
 import { DeleteConfirmationDialog } from "@/components/DeleteConfirmationDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMcp } from "@/hooks/useMcp";
-import { useMcpCatalog } from "@/hooks/useMcpCatalog";
 import type { McpToolConsent } from "@/ipc/types";
 import { useOauthStorageEncrypted } from "./AddPluginDialog";
-import { CatalogBadge } from "./CatalogBadge";
 import { OauthPlaintextStorageAlert } from "./OauthPlaintextStorageAlert";
 import { KeyValueEditor, arrayToJsonObject } from "./KeyValueEditor";
-import { PluginSetupSection } from "./PluginSetupSection";
-import { serverNeedsSetup } from "./pluginSetup";
 import { usePluginConnect, type ConnectFeedback } from "./usePluginConnect";
 
 // Keyed on the full kind union so adding a feedback kind forces a
@@ -29,7 +25,6 @@ import { usePluginConnect, type ConnectFeedback } from "./usePluginConnect";
 const FEEDBACK_TITLES: Record<ConnectFeedback["kind"], string> = {
   unauthorized: "Server requires authentication",
   discovery_failed: "Server doesn't support OAuth",
-  credentials: "Authentication failed",
 };
 
 // Shown in place of an editable list when the stored values can't be
@@ -73,10 +68,6 @@ export function PluginDetailPage({ serverId }: { serverId: number }) {
     onDisableOAuthAndRetry,
   } = usePluginConnect();
 
-  // The server's catalog entry supplies the declared setup fields. It's a
-  // cached read that returns nothing for manually-added servers.
-  const catalogQuery = useMcpCatalog();
-
   // The plugins list only warns once a server already holds a secret,
   // so the warning has to appear here too: this is where the first one
   // gets entered.
@@ -118,37 +109,6 @@ export function PluginDetailPage({ serverId }: { serverId: number }) {
   const tools = discoveredTools ?? [];
   const feedback = feedbackFor(s);
 
-  const catalogEntry = s.catalogSlug
-    ? catalogQuery.data?.entries.find((e) => e.slug === s.catalogSlug)
-    : undefined;
-  const setupInputs = catalogEntry?.inputs ?? [];
-  // Show the guided setup until every declared field has a saved value.
-  const needsSetup = serverNeedsSetup(s, setupInputs);
-  // A disabled catalog server might still need setup while its catalog is
-  // loading, so keep its controls locked until the fetch settles. Once it
-  // settles (even on error) the toggle works again, so a slow or failing
-  // catalog can't strand an already-configured server.
-  const setupPending = !!s.catalogSlug && catalogQuery.isLoading && !s.enabled;
-  const setupIncomplete = needsSetup || setupPending;
-  // Setup rebuilds a map from the stored values before writing it, so
-  // it is only unsafe for a map it will actually touch. An entry with
-  // OAuth-only inputs writes neither.
-  const setupBlockedByUnreadable =
-    (s.headersUnreadable && setupInputs.some((i) => i.kind === "header")) ||
-    (s.envUnreadable && setupInputs.some((i) => i.kind === "env"));
-  // Setup is where a catalog plugin's first credential gets typed, so
-  // it needs the same no-keyring warning the editors carry. Saving an
-  // OAuth server also starts its connect flow, which stores tokens, so
-  // that counts even when the form only asks for a public client id.
-  const setupPersistsSecret =
-    s.oauthEnabled ||
-    setupInputs.some(
-      (i) =>
-        i.kind === "header" ||
-        i.kind === "env" ||
-        i.kind === "oauthClientSecret",
-    );
-
   const onSetToolConsent = async (
     toolName: string,
     consent: McpToolConsent["consent"],
@@ -179,7 +139,6 @@ export function PluginDetailPage({ serverId }: { serverId: number }) {
             <div className="min-w-0">
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
                 <span className="truncate">{s.name}</span>
-                {s.catalogSlug && <CatalogBadge size="md" />}
                 {s.oauthEnabled && (
                   <span
                     className={`text-xs font-medium px-2 py-1 rounded-full shrink-0 ${
@@ -202,7 +161,7 @@ export function PluginDetailPage({ serverId }: { serverId: number }) {
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              {s.oauthEnabled && !s.oauthConnected && !setupIncomplete && (
+              {s.oauthEnabled && !s.oauthConnected && (
                 // Only one OAuth flow can run at a time (shared
                 // connect slot), so Connect is blocked while any
                 // server is connecting; the label only spins for this
@@ -215,7 +174,7 @@ export function PluginDetailPage({ serverId }: { serverId: number }) {
                   {connectingServerId === s.id ? "Connecting…" : "Connect"}
                 </Button>
               )}
-              {s.oauthEnabled && s.oauthConnected && !setupIncomplete && (
+              {s.oauthEnabled && s.oauthConnected && (
                 <Button
                   variant="outline"
                   onClick={() => onDisconnect(s.id)}
@@ -229,7 +188,6 @@ export function PluginDetailPage({ serverId }: { serverId: number }) {
               <Switch
                 aria-label={`Enabled toggle for ${s.name}`}
                 checked={!!s.enabled}
-                disabled={setupIncomplete}
                 onCheckedChange={() => toggleEnabled(s.id, !!s.enabled)}
               />
               <DeleteConfirmationDialog
@@ -245,7 +203,7 @@ export function PluginDetailPage({ serverId }: { serverId: number }) {
             </div>
           </div>
 
-          {feedback && !setupIncomplete && (
+          {feedback && (
             <div className="mt-4">
               <Alert variant="destructive">
                 <AlertTitle>{FEEDBACK_TITLES[feedback.kind]}</AlertTitle>
@@ -274,45 +232,7 @@ export function PluginDetailPage({ serverId }: { serverId: number }) {
             </div>
           )}
 
-          {/* Setup builds its update from the stored maps, which read
-              as empty while a secret can't be decrypted. Saving would
-              drop every value the entry doesn't declare, so show the
-              notice instead of the form. */}
-          {needsSetup && setupBlockedByUnreadable && (
-            <UnreadableSecretsNotice />
-          )}
-
-          {needsSetup &&
-            !setupBlockedByUnreadable &&
-            setupPersistsSecret &&
-            oauthStorageEncrypted === false && <OauthPlaintextStorageAlert />}
-
-          {needsSetup && !setupBlockedByUnreadable && (
-            // Keyed by server so switching between two setup-needing
-            // servers starts each from its own blank fields, never
-            // carrying one server's typed credentials into another.
-            <PluginSetupSection
-              key={s.id}
-              server={s}
-              inputs={setupInputs}
-              isSaving={isUpdatingServer}
-              onSave={async (update) => {
-                await updateServer(update);
-                // An OAuth server goes straight into its connect flow
-                // after setup, like the one-click add; key-based servers
-                // just enable and discover.
-                if (s.oauthEnabled) void onConnect(s.id);
-              }}
-            />
-          )}
-
-          {setupPending && (
-            <div className="mt-4 text-sm text-muted-foreground">
-              Loading setup…
-            </div>
-          )}
-
-          {!setupIncomplete && s.transport === "stdio" && (
+          {s.transport === "stdio" && (
             <div className="mt-6">
               <div className="text-sm font-medium mb-2">
                 Environment Variables
@@ -335,7 +255,7 @@ export function PluginDetailPage({ serverId }: { serverId: number }) {
               />
             </div>
           )}
-          {!setupIncomplete && s.transport === "http" && (
+          {s.transport === "http" && (
             <div className="mt-6">
               <div className="text-sm font-medium mb-2">Headers</div>
               {oauthStorageEncrypted === false && (

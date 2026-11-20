@@ -3,7 +3,6 @@ import { Plus } from "lucide-react";
 import { BackButton } from "@/components/ui/back-button";
 import { Button } from "@/components/ui/button";
 import { PluginsList } from "@/components/plugins/PluginsList";
-import { CatalogSection } from "@/components/plugins/catalog/CatalogSection";
 import { useDeepLink } from "@/contexts/DeepLinkContext";
 
 const PluginsPage: React.FC = () => {
@@ -40,7 +39,6 @@ const PluginsPage: React.FC = () => {
           addDialogOpen={isAddDialogOpen}
           onAddDialogOpenChange={setIsAddDialogOpen}
         />
-        <CatalogSection />
       </div>
     </div>
   );

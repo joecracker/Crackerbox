@@ -11,7 +11,6 @@ const mocks = vi.hoisted(() => ({
   getToolConsents: vi.fn(),
   probeConnection: vi.fn(),
   updateServer: vi.fn(),
-  listCatalog: vi.fn(),
   showError: vi.fn(),
 }));
 
@@ -24,7 +23,6 @@ vi.mock("@/ipc/types", async (importOriginal) => ({
       getToolConsents: mocks.getToolConsents,
       probeConnection: mocks.probeConnection,
       updateServer: mocks.updateServer,
-      listCatalog: mocks.listCatalog,
     },
   },
 }));
@@ -98,7 +96,6 @@ describe("usePluginConnect feedback ownership", () => {
     vi.clearAllMocks();
     mocks.listServers.mockResolvedValue([makeServer()]);
     mocks.getToolConsents.mockResolvedValue([]);
-    mocks.listCatalog.mockResolvedValue({ entries: [] });
     mocks.updateServer.mockImplementation(async () => makeServer());
   });
 

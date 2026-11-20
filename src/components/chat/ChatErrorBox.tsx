@@ -6,8 +6,6 @@ import { ipc } from "@/ipc/types";
 import { useFreeAgentQuota } from "@/hooks/useFreeAgentQuota";
 import { useFreeModelQuota } from "@/hooks/useFreeModelQuota";
 import { useUserBudgetInfo } from "@/hooks/useUserBudgetInfo";
-import { PRO_BILLING_FEATURES_ENABLED } from "@/lib/proBillingFlags";
-import { AI_STREAMING_ERROR_MESSAGE_PREFIX } from "@/shared/texts";
 import {
   X,
   ExternalLink as ExternalLinkIcon,
@@ -78,21 +76,7 @@ export function ChatErrorBox({
     return (
       <ChatErrorContainer onDismiss={onDismiss}>
         {error}
-        {PRO_BILLING_FEATURES_ENABLED ? (
-          <>
-            <span className="ml-1">
-              <ExternalLink
-                href="https://dyad.sh/pro?utm_source=dyad-app&utm_medium=app&utm_campaign=free-quota-error"
-                variant="primary"
-              >
-                Access with Dyad Pro
-              </ExternalLink>
-            </span>{" "}
-            or switch to another model.
-          </>
-        ) : (
-          <span className="ml-1">Try switching to another model.</span>
-        )}
+        <span className="ml-1">Try switching to another model.</span>
       </ChatErrorContainer>
     );
   }
@@ -113,15 +97,6 @@ export function ChatErrorBox({
       <ChatErrorContainer onDismiss={onDismiss}>
         {error}
         <div className="mt-2 space-y-2 space-x-2">
-          {PRO_BILLING_FEATURES_ENABLED && (
-            <ExternalLink
-              href="https://dyad.sh/pro?utm_source=dyad-app&utm_medium=app&utm_campaign=rate-limit-error"
-              variant="primary"
-            >
-              Upgrade to Dyad Pro
-            </ExternalLink>
-          )}
-
           <ExternalLink href="https://dyad.sh/docs/help/ai-rate-limit">
             Troubleshooting guide
           </ExternalLink>
@@ -167,18 +142,11 @@ export function ChatErrorBox({
     return (
       <ChatErrorContainer onDismiss={onDismiss}>
         You have used all {messagesLimit} free Basic Agent messages for today.
-        {resetText} This message was not sent. Upgrade to Dyad Pro for unlimited
-        Agent access
+        {resetText} This message was not sent.{" "}
         {onSwitchToBuildMode
-          ? ", or switch this chat to Build mode and send it again."
+          ? "Switch this chat to Build mode and send it again."
           : ". To use Build mode, first choose a model other than Dyad Free, then send it again."}
         <div className="mt-2 flex flex-wrap gap-2">
-          <ExternalLink
-            href="https://dyad.sh/pro?utm_source=dyad-app&utm_medium=app&utm_campaign=free-agent-quota-exceeded"
-            variant="primary"
-          >
-            Upgrade to Dyad Pro
-          </ExternalLink>
           {onSwitchToBuildMode && (
             <Button
               type="button"
@@ -210,13 +178,7 @@ export function ChatErrorBox({
         <span>
           You have reached the {freeModelMessagesLimit}-message Dyad Free model
           limit.
-          {resetText} Switch to paid models.{" "}
-          <ExternalLink
-            href="https://academy.dyad.sh/subscription?utm_source=dyad-app&utm_medium=app&utm_campaign=exceeded-budget-error"
-            variant="primary"
-          >
-            Get more AI credits
-          </ExternalLink>
+          {resetText} Switch to another model.
         </span>
       </ChatErrorContainer>
     );
@@ -228,16 +190,6 @@ export function ChatErrorBox({
         <ErrorMarkdown>{error}</ErrorMarkdown>
       </div>
       <div className="mt-2 space-y-2 space-x-2">
-        {!isDyadProEnabled &&
-          error.includes(AI_STREAMING_ERROR_MESSAGE_PREFIX) &&
-          !error.includes("TypeError: terminated") && (
-            <ExternalLink
-              href="https://dyad.sh/pro?utm_source=dyad-app&utm_medium=app&utm_campaign=general-error"
-              variant="primary"
-            >
-              Upgrade to Dyad Pro
-            </ExternalLink>
-          )}
         {isDyadProEnabled && onStartNewChat && (
           <Tooltip>
             <TooltipTrigger

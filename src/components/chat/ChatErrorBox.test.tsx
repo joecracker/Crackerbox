@@ -2,7 +2,6 @@ import { SubscriptionBillingError } from "@/shared/subscription_billing_error";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ChatErrorBox } from "./ChatErrorBox";
-import { PRO_BILLING_FEATURES_ENABLED } from "@/lib/proBillingFlags";
 
 const mocks = vi.hoisted(() => ({
   openExternalUrl: vi.fn(),
@@ -55,11 +54,6 @@ describe("ChatErrorBox Basic Agent quota error", () => {
       screen.getByText(/used all 10 free Basic Agent messages/),
     ).toBeTruthy();
     expect(screen.getByText(/Your quota resets at/)).toBeTruthy();
-
-    fireEvent.click(screen.getByText("Upgrade to Dyad Pro"));
-    expect(mocks.openExternalUrl).toHaveBeenCalledWith(
-      "https://dyad.sh/pro?utm_source=dyad-app&utm_medium=app&utm_campaign=free-agent-quota-exceeded",
-    );
 
     fireEvent.click(screen.getByRole("button", { name: "Switch to Build" }));
     expect(onSwitchToBuildMode).toHaveBeenCalledOnce();
@@ -225,32 +219,29 @@ it("recognizes a legacy rejected key inside fallback details", () => {
     screen.getByRole("button", { name: "Open membership portal" }),
   ).toBeTruthy();
 });
-describe.skipIf(PRO_BILLING_FEATURES_ENABLED)(
-  "ChatErrorBox while Dyad Pro billing is off",
-  () => {
-    it("shows a plain provider error without an upgrade link", () => {
-      render(
-        <ChatErrorBox
-          error="Provider returned error"
-          isDyadProEnabled={false}
-          onDismiss={vi.fn()}
-        />,
-      );
-      expect(screen.getByText(/Provider returned error/)).toBeTruthy();
-      expect(screen.queryByText("Upgrade to Dyad Pro")).toBeNull();
-      expect(screen.getByText("Troubleshooting guide")).toBeTruthy();
-    });
+describe("ChatErrorBox while Dyad Pro billing is off", () => {
+  it("shows a plain provider error without an upgrade link", () => {
+    render(
+      <ChatErrorBox
+        error="Provider returned error"
+        isDyadProEnabled={false}
+        onDismiss={vi.fn()}
+      />,
+    );
+    expect(screen.getByText(/Provider returned error/)).toBeTruthy();
+    expect(screen.queryByText("Upgrade to Dyad Pro")).toBeNull();
+    expect(screen.getByText("Troubleshooting guide")).toBeTruthy();
+  });
 
-    it("shows the no-free-quota error without a Dyad Pro link", () => {
-      render(
-        <ChatErrorBox
-          error="This model doesn't have a free quota tier"
-          isDyadProEnabled={false}
-          onDismiss={vi.fn()}
-        />,
-      );
-      expect(screen.queryByText("Access with Dyad Pro")).toBeNull();
-      expect(screen.getByText(/switching to another model/)).toBeTruthy();
-    });
-  },
-);
+  it("shows the no-free-quota error without a Dyad Pro link", () => {
+    render(
+      <ChatErrorBox
+        error="This model doesn't have a free quota tier"
+        isDyadProEnabled={false}
+        onDismiss={vi.fn()}
+      />,
+    );
+    expect(screen.queryByText("Access with Dyad Pro")).toBeNull();
+    expect(screen.getByText(/switching to another model/)).toBeTruthy();
+  });
+});

@@ -42,6 +42,7 @@ export function HouseTriggerListener() {
     return ipc.events.misc.onHouseTrigger((payload) => {
       const jobId = payload.jobId;
       queue = queue.then(async () => {
+        let stopWatching: (() => void) | undefined;
         try {
           const isTelegram = payload.thread === "telegram";
           const chatId = isTelegram
@@ -52,8 +53,21 @@ export function HouseTriggerListener() {
           // it opens on screen so Tim sees her report without having to ask.
           if (payload.visible) {
             selectChat({ chatId, appId: payload.appId });
-          } else if (!isTelegram) {
+          } else if (!isTelegram && !jobId) {
             await ipc.chat.markChatSilent({ chatId });
+          }
+          // A direct hand-off runs in the background (it stays in the chat
+          // list). If a step needs Tim's approval, bring that chat forward so
+          // the job does not sit waiting unseen.
+          if (jobId) {
+            stopWatching = ipc.events.userInput.onRequested((descriptor) => {
+              if (
+                descriptor.kind === "agent-consent" &&
+                descriptor.chatId === chatId
+              ) {
+                selectChat({ chatId, appId: payload.appId });
+              }
+            });
           }
           await streamMessage({
             prompt: payload.prompt,
@@ -64,6 +78,7 @@ export function HouseTriggerListener() {
             onSettled: jobId
               ? (result) => {
                   if (result.queued) return;
+                  stopWatching?.();
                   void ipc.chat.houseJobDone({
                     jobId,
                     chatId,
@@ -75,6 +90,7 @@ export function HouseTriggerListener() {
           });
         } catch (error) {
           console.error("House trigger failed", error);
+          stopWatching?.();
           if (jobId) {
             void ipc.chat.houseJobDone({ jobId, chatId: 0, success: false });
           }

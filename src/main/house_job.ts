@@ -160,8 +160,8 @@ export async function runHelperJob(opts: {
         folder: opts.folder,
       }),
       title: `${helper.name} <- ${opts.fromName}: ${opts.task.slice(0, 40)}`,
-      // Visible: the chat opens on screen so Tim can approve each step.
-      visible: true,
+      // Not forced on screen: Tim stays in the chat he is in. The helper's
+      // chat comes to the front only when a step needs his approval.
       jobId,
     });
     if (!started) {

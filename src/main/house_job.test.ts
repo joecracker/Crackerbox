@@ -69,7 +69,7 @@ describe("stripDyadTags and jobPrompt", () => {
 });
 
 describe("runHelperJob", () => {
-  it("hands the job over visibly and returns the helper's final reply", async () => {
+  it("hands the job over without forcing it on screen and returns the helper's final reply", async () => {
     const send = vi.fn((payload: { jobId?: string }) => {
       setTimeout(
         () => finishHelperJob(payload.jobId!, { chatId: 7, success: true }),
@@ -86,12 +86,9 @@ describe("runHelperJob", () => {
       newId: () => "job-1",
     });
     expect(send).toHaveBeenCalledWith(
-      expect.objectContaining({
-        sisterId: "laptop",
-        visible: true,
-        jobId: "job-1",
-      }),
+      expect.objectContaining({ sisterId: "laptop", jobId: "job-1" }),
     );
+    expect(send.mock.calls[0][0]).not.toHaveProperty("visible");
     expect(out).toContain("finished (chat #7)");
     expect(out).toContain("All done: 2 files.");
   });

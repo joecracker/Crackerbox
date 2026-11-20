@@ -30,7 +30,7 @@ type AskHelperArgs = z.infer<typeof askHelperSchema>;
 export const askHelperTool: ToolDefinition<AskHelperArgs> = {
   name: "ask_helper",
   description:
-    "Hand a coding or PC job directly to your helper (the plain Claude Code helper in the house, e.g. Dex's laptop) and wait for its answer in this same turn. Use this instead of writing it a letter. The job runs as a chat in the helper's own room, which opens on screen, and Tim approves each step it takes there (you are not asked before handing it over). You get back its final summary. Give it a complete job: it has no memory of this chat. It can take a while; long jobs can take many minutes.",
+    "Hand a coding or PC job directly to your helper (the plain Claude Code helper in the house, e.g. Dex's laptop) and wait for its answer in this same turn. Use this instead of writing it a letter. The job runs as a chat in the helper's own room, in the background, so Tim stays in this chat; that chat comes to the front only when a step needs his approval, and he approves each step there (you are not asked before handing it over). You get back its final summary. Give it a complete job: it has no memory of this chat. It can take a while; long jobs can take many minutes.",
   inputSchema: askHelperSchema,
   // No up-front ask: the helper itself asks Tim before every step it takes.
   defaultConsent: "always",

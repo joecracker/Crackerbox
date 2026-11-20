@@ -7,7 +7,6 @@ export const SECTION_IDS = {
   cbMemory: "cb-memory",
   addPhone: "add-a-phone",
   providers: "provider-settings",
-  telemetry: "telemetry",
   integrations: "integrations",
   agentPermissions: "agent-permissions",
   advanced: "advanced",
@@ -431,8 +430,8 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
       "privacy",
       "tracking",
     ],
-    sectionId: SECTION_IDS.telemetry,
-    sectionLabel: "Privacy",
+    sectionId: SECTION_IDS.general,
+    sectionLabel: "General",
   },
 
   // Integrations

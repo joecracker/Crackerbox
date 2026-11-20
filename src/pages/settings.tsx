@@ -234,17 +234,6 @@ export default function SettingsPage() {
             />
           </SettingsSection>
 
-          <VoiceSection />
-          <HouseSection />
-
-          <SettingsSection
-            id={SECTION_IDS.addPhone}
-            title="Add a phone"
-            description="Scan a code with your phone to use Crackerbox from it."
-          >
-            <PhoneSettings />
-          </SettingsSection>
-
           <SettingsSection
             id={SECTION_IDS.providers}
             title="Model Providers"
@@ -256,15 +245,15 @@ export default function SettingsPage() {
             </div>
           </SettingsSection>
 
+          <VoiceSection />
+          <HouseSection />
+
           <SettingsSection
-            id={SECTION_IDS.telemetry}
-            title="Privacy"
-            description="Crackerbox does not collect or send usage data."
+            id={SECTION_IDS.addPhone}
+            title="Add a phone"
+            description="Scan a code with your phone to use Crackerbox from it."
           >
-            <p id={SETTING_IDS.telemetry} className={hint}>
-              Nothing about how you use Crackerbox leaves your computer except
-              the requests you send to the AI services you choose.
-            </p>
+            <PhoneSettings />
           </SettingsSection>
 
           <SettingsSection
@@ -627,6 +616,12 @@ export function GeneralSettings({ appVersion }: { appVersion: string | null }) {
           {appVersion ? appVersion : "-"}
         </span>
       </div>
+
+      <p id={SETTING_IDS.telemetry} className={hint}>
+        Privacy: Crackerbox does not collect or send usage data. Nothing about
+        how you use it leaves your computer except the requests you send to the
+        AI services you choose.
+      </p>
 
       <p className={hint}>
         Built on{" "}

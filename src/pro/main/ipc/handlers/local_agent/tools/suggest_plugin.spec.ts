@@ -1,22 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentContext } from "./types";
 
-interface Row {
-  catalogSlug: string;
-  enabled: boolean;
-  oauthState: string | null;
-}
-
 const mocks = vi.hoisted(() => ({
   request: vi.fn(() => "request-id"),
   park: vi.fn(),
-  catalog: vi.fn(async (): Promise<unknown[]> => []),
-  peekCatalog: vi.fn((): unknown[] | null => null),
-  rows: [] as {
-    catalogSlug: string;
-    enabled: boolean;
-    oauthState: string | null;
-  }[],
   ownRows: [] as {
     id: number;
     name: string;
@@ -34,33 +21,20 @@ vi.mock("@/user_input/main", () => ({
   },
 }));
 
-vi.mock("@/ipc/shared/remote_mcp_catalog", () => ({
-  getRemoteMcpCatalog: mocks.catalog,
-  peekRemoteMcpCatalog: mocks.peekCatalog,
-}));
-
-// The column holds the client registration before any token, so only the
-// literal "tokens" counts as authorized here.
-vi.mock("@/ipc/utils/mcp_oauth_provider", () => ({
-  oauthStateHasTokens: (stored: string | null) => stored === "tokens",
-}));
-
 vi.mock("@/main/settings", () => ({
   readSettings: () => ({ neverSuggestPluginSlugs: mocks.neverSlugs }),
   tryWriteSettings: mocks.tryWriteSettings,
 }));
 
-// Two queries run against the servers table: every catalog row, and the
-// row for one slug. `eq` carries the slug so `where` can tell them apart.
+// Two queries run against the servers table: every row (the user's own
+// plugins) and the row for one id. `eq` carries the id so `where` can tell
+// them apart.
 vi.mock("@/db", () => ({
   db: {
     select: () => ({
       from: () => ({
-        where: async (condition?: { slug?: string }) =>
-          condition?.slug !== undefined
-            ? mocks.rows.filter((row) => row.catalogSlug === condition.slug)
-            : mocks.rows,
-        // A plain select of every server row: the user's own plugins.
+        where: async (condition?: { id?: number }) =>
+          mocks.ownRows.filter((row) => row.id === condition?.id),
         then: (resolve: (value: unknown) => unknown) => resolve(mocks.ownRows),
       }),
     }),
@@ -73,13 +47,11 @@ vi.mock("@/db/schema", () => ({
     name: "name",
     catalogSlug: "catalog_slug",
     enabled: "enabled",
-    oauthState: "oauth_state",
   },
 }));
 
 vi.mock("drizzle-orm", () => ({
-  isNotNull: vi.fn(),
-  eq: (_column: unknown, slug: string) => ({ slug }),
+  eq: (_column: unknown, id: number) => ({ id }),
 }));
 
 vi.mock("electron-log", () => ({
@@ -98,199 +70,46 @@ import {
   suggestPluginTool,
 } from "./suggest_plugin";
 
-const row = (
-  catalogSlug: string,
-  overrides: Partial<Omit<Row, "catalogSlug">> = {},
-): Row => ({ catalogSlug, enabled: true, oauthState: null, ...overrides });
-
-const VERCEL = {
-  slug: "vercel",
-  name: "Vercel",
-  description: "Deployments, logs and projects on Vercel.",
-  oauthRequired: true,
-  needsOAuth: true,
+const GITHUB = {
+  slug: "custom-8",
+  name: "Github",
+  description: "Read, search and change the user's GitHub repos.",
+  localServerId: 8,
 };
-
-const CATALOG = [
-  {
-    slug: "vercel",
-    name: "Vercel",
-    description: VERCEL.description,
-    transport: "http",
-    url: "https://mcp.vercel.com",
-    featured: true,
-    oauth: { required: true },
-  },
-  {
-    slug: "exa",
-    name: "Exa",
-    transport: "http",
-    url: "https://mcp.exa.ai/mcp",
-    featured: true,
-  },
-  {
-    slug: "stripe",
-    name: "Stripe",
-    transport: "http",
-    url: "https://mcp.stripe.com",
-    featured: true,
-  },
-  {
-    slug: "linear",
-    name: "Linear",
-    transport: "http",
-    url: "https://mcp.linear.app/mcp",
-  },
-  {
-    slug: "sonatype",
-    name: "Sonatype",
-    transport: "http",
-    url: "https://mcp.sonatype.com",
-    featured: true,
-    inputs: [{ kind: "header", name: "Authorization", label: "Token" }],
-  },
-  {
-    slug: "mongodb",
-    name: "MongoDB",
-    transport: "stdio",
-    command: "npx",
-    args: ["-y", "mongodb-mcp-server@1.0.0"],
-    featured: true,
-  },
-];
-
-const slugs = (servers: { slug: string }[]) =>
-  servers.map((server) => server.slug);
 
 function resetMocks() {
   vi.clearAllMocks();
   resetSuggestPluginStateForTests();
-  mocks.rows = [];
+  mocks.ownRows = [];
   mocks.neverSlugs = undefined;
-  mocks.peekCatalog.mockReturnValue(null);
-  mocks.catalog.mockResolvedValue(CATALOG);
 }
 
 describe("collectSuggestablePlugins", () => {
   beforeEach(resetMocks);
 
-  it("keeps only featured one-click http entries that are not usable yet", async () => {
-    mocks.rows = [row("stripe")];
-
-    await expect(collectSuggestablePlugins({ chatId: 7 })).resolves.toEqual([
-      VERCEL,
-      {
-        slug: "exa",
-        name: "Exa",
-        description: undefined,
-        oauthRequired: false,
-        needsOAuth: false,
-      },
-    ]);
-  });
-
-  it("re-suggests a plugin that is added but disabled or not authorized", async () => {
-    mocks.rows = [row("exa", { enabled: false }), row("vercel"), row("stripe")];
-
-    await expect(collectSuggestablePlugins({ chatId: 7 })).resolves.toEqual([
-      VERCEL,
-      {
-        slug: "exa",
-        name: "Exa",
-        description: undefined,
-        oauthRequired: false,
-        needsOAuth: false,
-      },
-    ]);
-  });
-
-  it("skips authorization for a disabled plugin that already holds tokens", async () => {
-    mocks.rows = [row("vercel", { enabled: false, oauthState: "tokens" })];
-
-    const [vercel] = await collectSuggestablePlugins({ chatId: 7 });
-    expect(vercel).toMatchObject({ slug: "vercel", needsOAuth: false });
-  });
-
-  it("still suggests a plugin whose authorization was started but never finished", async () => {
-    mocks.rows = [row("vercel", { oauthState: "registration-only" })];
-
-    const [vercel] = await collectSuggestablePlugins({ chatId: 7 });
-    expect(vercel).toMatchObject({ slug: "vercel", needsOAuth: true });
-  });
-
-  it("leaves out an authorized, enabled plugin", async () => {
-    mocks.rows = [row("vercel", { oauthState: "tokens" })];
-
-    expect(slugs(await collectSuggestablePlugins({ chatId: 7 }))).toEqual([
-      "exa",
-      "stripe",
-    ]);
+  it("offers an installed plugin that is switched off", async () => {
+    mocks.ownRows = [
+      { id: 8, name: "Github", enabled: false, catalogSlug: null },
+      { id: 9, name: "Ship-check", enabled: true, catalogSlug: null },
+    ];
+    const result = await collectSuggestablePlugins({ chatId: 1 });
+    expect(result.map((p) => p.slug)).toEqual(["custom-8"]);
+    expect(result[0].localServerId).toBe(8);
   });
 
   it("leaves out plugins the user asked never to be offered", async () => {
-    mocks.neverSlugs = ["vercel", "stripe"];
-
-    expect(slugs(await collectSuggestablePlugins({ chatId: 7 }))).toEqual([
-      "exa",
-    ]);
+    mocks.ownRows = [
+      { id: 8, name: "Github", enabled: false, catalogSlug: null },
+    ];
+    mocks.neverSlugs = ["custom-8"];
+    expect(await collectSuggestablePlugins({ chatId: 1 })).toEqual([]);
   });
 
-  it("returns nothing when the catalog is unavailable", async () => {
-    mocks.catalog.mockResolvedValue([]);
-    await expect(collectSuggestablePlugins({ chatId: 7 })).resolves.toEqual([]);
-  });
-
-  it("reads only the cache when asked, without fetching", async () => {
-    await expect(
-      collectSuggestablePlugins({ chatId: 7, cachedOnly: true }),
-    ).resolves.toEqual([]);
-    expect(mocks.catalog).not.toHaveBeenCalled();
-
-    mocks.peekCatalog.mockReturnValue(CATALOG);
-    const cached = await collectSuggestablePlugins({
-      chatId: 7,
-      cachedOnly: true,
-    });
-    expect(slugs(cached)).toEqual(["vercel", "exa", "stripe"]);
-    expect(mocks.catalog).not.toHaveBeenCalled();
-  });
-
-  it("gives up on a cold cache after a bounded wait", async () => {
-    vi.useFakeTimers();
-    try {
-      mocks.catalog.mockReturnValue(new Promise(() => {}));
-      const pending = collectSuggestablePlugins({ chatId: 7 });
-      await vi.advanceTimersByTimeAsync(1_000);
-      await expect(pending).resolves.toEqual([]);
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("drops plugins the user declined in that chat only", async () => {
-    mocks.park.mockResolvedValue({
-      kind: "plugin-suggestion",
-      outcome: "declined",
-    });
-    await suggestPluginTool.execute(
-      { slug: "vercel", reason: "Read the build logs." },
-      {
-        chatId: 7,
-        messageId: 99,
-        onXmlComplete: vi.fn(),
-        suggestablePlugins: [VERCEL],
-      } as unknown as AgentContext,
-    );
-
-    expect(slugs(await collectSuggestablePlugins({ chatId: 7 }))).toEqual([
-      "exa",
-      "stripe",
-    ]);
-    expect(slugs(await collectSuggestablePlugins({ chatId: 8 }))).toEqual([
-      "vercel",
-      "exa",
-      "stripe",
-    ]);
+  it("returns nothing when every plugin is already on", async () => {
+    mocks.ownRows = [
+      { id: 8, name: "Github", enabled: true, catalogSlug: null },
+    ];
+    expect(await collectSuggestablePlugins({ chatId: 1 })).toEqual([]);
   });
 });
 
@@ -302,7 +121,7 @@ describe("suggestPluginTool", () => {
       chatId: 7,
       messageId: 99,
       onXmlComplete,
-      suggestablePlugins: [VERCEL],
+      suggestablePlugins: [GITHUB],
       ...overrides,
     }) as unknown as AgentContext;
 
@@ -321,7 +140,7 @@ describe("suggestPluginTool", () => {
   it("lists the suggestable plugins in its description", () => {
     const description = suggestPluginTool.getDescription?.(context());
     expect(description).toContain(
-      "- vercel: Vercel — Deployments, logs and projects on Vercel.",
+      "- custom-8: Github — Read, search and change the user's GitHub repos.",
     );
     expect(
       suggestPluginTool.getDescription?.(context({ suggestablePlugins: [] })),
@@ -340,18 +159,18 @@ describe("suggestPluginTool", () => {
     });
 
     await suggestPluginTool.execute(
-      { slug: "vercel", reason: "Read the build logs." },
+      { slug: "custom-8", reason: "Read the build logs." },
       context(),
     );
 
     expect(writtenBeforePark).toEqual([true, false]);
     expect(onXmlComplete).toHaveBeenNthCalledWith(
       1,
-      '<dyad-suggest-plugin slug="vercel" name="Vercel" reason="Read the build logs." request-id="request-id" outcome="pending"></dyad-suggest-plugin>',
+      '<dyad-suggest-plugin slug="custom-8" name="Github" reason="Read the build logs." request-id="request-id" outcome="pending"></dyad-suggest-plugin>',
     );
     expect(onXmlComplete).toHaveBeenNthCalledWith(
       2,
-      '<dyad-suggest-plugin slug="vercel" name="Vercel" reason="Read the build logs." outcome="connected"></dyad-suggest-plugin>',
+      '<dyad-suggest-plugin slug="custom-8" name="Github" reason="Read the build logs." outcome="connected"></dyad-suggest-plugin>',
     );
   });
 
@@ -362,40 +181,26 @@ describe("suggestPluginTool", () => {
     });
 
     const result = await suggestPluginTool.execute(
-      { slug: "vercel", reason: "Read the build logs for the failed deploy." },
+      {
+        slug: "custom-8",
+        reason: "Read the build logs for the failed deploy.",
+      },
       context(),
     );
 
     expect(mocks.request).toHaveBeenCalledWith({
       kind: "plugin-suggestion",
       chatId: 7,
-      slug: "vercel",
-      serverName: "Vercel",
-      serverDescription: VERCEL.description,
-      needsOAuth: true,
+      slug: "custom-8",
+      serverName: "Github",
+      serverDescription: GITHUB.description,
+      needsOAuth: false,
       reason: "Read the build logs for the failed deploy.",
       classifier: "none",
       followUpPrompt:
-        "Continue. I have connected the Vercel plugin. Resume what you needed it for: Read the build logs for the failed deploy.",
+        "Continue. I have connected the Github plugin. Resume what you needed it for: Read the build logs for the failed deploy.",
     });
     expect(result).toContain("queued a follow-up turn");
-  });
-
-  it("still offers a plugin that is added but disabled", async () => {
-    mocks.rows = [row("vercel", { enabled: false, oauthState: "tokens" })];
-    mocks.park.mockResolvedValue({
-      kind: "plugin-suggestion",
-      outcome: "connected",
-    });
-
-    await suggestPluginTool.execute(
-      { slug: "vercel", reason: "Read the build logs." },
-      context({ suggestablePlugins: [{ ...VERCEL, needsOAuth: false }] }),
-    );
-
-    expect(mocks.request).toHaveBeenCalledWith(
-      expect.objectContaining({ slug: "vercel", needsOAuth: false }),
-    );
   });
 
   it("tells the agent to continue without a declined plugin", async () => {
@@ -405,37 +210,37 @@ describe("suggestPluginTool", () => {
     });
 
     const result = await suggestPluginTool.execute(
-      { slug: "vercel", reason: "Read the build logs." },
+      { slug: "custom-8", reason: "Read the build logs." },
       context(),
     );
 
-    expect(result).toContain("declined to connect the Vercel plugin");
+    expect(result).toContain("declined to connect the Github plugin");
     expect(result).toContain("do not suggest it again");
     expect(mocks.tryWriteSettings).not.toHaveBeenCalled();
     expect(onXmlComplete).toHaveBeenLastCalledWith(
-      '<dyad-suggest-plugin slug="vercel" name="Vercel" reason="Read the build logs." outcome="declined"></dyad-suggest-plugin>',
+      '<dyad-suggest-plugin slug="custom-8" name="Github" reason="Read the build logs." outcome="declined"></dyad-suggest-plugin>',
     );
   });
 
   it("stores a never-suggest choice for that plugin", async () => {
-    mocks.neverSlugs = ["stripe"];
+    mocks.neverSlugs = ["custom-4"];
     mocks.park.mockResolvedValue({
       kind: "plugin-suggestion",
       outcome: "never",
     });
 
     const result = await suggestPluginTool.execute(
-      { slug: "vercel", reason: "Read the build logs." },
+      { slug: "custom-8", reason: "Read the build logs." },
       context(),
     );
 
     expect(mocks.tryWriteSettings).toHaveBeenCalledWith(
-      { neverSuggestPluginSlugs: ["stripe", "vercel"] },
+      { neverSuggestPluginSlugs: ["custom-4", "custom-8"] },
       expect.any(String),
     );
     expect(result).toContain("never suggest it again");
     expect(onXmlComplete).toHaveBeenLastCalledWith(
-      '<dyad-suggest-plugin slug="vercel" name="Vercel" reason="Read the build logs." outcome="never"></dyad-suggest-plugin>',
+      '<dyad-suggest-plugin slug="custom-8" name="Github" reason="Read the build logs." outcome="never"></dyad-suggest-plugin>',
     );
   });
 
@@ -447,13 +252,13 @@ describe("suggestPluginTool", () => {
     });
 
     const result = await suggestPluginTool.execute(
-      { slug: "vercel", reason: "Read the build logs." },
+      { slug: "custom-8", reason: "Read the build logs." },
       context(),
     );
 
     expect(result).toContain("never suggest it again");
     expect(onXmlComplete).toHaveBeenLastCalledWith(
-      '<dyad-suggest-plugin slug="vercel" name="Vercel" reason="Read the build logs." outcome="never"></dyad-suggest-plugin>',
+      '<dyad-suggest-plugin slug="custom-8" name="Github" reason="Read the build logs." outcome="never"></dyad-suggest-plugin>',
     );
   });
 
@@ -461,27 +266,27 @@ describe("suggestPluginTool", () => {
     mocks.park.mockResolvedValue(null);
 
     const result = await suggestPluginTool.execute(
-      { slug: "vercel", reason: "Read the build logs." },
+      { slug: "custom-8", reason: "Read the build logs." },
       context(),
     );
 
     expect(result).toContain("did not respond");
     expect(onXmlComplete).toHaveBeenLastCalledWith(
-      '<dyad-suggest-plugin slug="vercel" name="Vercel" reason="Read the build logs." outcome="dismissed"></dyad-suggest-plugin>',
+      '<dyad-suggest-plugin slug="custom-8" name="Github" reason="Read the build logs." outcome="dismissed"></dyad-suggest-plugin>',
     );
   });
 
   it("rejects a slug outside the suggestable set without asking the user", async () => {
     const result = await suggestPluginTool.execute(
-      { slug: "github", reason: "Open a pull request." },
+      { slug: "custom-99", reason: "Open a pull request." },
       context(),
     );
 
     expect(mocks.request).not.toHaveBeenCalled();
-    expect(result).toContain('"github" is not a plugin you can suggest');
-    expect(result).toContain("Available slugs: vercel");
+    expect(result).toContain('"custom-99" is not a plugin you can suggest');
+    expect(result).toContain("Available slugs: custom-8");
     expect(onXmlComplete).toHaveBeenCalledWith(
-      '<dyad-suggest-plugin slug="github" name="github" reason="Open a pull request." outcome="dismissed"></dyad-suggest-plugin>',
+      '<dyad-suggest-plugin slug="custom-99" name="custom-99" reason="Open a pull request." outcome="dismissed"></dyad-suggest-plugin>',
     );
   });
 
@@ -491,14 +296,14 @@ describe("suggestPluginTool", () => {
       outcome: "declined",
     });
     await suggestPluginTool.execute(
-      { slug: "vercel", reason: "Read the build logs." },
+      { slug: "custom-8", reason: "Read the build logs." },
       context(),
     );
     mocks.request.mockClear();
 
-    // The turn's suggestable set still lists vercel.
+    // The turn's suggestable set still lists custom-8.
     const result = await suggestPluginTool.execute(
-      { slug: "vercel", reason: "Read the build logs again." },
+      { slug: "custom-8", reason: "Read the build logs again." },
       context(),
     );
     expect(mocks.request).not.toHaveBeenCalled();
@@ -506,10 +311,12 @@ describe("suggestPluginTool", () => {
   });
 
   it("refuses a plugin that became usable since the turn started", async () => {
-    mocks.rows = [row("vercel", { oauthState: "tokens" })];
+    mocks.ownRows = [
+      { id: 8, name: "Github", enabled: true, catalogSlug: null },
+    ];
 
     const result = await suggestPluginTool.execute(
-      { slug: "vercel", reason: "Read the build logs." },
+      { slug: "custom-8", reason: "Read the build logs." },
       context(),
     );
     expect(mocks.request).not.toHaveBeenCalled();
@@ -522,13 +329,13 @@ describe("suggestPluginTool", () => {
   it("does not park the same plugin twice in one turn after a dismissal", async () => {
     mocks.park.mockResolvedValue(null);
     await suggestPluginTool.execute(
-      { slug: "vercel", reason: "Read the build logs." },
+      { slug: "custom-8", reason: "Read the build logs." },
       context(),
     );
     mocks.request.mockClear();
 
     const sameTurn = await suggestPluginTool.execute(
-      { slug: "vercel", reason: "Read the build logs." },
+      { slug: "custom-8", reason: "Read the build logs." },
       context(),
     );
     expect(mocks.request).not.toHaveBeenCalled();
@@ -541,7 +348,7 @@ describe("suggestPluginTool", () => {
     });
     await expect(
       suggestPluginTool.execute(
-        { slug: "vercel", reason: "Read the build logs." },
+        { slug: "custom-8", reason: "Read the build logs." },
         context({ messageId: 100 }),
       ),
     ).resolves.toContain("queued a follow-up turn");
@@ -555,13 +362,13 @@ describe("suggestPluginTool", () => {
       }),
     );
     const first = suggestPluginTool.execute(
-      { slug: "vercel", reason: "Read the build logs." },
+      { slug: "custom-8", reason: "Read the build logs." },
       context(),
     );
     await Promise.resolve();
 
     const second = await suggestPluginTool.execute(
-      { slug: "vercel", reason: "Read the build logs again." },
+      { slug: "custom-8", reason: "Read the build logs again." },
       context(),
     );
     expect(second).toContain("already waiting for the user");
@@ -569,24 +376,5 @@ describe("suggestPluginTool", () => {
     settleFirst({ kind: "plugin-suggestion", outcome: "connected" });
     await expect(first).resolves.toContain("queued a follow-up turn");
     expect(mocks.request).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe("user's own switched-off plugins", () => {
-  beforeEach(() => {
-    mocks.ownRows = [];
-    mocks.peekCatalog.mockReturnValue(null);
-    mocks.catalog.mockResolvedValue([]);
-  });
-
-  it("offers an installed plugin that is switched off, even with no catalog", async () => {
-    mocks.ownRows = [
-      { id: 8, name: "Github", enabled: false, catalogSlug: null },
-      { id: 9, name: "Ship-check", enabled: true, catalogSlug: null },
-    ];
-    const result = await collectSuggestablePlugins({ chatId: 1 });
-    expect(result.map((p) => p.slug)).toEqual(["custom-8"]);
-    expect(result[0].localServerId).toBe(8);
-    expect(result[0].needsOAuth).toBe(false);
   });
 });

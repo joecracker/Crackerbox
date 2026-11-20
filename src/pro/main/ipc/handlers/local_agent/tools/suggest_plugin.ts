@@ -1,17 +1,8 @@
 import { z } from "zod";
 import log from "electron-log";
-import { eq, isNotNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { mcpServers } from "@/db/schema";
-import {
-  getRemoteMcpCatalog,
-  peekRemoteMcpCatalog,
-} from "@/ipc/shared/remote_mcp_catalog";
-import type {
-  HttpCatalogEntry,
-  McpCatalogEntry,
-} from "@/ipc/types/mcp_catalog";
-import { oauthStateHasTokens } from "@/ipc/utils/mcp_oauth_provider";
 import { readSettings, tryWriteSettings } from "@/main/settings";
 import { userInputRegistry } from "@/user_input/main";
 import {
@@ -23,20 +14,13 @@ import {
 
 const logger = log.scope("suggest_plugin");
 
-/** A catalog plugin the agent may offer to the user mid-task. */
+/** One of the user's own switched-off plugins the agent may offer to turn on mid-task. */
 export interface SuggestablePlugin {
   slug: string;
   name: string;
   description?: string;
-  /** Whether the plugin only works after the user authorizes it. */
-  oauthRequired: boolean;
-  /** Whether connecting it still has to run that authorization. */
-  needsOAuth: boolean;
-  /**
-   * Set for a plugin the user installed themselves and switched off. Its
-   * slug is `custom-<id>`; connecting it only switches the existing row on.
-   */
-  localServerId?: number;
+  /** The plugin's row id. Its slug is `custom-<id>`; connecting it only switches that row on. */
+  localServerId: number;
 }
 
 const LOCAL_SLUG_PREFIX = "custom-";
@@ -81,22 +65,12 @@ async function collectOwnDisabledPlugins(
       slug: `${LOCAL_SLUG_PREFIX}${row.id}`,
       name: row.name,
       description: LOCAL_PLUGIN_HINTS[row.name.toLowerCase()],
-      oauthRequired: false,
-      needsOAuth: false,
       localServerId: row.id,
     }))
     .filter(
       (plugin) => !declined?.has(plugin.slug) && !neverSuggest.has(plugin.slug),
     );
 }
-
-/**
- * How long a turn waits on a cold catalog cache. A warm cache returns at
- * once; a cold one keeps fetching in the background after this and is
- * ready for the next turn, so an unreachable catalog host costs at most
- * this much per turn rather than the client's full fetch timeout.
- */
-const COLD_CATALOG_WAIT_MS = 1_000;
 
 // Suggestions the user declined, per chat, so the plugin is not offered
 // again in that conversation. In-memory: a restart clears it, which is
@@ -129,122 +103,26 @@ function addTo(
   set.add(slug);
 }
 
-interface PluginRow {
-  catalogSlug: string | null;
-  enabled: boolean;
-  oauthState: string | null;
-}
-
-// Built on use rather than at import, so loading this module never
-// depends on the schema being fully available.
-function pluginRowColumns() {
-  return {
-    catalogSlug: mcpServers.catalogSlug,
-    enabled: mcpServers.enabled,
-    oauthState: mcpServers.oauthState,
-  };
-}
-
-// The OAuth column holds the client registration before any token exists,
-// so only a stored access token counts as authorized.
-function isAuthorized(row: PluginRow | undefined) {
-  return oauthStateHasTokens(row?.oauthState ?? null);
-}
-
-// A plugin can serve tools once it is added, enabled, and authorized when
-// its catalog entry requires that. Anything short of this is worth
-// suggesting: the card can enable or authorize an existing row.
-function isUsable(row: PluginRow | undefined, oauthRequired: boolean) {
-  if (!row || !row.enabled) return false;
-  return !oauthRequired || isAuthorized(row);
-}
-
-async function isPluginUsable(
-  slug: string,
-  oauthRequired: boolean,
-): Promise<boolean> {
+async function isPluginUsable(slug: string): Promise<boolean> {
   const localId = localServerIdFromSlug(slug);
-  if (localId !== null) {
-    const local = await db
-      .select({ enabled: mcpServers.enabled })
-      .from(mcpServers)
-      .where(eq(mcpServers.id, localId));
-    return !!local[0]?.enabled;
-  }
-  const rows = await db
-    .select(pluginRowColumns())
+  if (localId === null) return false;
+  const local = await db
+    .select({ enabled: mcpServers.enabled })
     .from(mcpServers)
-    .where(eq(mcpServers.catalogSlug, slug));
-  return isUsable(rows[0], oauthRequired);
-}
-
-async function readCatalog(cachedOnly: boolean): Promise<McpCatalogEntry[]> {
-  const cached = peekRemoteMcpCatalog();
-  if (cached) return cached;
-  if (cachedOnly) return [];
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const waited = await Promise.race([
-    getRemoteMcpCatalog(),
-    new Promise<null>((resolve) => {
-      timer = setTimeout(() => resolve(null), COLD_CATALOG_WAIT_MS);
-    }),
-  ]);
-  clearTimeout(timer);
-  return waited ?? [];
+    .where(eq(mcpServers.id, localId));
+  return !!local[0]?.enabled;
 }
 
 /**
- * Featured catalog plugins that cannot serve tools yet (never added,
- * disabled, or not authorized), minus the ones the user declined in this
- * chat or asked never to be offered again. Only one-click entries qualify:
- * http transport with nothing to configure, so the chat card can add and
- * connect them without a detour through the setup page. stdio entries need
- * the run-locally consent dialog and entries with `inputs` need the setup
- * page; both stay in the Plugins catalog for now.
- *
- * With `cachedOnly`, an unfetched catalog yields an empty list instead of
- * waiting on the network.
+ * The user's own plugins that are installed but switched off, minus the ones
+ * the user declined in this chat or asked never to be offered again.
  */
 export async function collectSuggestablePlugins({
   chatId,
-  cachedOnly = false,
 }: {
   chatId: number;
-  cachedOnly?: boolean;
 }): Promise<SuggestablePlugin[]> {
-  const localPlugins = await collectOwnDisabledPlugins(chatId);
-  const entries = await readCatalog(cachedOnly);
-  if (entries.length === 0) return localPlugins;
-  const rows: PluginRow[] = await db
-    .select(pluginRowColumns())
-    .from(mcpServers)
-    .where(isNotNull(mcpServers.catalogSlug));
-  const rowBySlug = new Map(rows.map((row) => [row.catalogSlug, row]));
-  const declined = declinedSlugsByChat.get(chatId);
-  const neverSuggest = new Set(readSettings().neverSuggestPluginSlugs ?? []);
-  const catalogPlugins = entries
-    .filter(
-      (entry): entry is HttpCatalogEntry =>
-        entry.featured === true &&
-        entry.transport === "http" &&
-        (entry.inputs?.length ?? 0) === 0 &&
-        !declined?.has(entry.slug) &&
-        !neverSuggest.has(entry.slug),
-    )
-    .map((entry) => {
-      const oauthRequired = !!entry.oauth?.required;
-      const row = rowBySlug.get(entry.slug);
-      return { entry, oauthRequired, row };
-    })
-    .filter(({ row, oauthRequired }) => !isUsable(row, oauthRequired))
-    .map(({ entry, oauthRequired, row }) => ({
-      slug: entry.slug,
-      name: entry.name,
-      description: entry.description,
-      oauthRequired,
-      needsOAuth: oauthRequired && !isAuthorized(row),
-    }));
-  return [...localPlugins, ...catalogPlugins];
+  return collectOwnDisabledPlugins(chatId);
 }
 
 const suggestPluginSchema = z.object({
@@ -265,9 +143,9 @@ const suggestPluginSchema = z.object({
 
 type SuggestPluginArgs = z.infer<typeof suggestPluginSchema>;
 
-const BASE_DESCRIPTION = `Ask the user to connect a Crackerbox plugin (an MCP server from the curated catalog) so you can use its tools. Plugins the user installed themselves but switched off are listed below too (slugs starting with custom-): their tools are not loaded, so when your next step needs one, call this tool and the user switches it on with one tap. Do not try to work around a listed plugin.
+const BASE_DESCRIPTION = `Ask the user to switch on one of their own plugins (an MCP server they installed but that is currently off) so you can use its tools. Their tools are not loaded while a plugin is off, so when your next step needs one, call this tool and the user switches it on with one tap. Do not try to work around a listed plugin.
 
-Call this only at the moment your next step needs a capability that one of the plugins below provides and no available tool can do it, for example reading a platform's deployment or runtime logs, inspecting live data on that platform, or creating a resource there. Never call it speculatively because the project happens to use that vendor, and never suggest the same plugin twice in a conversation.
+Call this only at the moment your next step needs a capability that one of the plugins below provides and no available tool can do it, for example driving a real browser or reading a platform's logs. Never call it speculatively, and never suggest the same plugin twice in a conversation.
 
 The tool blocks until the user connects the plugin or declines. When the user connects it, the plugin's tools are NOT available in this turn: Crackerbox queues a follow-up turn where they will be. In that case end your response with one short line saying you will continue once the plugin is ready, and do not attempt the step another way. If the user declines, continue without the plugin.`;
 
@@ -355,7 +233,7 @@ export const suggestPluginTool: ToolDefinition<SuggestPluginArgs> = {
         ctx.onXmlComplete(terminalXml(server, args.reason, "dismissed"));
         return `You already suggested the ${server.name} plugin in this turn and the user did not connect it. Continue without it.`;
       }
-      if (await isPluginUsable(server.slug, server.oauthRequired)) {
+      if (await isPluginUsable(server.slug)) {
         ctx.onXmlComplete(terminalXml(server, args.reason, "dismissed"));
         return `The ${server.name} plugin is already connected. Its tools become available the next time the user sends a message, not in this turn. Tell the user that and continue with whatever you can do without it.`;
       }
@@ -367,7 +245,7 @@ export const suggestPluginTool: ToolDefinition<SuggestPluginArgs> = {
         slug: server.slug,
         serverName: server.name,
         serverDescription: server.description ?? null,
-        needsOAuth: server.needsOAuth,
+        needsOAuth: false,
         reason: args.reason,
         classifier: "none",
         followUpPrompt,

@@ -10,11 +10,8 @@ import { DyadSuggestPlugin } from "./DyadSuggestPlugin";
 const mocks = vi.hoisted(() => ({
   pending: new Map<number, unknown>(),
   respond: vi.fn(async () => true),
-  addFromCatalog: vi.fn(),
   probeConnection: vi.fn(),
   updateServer: vi.fn(),
-  connectNewServer: vi.fn(),
-  connectingServerId: null as number | null,
   showError: vi.fn(),
 }));
 
@@ -50,17 +47,9 @@ vi.mock("@/user_input/hooks", () => ({
   useUserInputReadModel: () => ({ respond: mocks.respond }),
 }));
 
-vi.mock("@/components/plugins/usePluginConnect", () => ({
-  usePluginConnect: () => ({
-    connectNewServer: mocks.connectNewServer,
-    connectingServerId: mocks.connectingServerId,
-  }),
-}));
-
 vi.mock("@/ipc/types", () => ({
   ipc: {
     mcp: {
-      addFromCatalog: mocks.addFromCatalog,
       probeConnection: mocks.probeConnection,
       updateServer: mocks.updateServer,
     },
@@ -74,7 +63,7 @@ vi.mock("@/lib/toast", () => ({
 const PENDING = {
   chatId: 7,
   requestId: "plugin-suggestion:1",
-  slug: "vercel",
+  slug: "custom-42",
   serverName: "Vercel",
   serverDescription: "Deployments and logs.",
   needsOAuth: false,
@@ -102,7 +91,7 @@ function renderCard(
   );
   return render(
     <DyadSuggestPlugin
-      slug="vercel"
+      slug="custom-42"
       name="Vercel"
       reason={PENDING.reason}
       requestId={PENDING.requestId}
@@ -120,10 +109,8 @@ describe("DyadSuggestPlugin", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.pending = new Map([[7, PENDING]]);
-    mocks.connectingServerId = null;
-    mocks.addFromCatalog.mockResolvedValue(CREATED);
+    mocks.updateServer.mockResolvedValue(CREATED);
     mocks.probeConnection.mockResolvedValue({ status: "ok", error: null });
-    mocks.connectNewServer.mockResolvedValue(true);
   });
 
   it("shows the agent's reason with one-click connect and decline", () => {
@@ -139,7 +126,7 @@ describe("DyadSuggestPlugin", () => {
     ).toBe(false);
   });
 
-  it("adds the plugin, probes it, and reports the connection without OAuth", async () => {
+  it("switches the plugin on, probes it, and reports the connection", async () => {
     renderCard();
 
     fireEvent.click(connectButton());
@@ -150,9 +137,8 @@ describe("DyadSuggestPlugin", () => {
         outcome: "connected",
       }),
     );
-    expect(mocks.addFromCatalog).toHaveBeenCalledWith({ slug: "vercel" });
+    expect(mocks.updateServer).toHaveBeenCalledWith({ id: 42, enabled: true });
     expect(mocks.probeConnection).toHaveBeenCalledWith(42);
-    expect(mocks.connectNewServer).not.toHaveBeenCalled();
   });
 
   it("does not report a plugin whose server is unreachable", async () => {
@@ -195,49 +181,6 @@ describe("DyadSuggestPlugin", () => {
     expect(mocks.respond).not.toHaveBeenCalled();
   });
 
-  it("runs the shared OAuth flow to completion before responding", async () => {
-    mocks.pending = new Map([[7, { ...PENDING, needsOAuth: true }]]);
-    let finishOAuth!: (connected: boolean) => void;
-    mocks.connectNewServer.mockReturnValue(
-      new Promise<boolean>((resolve) => {
-        finishOAuth = resolve;
-      }),
-    );
-    renderCard();
-
-    fireEvent.click(connectButton());
-
-    await waitFor(() =>
-      expect(mocks.connectNewServer).toHaveBeenCalledWith(CREATED),
-    );
-    expect(mocks.respond).not.toHaveBeenCalled();
-    expect(mocks.probeConnection).not.toHaveBeenCalled();
-
-    finishOAuth(true);
-    await waitFor(() =>
-      expect(mocks.respond).toHaveBeenCalledWith("plugin-suggestion:1", {
-        kind: "plugin-suggestion",
-        outcome: "connected",
-      }),
-    );
-    // An authorized plugin is probed too before the agent resumes.
-    expect(mocks.probeConnection).toHaveBeenCalledWith(42);
-  });
-
-  it("skips OAuth when the row came back already authorized", async () => {
-    mocks.pending = new Map([[7, { ...PENDING, needsOAuth: true }]]);
-    mocks.addFromCatalog.mockResolvedValue({
-      ...CREATED,
-      oauthConnected: true,
-    });
-    renderCard();
-
-    fireEvent.click(connectButton());
-
-    await waitFor(() => expect(mocks.respond).toHaveBeenCalled());
-    expect(mocks.connectNewServer).not.toHaveBeenCalled();
-  });
-
   it("stays busy after a successful connect until the card settles", async () => {
     renderCard();
 
@@ -249,58 +192,6 @@ describe("DyadSuggestPlugin", () => {
         .disabled,
     ).toBe(true);
     expect(screen.queryByRole("alert")).toBeNull();
-  });
-
-  it("keeps the card interactive when OAuth fails", async () => {
-    mocks.pending = new Map([[7, { ...PENDING, needsOAuth: true }]]);
-    mocks.connectNewServer.mockResolvedValue(false);
-    renderCard();
-
-    fireEvent.click(connectButton());
-
-    await waitFor(() => expect(mocks.connectNewServer).toHaveBeenCalled());
-    await waitFor(() => expect(connectButton().disabled).toBe(false));
-    expect(mocks.respond).not.toHaveBeenCalled();
-    // The toast carries the specific reason; the card does not guess one.
-    expect(screen.getByRole("alert").textContent).toBe(
-      "suggestPlugin.connectFailed",
-    );
-
-    // Declining afterwards clears the stale failure.
-    fireEvent.click(screen.getByRole("button", { name: "Not now" }));
-    await waitFor(() => expect(mocks.respond).toHaveBeenCalled());
-    expect(screen.queryByRole("alert")).toBeNull();
-  });
-
-  it("disables both buttons while another connect flow holds the slot", () => {
-    mocks.connectingServerId = 3;
-    renderCard();
-
-    expect(connectButton().disabled).toBe(true);
-    expect(
-      screen.getByRole<HTMLButtonElement>("button", { name: "Not now" })
-        .disabled,
-    ).toBe(true);
-  });
-
-  it("enables an existing disabled plugin instead of adding a second one", async () => {
-    mocks.addFromCatalog.mockResolvedValue({ ...CREATED, enabled: false });
-    renderCard();
-
-    fireEvent.click(connectButton());
-
-    await waitFor(() => expect(mocks.respond).toHaveBeenCalled());
-    expect(mocks.updateServer).toHaveBeenCalledWith({ id: 42, enabled: true });
-    expect(mocks.connectNewServer).not.toHaveBeenCalled();
-  });
-
-  it("leaves an enabled plugin's row alone", async () => {
-    renderCard();
-
-    fireEvent.click(connectButton());
-
-    await waitFor(() => expect(mocks.respond).toHaveBeenCalled());
-    expect(mocks.updateServer).not.toHaveBeenCalled();
   });
 
   it("answers never when the user opts out of the plugin for good", async () => {
@@ -316,7 +207,7 @@ describe("DyadSuggestPlugin", () => {
         outcome: "never",
       }),
     );
-    expect(mocks.addFromCatalog).not.toHaveBeenCalled();
+    expect(mocks.updateServer).not.toHaveBeenCalled();
   });
 
   it("declines without adding anything", async () => {
@@ -330,7 +221,7 @@ describe("DyadSuggestPlugin", () => {
         outcome: "declined",
       }),
     );
-    expect(mocks.addFromCatalog).not.toHaveBeenCalled();
+    expect(mocks.updateServer).not.toHaveBeenCalled();
   });
 
   it("renders terminal outcomes with the reason from the persisted card", () => {

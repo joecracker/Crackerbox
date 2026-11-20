@@ -11,7 +11,6 @@ import {
 } from "@/user_input/hooks";
 import type { PendingPluginSuggestion } from "@/user_input/selectors";
 import { invalidateMcpQueries } from "@/components/plugins/invalidateMcpQueries";
-import { usePluginConnect } from "@/components/plugins/usePluginConnect";
 import { ipc } from "@/ipc/types";
 import { showError } from "@/lib/toast";
 import { DyadCard, DyadCardHeader, DyadBadge } from "./DyadCardPrimitives";
@@ -112,7 +111,7 @@ export const DyadSuggestPlugin: React.FC<DyadSuggestPluginProps> = ({
   return <PendingSuggestionCard pending={pending} />;
 };
 
-type ConnectPhase = "idle" | "adding" | "authorizing" | "declining";
+type ConnectPhase = "idle" | "adding" | "declining";
 
 // The live card owns the connect hooks so historical cards stay cheap.
 function PendingSuggestionCard({
@@ -123,57 +122,34 @@ function PendingSuggestionCard({
   const { t } = useTranslation("chat");
   const readModel = useUserInputReadModel();
   const queryClient = useQueryClient();
-  const { connectNewServer, connectingServerId } = usePluginConnect();
   const [phase, setPhase] = useState<ConnectPhase>("idle");
   // Kept on the card so a failure outlives its toast. By then the plugin
   // may already be added, and the user needs to see it still needs work.
   const [connectError, setConnectError] = useState<string | null>(null);
 
   const displayName = pending.serverName;
-  // Another connect flow anywhere in the app holds the shared slot.
-  const isBusy =
-    pending.isResponding || phase !== "idle" || connectingServerId !== null;
+  const isBusy = pending.isResponding || phase !== "idle";
 
   const handleConnect = async () => {
     if (isBusy) return;
     setPhase("adding");
     setConnectError(null);
     try {
-      // Only one-click entries are suggestable (http, no inputs). Adding is
-      // idempotent, so a plugin that already exists comes back as its row,
-      // which may be disabled and may still hold its authorization.
-      // A slug of custom-<id> is one of the user's own plugins that is
-      // switched off: connecting it just switches that row on.
-      const localId = pending.slug.startsWith("custom-")
-        ? Number(pending.slug.slice("custom-".length))
-        : NaN;
-      let created;
-      if (Number.isInteger(localId)) {
-        created = await ipc.mcp.updateServer({ id: localId, enabled: true });
-      } else {
-        created = await ipc.mcp.addFromCatalog({ slug: pending.slug });
-        if (!created.enabled) {
-          await ipc.mcp.updateServer({ id: created.id, enabled: true });
-        }
+      // Only the user's own switched-off plugins are suggestable: their slug
+      // is custom-<id>, and connecting one just switches that row on.
+      const localId = Number(pending.slug.slice("custom-".length));
+      if (!pending.slug.startsWith("custom-") || !Number.isInteger(localId)) {
+        throw new Error(t("suggestPlugin.failed"));
       }
+      const created = await ipc.mcp.updateServer({
+        id: localId,
+        enabled: true,
+      });
       // Not awaited: the refetch runs tool discovery on every plugin, and
       // the one just added can sit in that until its timeout when it is
       // not authorized yet. Connecting must not wait on it.
       void invalidateMcpQueries(queryClient);
-      // The row may have been authorized elsewhere since the card appeared.
-      if (pending.needsOAuth && !created.oauthConnected) {
-        setPhase("authorizing");
-        const connected = await connectNewServer(created);
-        void invalidateMcpQueries(queryClient);
-        if (!connected) {
-          // The shared flow already toasted the specific reason, which may
-          // be unrelated to authorization, so the card stays general.
-          setConnectError(t("suggestPlugin.connectFailed"));
-          setPhase("idle");
-          return;
-        }
-      }
-      // Added and authorized are not the same as reachable; the agent
+      // Switched on is not the same as reachable; the agent
       // should only be told the plugin is ready when its server answers.
       const probe = await ipc.mcp.probeConnection(created.id);
       if (probe.status !== "ok") {
@@ -223,13 +199,11 @@ function PendingSuggestionCard({
   const statusText =
     phase === "adding"
       ? t("suggestPlugin.adding")
-      : phase === "authorizing"
-        ? t("suggestPlugin.authorizing")
-        : phase === "declining"
-          ? t("suggestPlugin.declining")
-          : "";
+      : phase === "declining"
+        ? t("suggestPlugin.declining")
+        : "";
   const connectLabel =
-    phase === "adding" || phase === "authorizing"
+    phase === "adding"
       ? statusText
       : t("suggestPlugin.connect", { name: displayName });
 
@@ -288,7 +262,7 @@ function PendingSuggestionCard({
             className="w-full sm:w-auto bg-violet-600 text-white hover:bg-violet-700 dark:bg-violet-500 dark:hover:bg-violet-400"
             data-testid="plugin-suggestion-connect-button"
           >
-            {phase === "adding" || phase === "authorizing" ? (
+            {phase === "adding" ? (
               <Loader2 size={14} className="animate-spin" />
             ) : (
               <Plug size={14} />
@@ -302,9 +276,7 @@ function PendingSuggestionCard({
         </p>
         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-[11px] text-muted-foreground">
-            {pending.needsOAuth
-              ? t("suggestPlugin.oauthHint")
-              : t("suggestPlugin.hint")}
+            {t("suggestPlugin.hint")}
           </p>
           <button
             type="button"

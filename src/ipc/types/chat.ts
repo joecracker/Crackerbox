@@ -497,6 +497,19 @@ export const chatContracts = {
     output: SisterSchema,
   }),
 
+  // A helper's saved "Always allow" rules: list them, take one away.
+  listEntityAlways: defineContract({
+    channel: "house:list-entity-always",
+    input: z.object({ id: z.string() }),
+    output: z.array(z.string()),
+  }),
+
+  forgetEntityAlways: defineContract({
+    channel: "house:forget-entity-always",
+    input: z.object({ id: z.string(), toolName: z.string() }),
+    output: z.array(z.string()),
+  }),
+
   markChatSilent: defineContract({
     channel: "chat:mark-silent",
     input: z.object({ chatId: z.number() }),

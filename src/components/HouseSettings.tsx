@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ipc } from "@/ipc/types";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -26,6 +27,55 @@ export function useHouseSisters() {
 
 export const HOUSE_DESCRIPTION =
   "Each entity can have a voice of her own (spoken with Pocket) and a temperament. Entities with no voice use the voice chosen in Voice.";
+
+/**
+ * A helper that asks before every step keeps its own "Always allow" list.
+ * Clicking Always allow in its chat adds a tool here; Remove puts that tool
+ * back on "ask" and leaves the rest alone.
+ */
+function HelperRules({ id, name }: { id: string; name: string }) {
+  const queryClient = useQueryClient();
+  const rules = useQuery({
+    queryKey: ["house", "always", id],
+    queryFn: () => ipc.chat.listEntityAlways({ id }),
+  });
+  const remove = async (toolName: string) => {
+    const left = await ipc.chat.forgetEntityAlways({ id, toolName });
+    queryClient.setQueryData(["house", "always", id], left);
+  };
+  return (
+    <div className="space-y-1" data-testid={`house-rules-${id}`}>
+      <span className="text-xs text-muted-foreground">
+        Always allowed for {name} (it never asks for these)
+      </span>
+      {rules.data && rules.data.length > 0 ? (
+        <ul className="space-y-1">
+          {rules.data.map((toolName) => (
+            <li
+              key={toolName}
+              className="flex items-center justify-between gap-2 rounded border px-2 py-1"
+            >
+              <code className="text-xs">{toolName}</code>
+              <Button
+                variant="outline"
+                size="sm"
+                aria-label={`Remove always allow for ${toolName}`}
+                onClick={() => void remove(toolName)}
+              >
+                Remove
+              </Button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-[13px] text-muted-foreground">
+          None. {name} asks before every step. When you click "Always allow" in
+          its chat, that tool shows up here.
+        </p>
+      )}
+    </div>
+  );
+}
 
 export function HouseSettings() {
   const queryClient = useQueryClient();
@@ -106,6 +156,9 @@ export function HouseSettings() {
                 <span>Wild</span>
               </div>
             </div>
+            {sister.askEveryStep && (
+              <HelperRules id={sister.id} name={sister.name} />
+            )}
           </div>
         );
       })}

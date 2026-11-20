@@ -1,6 +1,7 @@
 import { readAvatarDataUrl } from "@/main/avatar_file";
 import { markChatSilent, readSilentChats } from "@/main/silent_chats";
 import { addEntity, updateEntity } from "@/main/house_entity";
+import { forgetEntityAlways, listEntityAlways } from "@/main/house_consent";
 import {
   claudeStatus,
   listClaudeModels,
@@ -313,7 +314,17 @@ export function registerChatHandlers() {
 
   createTypedHandler(chatContracts.listSisters, async () =>
     readRoster().map(
-      ({ id, name, appId, color, initial, avatar, voice, temperature }) => ({
+      ({
+        id,
+        name,
+        appId,
+        color,
+        initial,
+        avatar,
+        voice,
+        temperature,
+        askEveryStep,
+      }) => ({
         id,
         name,
         appId,
@@ -322,6 +333,7 @@ export function registerChatHandlers() {
         avatarUrl: readAvatarDataUrl(avatar),
         voice,
         temperature,
+        askEveryStep,
       }),
     ),
   );
@@ -354,6 +366,15 @@ export function registerChatHandlers() {
       voice: s.voice,
       temperature: s.temperature,
     };
+  });
+
+  createTypedHandler(chatContracts.listEntityAlways, async (_, params) =>
+    listEntityAlways(params.id),
+  );
+
+  createTypedHandler(chatContracts.forgetEntityAlways, async (_, params) => {
+    forgetEntityAlways(params.id, params.toolName);
+    return listEntityAlways(params.id);
   });
 
   createTypedHandler(chatContracts.markChatSilent, async (_, params) => {

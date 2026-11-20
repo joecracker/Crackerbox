@@ -16,9 +16,6 @@ import {
   ChevronsUpDown,
   ChevronsDownUp,
   SendHorizontalIcon,
-  Lock,
-  Mic,
-  MicOff,
 } from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
@@ -108,11 +105,7 @@ import { useChats } from "@/hooks/useChats";
 import { useRouter } from "@tanstack/react-router";
 import { showError as showErrorToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
-import {
-  DYAD_CLOUD_FEATURES_ENABLED,
-  PRO_BILLING_FEATURES_ENABLED,
-} from "@/lib/proBillingFlags";
-import { useVoiceToText } from "@/hooks/useVoiceToText";
+import { DYAD_CLOUD_FEATURES_ENABLED } from "@/lib/proBillingFlags";
 import { isDyadProEnabled, isLocalAgentBackedMode } from "@/lib/schemas";
 import { isFreeProModel } from "@/lib/freeProModel";
 import { ReferencedAppsBar } from "./ReferencedAppsBar";
@@ -327,19 +320,6 @@ export function ChatInput({ chatId }: { chatId?: number }) {
   }, [messages]);
 
   const isProEnabled = settings ? isDyadProEnabled(settings) : false;
-
-  const handleTranscription = useCallback(
-    (text: string) => {
-      setInputValue((prev: string) => (prev.trim() ? prev + " " + text : text));
-    },
-    [setInputValue],
-  );
-
-  const { isRecording, isTranscribing, toggleRecording } = useVoiceToText({
-    enabled: isProEnabled,
-    onTranscription: handleTranscription,
-    onError: (message) => showErrorToast(message),
-  });
 
   // Token counting for context limit banner
   const { result: tokenCountResult } = useCountTokens(
@@ -578,10 +558,6 @@ export function ChatInput({ chatId }: { chatId?: number }) {
         return next;
       });
     };
-
-    if (isRecording) {
-      await toggleRecording();
-    }
 
     // Build prompt with auto-added image mentions
     const imageMentions = visibleSuccessfulImageJobs
@@ -1057,74 +1033,6 @@ export function ChatInput({ chatId }: { chatId?: number }) {
               disableSendButton={disableSendButton}
               messageHistory={userMessageHistory}
             />
-
-            {/* Voice-to-text button */}
-            {PRO_BILLING_FEATURES_ENABLED &&
-              (isProEnabled ? (
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <button
-                        onClick={toggleRecording}
-                        disabled={isTranscribing}
-                        aria-label={
-                          isRecording
-                            ? t("stopRecording", "Stop recording")
-                            : isTranscribing
-                              ? t("transcribing", "Transcribing...")
-                              : t("voiceToText", "Voice to text")
-                        }
-                        className={cn(
-                          "px-2 py-2 mb-0.5 text-muted-foreground rounded-lg transition-colors duration-150 cursor-pointer disabled:cursor-default disabled:opacity-30",
-                          isRecording &&
-                            "text-red-500 hover:text-red-600 animate-pulse",
-                          !isRecording &&
-                            !isTranscribing &&
-                            "hover:text-primary",
-                        )}
-                      />
-                    }
-                  >
-                    {isTranscribing ? (
-                      <Loader2 size={20} className="animate-spin" />
-                    ) : isRecording ? (
-                      <MicOff size={20} />
-                    ) : (
-                      <Mic size={20} />
-                    )}
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {isRecording
-                      ? t("stopRecording", "Stop recording")
-                      : isTranscribing
-                        ? t("transcribing", "Transcribing...")
-                        : t("voiceToText", "Voice to text")}
-                  </TooltipContent>
-                </Tooltip>
-              ) : (
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <button
-                        onClick={() =>
-                          ipc.system.openExternalUrl("https://dyad.sh/pro")
-                        }
-                        aria-label={t("voiceToTextPro", "Voice to text (Pro)")}
-                        className="px-2 py-2 mb-0.5 text-muted-foreground hover:text-primary rounded-lg transition-colors duration-150 cursor-pointer relative"
-                      />
-                    }
-                  >
-                    <Mic size={20} />
-                    <Lock size={10} className="absolute -top-0.5 -right-0.5" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {t(
-                      "voiceToTextRequiresPro",
-                      "Voice to text (requires Pro)",
-                    )}
-                  </TooltipContent>
-                </Tooltip>
-              ))}
 
             {isStreaming ? (
               <>

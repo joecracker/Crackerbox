@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { cloneElement, type ReactElement, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HomeChatInput } from "./HomeChatInput";
@@ -10,7 +10,6 @@ const mocks = vi.hoisted(() => ({
   setInputValue: vi.fn(),
   setSelectedApp: vi.fn(),
   selectedApp: null as null | { id: number; name: string },
-  transcription: null as null | ((text: string) => void),
 }));
 
 vi.mock("jotai", async (importOriginal) => ({
@@ -63,20 +62,6 @@ vi.mock("@/hooks/useAttachments", () => ({
     confirmPendingFiles: vi.fn(),
     cancelPendingFiles: vi.fn(),
   }),
-}));
-vi.mock("@/hooks/useVoiceToText", () => ({
-  useVoiceToText: ({
-    onTranscription,
-  }: {
-    onTranscription: (text: string) => void;
-  }) => {
-    mocks.transcription = onTranscription;
-    return {
-      isRecording: false,
-      isTranscribing: false,
-      toggleRecording: vi.fn(),
-    };
-  },
 }));
 vi.mock("@/components/ui/tooltip", () => ({
   Tooltip: ({ children }: { children: ReactNode }) => children,
@@ -141,7 +126,6 @@ describe("HomeChatInput", () => {
     mocks.setInputValue.mockReset();
     mocks.setSelectedApp.mockReset();
     mocks.selectedApp = null;
-    mocks.transcription = null;
   });
 
   it("makes the entire snapshotted composer inert", () => {
@@ -212,14 +196,6 @@ describe("HomeChatInput", () => {
         .getByTestId("home-chat-mobile-controls")
         .contains(screen.getByRole("button", { name: "Manage AI setup" })),
     ).toBe(true);
-  });
-
-  it("ignores a transcription that completes after the payload is locked", () => {
-    render(<HomeChatInput onSubmit={vi.fn()} disabled />);
-
-    act(() => mocks.transcription?.("late transcript"));
-
-    expect(mocks.setInputValue).not.toHaveBeenCalled();
   });
 
   it("shows the app selector only when the loaded list contains an app", () => {

@@ -19,7 +19,6 @@ const MACHINE_DIRECTORIES = [
   "preview_iframe",
   "screenshot",
   "version_preview",
-  "voice_to_text",
   "user_input",
   "coolify_setup",
 ] as const;

@@ -26,8 +26,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-import { Switch } from "@/components/ui/switch";
-import { showError } from "@/lib/toast";
 import {
   UserSettings,
   AzureProviderSetting,
@@ -42,7 +40,6 @@ import {
 } from "@/lib/providerApiKey";
 
 import { ProviderSettingsHeader } from "./ProviderSettingsHeader";
-import { PRO_BILLING_FEATURES_ENABLED } from "@/lib/proBillingFlags";
 import { ApiKeyConfiguration } from "./ApiKeyConfiguration";
 import { ModelsSection } from "./ModelsSection";
 
@@ -343,20 +340,6 @@ export function ProviderSettingsPage({ provider }: ProviderSettingsPageProps) {
     }
   };
 
-  // --- Toggle Dyad Pro Handler ---
-  const handleToggleDyadPro = async (enabled: boolean) => {
-    setIsSaving(true);
-    try {
-      await updateSettings({
-        enableDyadPro: enabled,
-      });
-    } catch (error: any) {
-      showError(`Error toggling Dyad Pro: ${error}`);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   useEffect(() => {
     if (!awaitingKeyFromWebsite) {
       return;
@@ -563,23 +546,6 @@ export function ProviderSettingsPage({ provider }: ProviderSettingsPageProps) {
               highlightPasteButton={highlightPasteButton}
               onDismissPasteHighlight={() => setHighlightPasteButton(false)}
             />
-          )}
-
-          {PRO_BILLING_FEATURES_ENABLED && isDyad && !settingsLoading && (
-            <div className="mt-6 flex items-center justify-between p-4 bg-(--background-lightest) rounded-lg border">
-              <div>
-                <h3 className="font-medium">Enable Dyad Pro</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Toggle to enable Dyad Pro
-                </p>
-              </div>
-              <Switch
-                aria-label="Enable Dyad Pro"
-                checked={settings?.enableDyadPro}
-                onCheckedChange={handleToggleDyadPro}
-                disabled={isSaving}
-              />
-            </div>
           )}
 
           {/* Conditionally render CustomModelsSection */}

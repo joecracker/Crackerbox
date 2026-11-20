@@ -88,10 +88,6 @@ export { openRouterBalanceContracts } from "./openrouter_balance";
 export { veniceBalanceContracts } from "./venice_balance";
 export { audioContracts } from "./audio";
 export { mediaContracts } from "./media";
-export {
-  imageGenerationContracts,
-  imageGenerationEvents,
-} from "./image_generation";
 export { appBlueprintContracts, appBlueprintEvents } from "./app_blueprint";
 export { appCollectionContracts } from "./app_collections";
 export { terminalContracts } from "./terminal";
@@ -156,10 +152,6 @@ export { openRouterBalanceClient } from "./openrouter_balance";
 export { veniceBalanceClient } from "./venice_balance";
 export { audioClient } from "./audio";
 export { mediaClient } from "./media";
-export {
-  imageGenerationClient,
-  imageGenerationEventClient,
-} from "./image_generation";
 export { appBlueprintClient, appBlueprintEventClient } from "./app_blueprint";
 export { appCollectionClient } from "./app_collections";
 export { terminalClient } from "./terminal";
@@ -464,13 +456,6 @@ export type {
   EmptyArchiveResponse,
 } from "./media";
 
-// Image generation types
-export type {
-  ImageThemeMode,
-  ImageGenerationResultView,
-  ImageGenerationOperationOutcome,
-} from "./image_generation";
-
 // Tests types
 export type {
   TestSpec,
@@ -576,10 +561,6 @@ import { openRouterBalanceClient } from "./openrouter_balance";
 import { veniceBalanceClient } from "./venice_balance";
 import { audioClient } from "./audio";
 import { mediaClient, mediaSendClient } from "./media";
-import {
-  imageGenerationClient,
-  imageGenerationEventClient,
-} from "./image_generation";
 import { appBlueprintClient, appBlueprintEventClient } from "./app_blueprint";
 import { appCollectionClient } from "./app_collections";
 import { terminalClient } from "./terminal";
@@ -674,7 +655,6 @@ export const ipc = {
   firstPrompt: firstPromptClient,
   windowInfrastructure: windowInfrastructureClient,
   distributedMachine: distributedMachineClient,
-  imageGeneration: imageGenerationClient,
   previewView: {
     ...previewViewClient,
     setBounds: previewViewSendClient.setBounds,
@@ -694,7 +674,6 @@ export const ipc = {
     userInput: userInputEventClient,
     coolify: coolifyEventClient,
     coolifySetup: coolifySetupEventClient,
-    imageGeneration: imageGenerationEventClient,
     windowInfrastructure: windowInfrastructureEventClient,
     distributedMachine: distributedMachineEventClient,
     recording: recordingEventClient,

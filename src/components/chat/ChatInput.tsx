@@ -84,9 +84,6 @@ import {
   doesSqlDeleteData,
   doesSqlMutateSchema,
 } from "@/lib/sqlSchemaMutation";
-import { ChatImageGenerationStrip } from "./ChatImageGenerationStrip";
-import { dismissedImageGenerationJobIdsAtom } from "@/atoms/imageGenerationAtoms";
-import { useChatImageGenerationJobs } from "@/image_generation/hooks";
 import { VisualEditingChangesDialog } from "@/components/preview_panel/VisualEditingChangesDialog";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/queryKeys";
@@ -238,24 +235,6 @@ export function ChatInput({ chatId }: { chatId?: number }) {
   const { navigate } = useRouter();
   const setSelectedChatId = useSetAtom(selectedChatIdAtom);
   const { invalidateChats } = useChats(appId);
-  // Image generation jobs for auto-adding to chat on send
-  const chatImageJobs = useChatImageGenerationJobs();
-  const [dismissedImageJobIds, setDismissedImageJobIds] = useAtom(
-    dismissedImageGenerationJobIdsAtom,
-  );
-  const visibleSuccessfulImageJobs = useMemo(() => {
-    const appJobs = appId
-      ? chatImageJobs.filter((job) => job.targetAppId === appId)
-      : chatImageJobs;
-    return appJobs.filter(
-      (job) =>
-        !dismissedImageJobIds.has(job.id) &&
-        job.status === "success" &&
-        job.result,
-    );
-  }, [chatImageJobs, dismissedImageJobIds, appId]);
-  const hasSuccessfulImageJobs = visibleSuccessfulImageJobs.length > 0;
-
   // Use the attachments hook
   const {
     attachments,
@@ -300,7 +279,6 @@ export function ChatInput({ chatId }: { chatId?: number }) {
   const hasComposerPayload = hasChatComposerPayload({
     inputValue,
     attachmentCount: attachments.length,
-    hasSuccessfulImageJobs,
     annotationCount: chatAnnotations.length,
   });
 
@@ -552,19 +530,7 @@ export function ChatInput({ chatId }: { chatId?: number }) {
       });
     };
 
-    // Build prompt with auto-added image mentions
-    const imageMentions = visibleSuccessfulImageJobs
-      .map((job) => `@media:${encodeURIComponent(job.result!.fileName)}`)
-      .join(" ");
-    const promptWithImages = inputValue.trim()
-      ? imageMentions
-        ? `${inputValue} ${imageMentions}`
-        : inputValue
-      : imageMentions;
-    const currentInput = composeChatPrompt(
-      promptWithImages,
-      submittedAnnotations,
-    );
+    const currentInput = composeChatPrompt(inputValue, submittedAnnotations);
 
     if (currentInput.length > MAX_CHAT_PROMPT_CHARS) {
       showErrorToast(CHAT_PROMPT_LENGTH_LIMIT_MESSAGE);
@@ -572,18 +538,6 @@ export function ChatInput({ chatId }: { chatId?: number }) {
     }
 
     const submittedInputValue = inputValue;
-    const submittedImageJobIds = visibleSuccessfulImageJobs.map(
-      (job) => job.id,
-    );
-    const dismissSubmittedImageJobs = () => {
-      if (submittedImageJobIds.length === 0) return;
-      setDismissedImageJobIds((previous) => {
-        const next = new Set(previous);
-        for (const jobId of submittedImageJobIds) next.add(jobId);
-        return next;
-      });
-    };
-
     // Use all selected components for multi-component editing
     const componentsToSend =
       selectedComponents && selectedComponents.length > 0
@@ -598,7 +552,6 @@ export function ChatInput({ chatId }: { chatId?: number }) {
         selectedComponents: componentsToSend,
       });
       hideSubmittedAnnotations();
-      dismissSubmittedImageJobs();
       resetEditingState();
       return;
     }
@@ -618,7 +571,6 @@ export function ChatInput({ chatId }: { chatId?: number }) {
         hideSubmittedAnnotations();
         clearComposerAfterSubmit();
         clearAttachments();
-        dismissSubmittedImageJobs();
       }
       // If queue failed, leave input/attachments intact for the user
       return;
@@ -630,17 +582,11 @@ export function ChatInput({ chatId }: { chatId?: number }) {
     void openPreviewIfSetupRequired(appId);
     setInputValue("");
     clearSubmittedAttachments(attachments);
-    dismissSubmittedImageJobs();
     let didRestoreSubmittedInput = false;
     const restoreSubmittedInput = () => {
       if (didRestoreSubmittedInput) return;
       didRestoreSubmittedInput = true;
       restoreSubmittedAttachments(attachments);
-      setDismissedImageJobIds((previous) => {
-        const next = new Set(previous);
-        for (const jobId of submittedImageJobIds) next.delete(jobId);
-        return next;
-      });
       setInputValue((current) =>
         current && submittedInputValue
           ? `${submittedInputValue}\n\n${current}`
@@ -681,13 +627,7 @@ export function ChatInput({ chatId }: { chatId?: number }) {
       optimisticDisplayContent: buildOptimisticChatDisplay(
         currentInput,
         apps.find((app) => app.id === appId)?.path,
-        [
-          ...(mediaApps.find((app) => app.appId === appId)?.files ?? []),
-          ...visibleSuccessfulImageJobs.map((job) => ({
-            fileName: job.result!.fileName,
-            mimeType: "image/png",
-          })),
-        ],
+        mediaApps.find((app) => app.appId === appId)?.files ?? [],
       ),
       selectedComponents: componentsToSend,
       requestedChatMode,
@@ -999,9 +939,6 @@ export function ChatInput({ chatId }: { chatId?: number }) {
             attachments={attachments}
             onRemove={removeAttachment}
           />
-
-          {/* Chat image generation strip */}
-          <ChatImageGenerationStrip />
 
           {/* Use the DragDropOverlay component */}
           <DragDropOverlay isDraggingOver={isDraggingOver} />

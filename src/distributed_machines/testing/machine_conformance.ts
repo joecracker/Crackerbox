@@ -38,7 +38,6 @@ export const REQUIRED_HISTORICAL_FAILURE_SHAPES = [
   "disposal-with-unresolved-work",
   "ingress-through-deletion-fence",
   "late-producer-actor-recreation",
-  "ui-mutation-before-authoritative-admission",
 ] as const satisfies readonly HistoricalFailureShape[];
 
 export interface MachineConformance<

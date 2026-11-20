@@ -13,7 +13,6 @@ const MACHINE_DIRECTORIES = [
   "deep_link_window_readiness",
   "first_prompt",
   "github_ops",
-  "image_generation",
   "mcp_oauth",
   "plan_handoff",
   "preview_iframe",

@@ -4,7 +4,6 @@ import { useLoadApps } from "@/hooks/useLoadApps";
 import { Image, Loader2 } from "lucide-react";
 import { DyadAppMediaFolder } from "@/components/DyadAppMediaFolder";
 import { LibrarySearchBar } from "@/components/LibrarySearchBar";
-import { ImageGenerationProgressButton } from "@/components/ImageGenerationProgressButton";
 import { filterMediaAppsByQuery } from "@/lib/mediaUtils";
 import { MediaStorageBar } from "@/components/media-library/MediaStorageBar";
 
@@ -32,9 +31,7 @@ export default function MediaPage() {
             <Image className="mr-2 h-7 w-7 sm:h-8 sm:w-8" />
             Media
           </h1>
-          <div className="flex items-center gap-2">
-            <ImageGenerationProgressButton />
-          </div>
+          <div className="flex items-center gap-2"></div>
         </div>
 
         {storageInfo && <MediaStorageBar info={storageInfo} />}

@@ -62,18 +62,13 @@ export function composeChatPrompt(
 export function hasChatComposerPayload({
   inputValue,
   attachmentCount,
-  hasSuccessfulImageJobs,
   annotationCount,
 }: {
   inputValue: string;
   attachmentCount: number;
-  hasSuccessfulImageJobs: boolean;
   annotationCount: number;
 }): boolean {
   return (
-    inputValue.trim().length > 0 ||
-    attachmentCount > 0 ||
-    hasSuccessfulImageJobs ||
-    annotationCount > 0
+    inputValue.trim().length > 0 || attachmentCount > 0 || annotationCount > 0
   );
 }

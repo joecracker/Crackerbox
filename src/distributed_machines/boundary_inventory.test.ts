@@ -738,13 +738,10 @@ function isMigratedSurfacePath(sourcePath: string): boolean {
   if (sourcePath.endsWith("/testing.ts")) return false;
   return (
     sourcePath.startsWith("app_run/") ||
-    sourcePath.startsWith("image_generation/") ||
     sourcePath === "hooks/useRunApp.ts" ||
-    sourcePath === "hooks/useGenerateImage.ts" ||
     sourcePath.startsWith("ipc/services/app_run_") ||
     sourcePath.startsWith("ipc/services/app_runtime_") ||
-    sourcePath === "ipc/services/main_app_runtime_output.ts" ||
-    sourcePath.startsWith("ipc/services/image_generation_")
+    sourcePath === "ipc/services/main_app_runtime_output.ts"
   );
 }
 
@@ -1070,11 +1067,10 @@ describe("semantic boundary inventory helpers", () => {
       "const pendingByRequestId = new Map<RequestId, Promise<void>>();",
     );
     expect(
-      migratedStatefulOwnerBoundaries(
-        sourceFile,
-        "image_generation/fixture.ts",
-      ).map(({ key }) => key),
-    ).toEqual(["image_generation/fixture.ts::pendingByRequestId::new(Map)"]);
+      migratedStatefulOwnerBoundaries(sourceFile, "app_run/fixture.ts").map(
+        ({ key }) => key,
+      ),
+    ).toEqual(["app_run/fixture.ts::pendingByRequestId::new(Map)"]);
   });
 
   it("finds direct creation capability calls regardless of receiver name", () => {
@@ -1105,7 +1101,7 @@ describe("progressive distributed-machine inventories", () => {
     );
   });
 
-  it("inventories all six production distributed definitions", () => {
+  it("inventories all five production distributed definitions", () => {
     assertInventory(
       "distributed definitions",
       collectProduction(definitionBoundaries),
@@ -1113,14 +1109,11 @@ describe("progressive distributed-machine inventories", () => {
     );
   }, 20_000);
 
-  it("requires the two migrated definitions to use the framework capability constructor", () => {
+  it("requires the migrated definition to use the framework capability constructor", () => {
     assertInventory(
       "framework-covered definitions",
       collectProduction(frameworkCoveredDefinitionBoundaries),
-      [
-        "app_run/definition.ts::appRunDefinition",
-        "ipc/services/image_generation_definition.ts::imageGenerationDefinition",
-      ],
+      ["app_run/definition.ts::appRunDefinition"],
     );
   }, 20_000);
 
@@ -1235,7 +1228,7 @@ describe("progressive distributed-machine inventories", () => {
   it("keeps migrated pilots out of the unsafe compatibility inventory", () => {
     expect(
       compatibilityBoundaryInventory.filter(({ machine }) =>
-        ["app_run", "image_generation"].includes(machine),
+        ["app_run"].includes(machine),
       ),
     ).toEqual([]);
     const unsafe = Object.values(unsafeEscapeHatchInventory).flat();
@@ -1244,10 +1237,7 @@ describe("progressive distributed-machine inventories", () => {
         ({ exactFile }) =>
           exactFile.startsWith("app_run/") ||
           exactFile.startsWith("hooks/useRunApp") ||
-          exactFile.startsWith("image_generation/") ||
-          exactFile.startsWith("hooks/useGenerateImage") ||
-          exactFile.startsWith("ipc/services/app_run") ||
-          exactFile.startsWith("ipc/services/image_generation"),
+          exactFile.startsWith("ipc/services/app_run"),
       ),
     ).toEqual([]);
   });

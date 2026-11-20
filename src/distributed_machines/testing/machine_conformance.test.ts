@@ -3,8 +3,6 @@ import { z } from "zod";
 import { appRunConformance } from "@/app_run/conformance.test_support";
 import { appRunRemoteIntentContract } from "@/app_run/remote_intent_contract";
 import { unsafeEscapeHatchInventory } from "../boundary_inventory.test_support";
-import { imageGenerationConformance } from "@/image_generation/conformance.test_support";
-import { imageGenerationRemoteIntentContract } from "@/image_generation/remote_intent_contract";
 import { declareRemoteIntentContractForProtocolV1 } from "../remote_intent_contract";
 import {
   REMOTE_MACHINE_PROTOCOL_VERSION,
@@ -70,21 +68,12 @@ describe("remote intent contract registration", () => {
         },
       }).success,
     ).toBe(false);
-    expect(
-      imageGenerationRemoteIntentContract.rendererIntentCodec.safeParse({
-        type: "JOB_SUCCEEDED",
-        jobId: "job",
-      }).success,
-    ).toBe(false);
     expect(Object.keys(appRunRemoteIntentContract.intents).sort()).toEqual([
       "MANUAL_RELOAD",
       "RESTART",
       "START",
       "STOP_REQUESTED",
     ]);
-    expect(
-      Object.keys(imageGenerationRemoteIntentContract.intents).sort(),
-    ).toEqual(["CANCEL_REQUESTED", "SUBMIT"]);
   });
 
   it("adapts declarations beside protocol v1 without replacing its codecs", () => {
@@ -255,37 +244,6 @@ describe("remote intent contract registration", () => {
     ).toThrow("conformance tiers are unclassified: T1,T2,T3,T4");
   });
 
-  it("derives trusted image provenance without mutating renderer intent", () => {
-    const intent =
-      imageGenerationRemoteIntentContract.rendererIntentCodec.parse({
-        type: "SUBMIT",
-        requestId: "request",
-        operationId: "operation",
-        job: {
-          id: "job",
-          prompt: "prompt",
-          themeMode: "plain",
-          targetAppId: 1,
-          targetAppName: "App",
-          startedAt: 1,
-        },
-      });
-    const trusted = imageGenerationRemoteIntentContract.toTrustedEvent({
-      key: imageGenerationRemoteIntentContract.keyCodec.parse({
-        scope: "jobs",
-      }),
-      intent,
-      sender: { windowSessionId: "main-owned-session" },
-    });
-    expect(trusted).not.toBe(intent);
-    expect(intent).not.toHaveProperty("initiatorWindowSessionId");
-    expect(trusted).toMatchObject({
-      type: "SUBMIT",
-      initiatorWindowSessionId: "main-owned-session",
-    });
-    expect(Object.isFrozen(trusted)).toBe(true);
-  });
-
   it("aligns relationship refusals with preserved protocol-v1 behavior", () => {
     expect(
       appRunRemoteIntentContract.keyIntentRelationship.kind === "validate" &&
@@ -306,35 +264,15 @@ describe("remote intent contract registration", () => {
     expect(appRunRemoteIntentContract.refusalMap.keyIntentMismatch).toBe(
       "unauthorized",
     );
-    expect(
-      imageGenerationRemoteIntentContract.keyIntentRelationship.kind ===
-        "validate" &&
-        imageGenerationRemoteIntentContract.keyIntentRelationship.validate(
-          { scope: "jobs" },
-          {
-            type: "CANCEL_REQUESTED",
-            jobId: "job",
-            activeInvocationRef: {
-              kind: "image-generation",
-              entityKey: "other-job",
-              operationId: "operation",
-            },
-          },
-        ),
-    ).toBe(false);
-    expect(
-      imageGenerationRemoteIntentContract.refusalMap.keyIntentMismatch,
-    ).toBe("unauthorized");
   });
 
-  it("registers both pilots and all required historical scenario names", () => {
+  it("registers the pilot and all required historical scenario names", () => {
     expect(
       PILOT_CONFORMANCE_REGISTRATIONS.map(
         ({ conformance }) => conformance.machineId,
       ),
-    ).toEqual(["app_run", "image_generation"]);
+    ).toEqual(["app_run"]);
     expect(appRunConformance.tiers).toEqual(["T0", "T1", "T2"]);
-    expect(imageGenerationConformance.tiers).toEqual(["T0", "T1", "T2"]);
     expect(appRunConformance.representativeCapabilities.canRebuild).toEqual([
       "rebuild",
     ]);
@@ -344,10 +282,7 @@ describe("remote intent contract registration", () => {
     expect(appRunConformance.representativeIntents.rebuild.event).toBe(
       "RESTART",
     );
-    const names = new Set([
-      ...appRunConformance.historicalFailureShapes,
-      ...imageGenerationConformance.historicalFailureShapes,
-    ]);
+    const names = new Set([...appRunConformance.historicalFailureShapes]);
     expect(
       REQUIRED_HISTORICAL_FAILURE_SHAPES.filter((name) => !names.has(name)),
     ).toEqual([]);
@@ -471,65 +406,6 @@ describe("pilot envelope budgets", () => {
     expect(snapshot.headroom).toBeGreaterThan(0);
   });
 
-  it("measures representative image-generation intent and snapshot payloads", () => {
-    const job = {
-      id: "j".repeat(256),
-      prompt: "p".repeat(2000),
-      themeMode: "real-photography" as const,
-      targetAppId: Number.MAX_SAFE_INTEGER,
-      targetAppName: "n".repeat(256),
-      source: "media-library" as const,
-      startedAt: Number.MAX_SAFE_INTEGER,
-    };
-    const intent = assertEnvelopeBudget({
-      label: "image_generation intent",
-      codec: imageGenerationRemoteIntentContract.rendererIntentCodec,
-      declaredLimit: imageGenerationRemoteIntentContract.budgets.intentBytes,
-      worstCase: () => ({
-        type: "SUBMIT",
-        requestId: "r".repeat(256),
-        operationId: "o".repeat(256),
-        job,
-      }),
-      toEnvelope: (event) =>
-        dispatchEnvelope(
-          "image_generation",
-          imageGenerationRemoteIntentContract.encodeKey({ scope: "jobs" }),
-          event,
-        ),
-    });
-    const snapshot = assertEnvelopeBudget({
-      label: "image_generation snapshot",
-      codec: imageGenerationRemoteIntentContract.snapshotCodec,
-      declaredLimit: imageGenerationRemoteIntentContract.budgets.snapshotBytes,
-      worstCase: () => ({
-        revision: Number.MAX_SAFE_INTEGER,
-        jobs: Array.from({ length: 32 }, (_, index) => ({
-          ...job,
-          id: `${index}-${job.id}`,
-          requestId: `request-${index}`,
-          status: "success",
-          result: {
-            fileName: "f".repeat(256),
-            appId: Number.MAX_SAFE_INTEGER,
-            appName: "a".repeat(256),
-          },
-          error: "e".repeat(4096),
-          lateAfterCancel: true,
-          activeInvocationRef: null,
-        })),
-      }),
-      toEnvelope: (state) =>
-        snapshotEnvelope(
-          "image_generation",
-          imageGenerationRemoteIntentContract.encodeKey({ scope: "jobs" }),
-          state,
-        ),
-    });
-    expect(intent.headroom).toBeGreaterThan(0);
-    expect(snapshot.headroom).toBeGreaterThan(0);
-  });
-
   it("reports the declared limit, measurement, and negative headroom", () => {
     expect(() =>
       assertEnvelopeBudget({
@@ -570,9 +446,6 @@ describe("diff-first contract report", () => {
     const report = formatContractReport(
       [...PILOT_CONFORMANCE_REGISTRATIONS].reverse(),
       unsafeEscapeHatchInventory,
-    );
-    expect(report.indexOf("app_run")).toBeLessThan(
-      report.indexOf("image_generation"),
     );
     expect(report).toContain(
       "START: completion=tracked-completion revision=actor(required=true) retry=none acceptance=admission input=preserve-until-accepted",

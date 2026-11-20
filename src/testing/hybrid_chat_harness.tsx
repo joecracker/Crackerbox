@@ -121,7 +121,6 @@ import {
   useEntityDisposal,
   useRegisterEntityDisposer,
 } from "@/state_machines/react";
-import { ImageGenerationProvider } from "@/image_generation/ImageGenerationProvider";
 import { FirstPromptProvider } from "@/first_prompt/FirstPromptProvider";
 import { GithubOpsProvider } from "@/github_ops/GithubOpsProvider";
 import { uuidIdSource } from "@/state_machines/clock";
@@ -1002,38 +1001,30 @@ export async function setupHybridChatHarness(
                   <ChatStreamProvider manager={chatStreamManager}>
                     <AppRunRemoteProvider manager={appRunManager}>
                       <GithubOpsProvider>
-                        <ImageGenerationProvider>
-                          <VersionPreviewProvider>
-                            <PreviewIframeProvider
-                              appRunState={appRunManager}
-                              manager={previewIframeManager}
-                            >
-                              <ScreenshotProvider>
-                                <ThemeProvider>
-                                  <DeepLinkProvider>
-                                    <SidebarProvider defaultOpen={false}>
-                                      {opts.wireAppEvents !== false && (
-                                        <HybridAppEventWiring
-                                          store={store}
-                                          queryClient={queryClient}
-                                          chatStreamManager={chatStreamManager}
-                                        />
-                                      )}
-                                      <RouterProvider
-                                        router={router as never}
+                        <VersionPreviewProvider>
+                          <PreviewIframeProvider
+                            appRunState={appRunManager}
+                            manager={previewIframeManager}
+                          >
+                            <ScreenshotProvider>
+                              <ThemeProvider>
+                                <DeepLinkProvider>
+                                  <SidebarProvider defaultOpen={false}>
+                                    {opts.wireAppEvents !== false && (
+                                      <HybridAppEventWiring
+                                        store={store}
+                                        queryClient={queryClient}
+                                        chatStreamManager={chatStreamManager}
                                       />
-                                      <Toaster
-                                        richColors
-                                        expand
-                                        duration={500}
-                                      />
-                                    </SidebarProvider>
-                                  </DeepLinkProvider>
-                                </ThemeProvider>
-                              </ScreenshotProvider>
-                            </PreviewIframeProvider>
-                          </VersionPreviewProvider>
-                        </ImageGenerationProvider>
+                                    )}
+                                    <RouterProvider router={router as never} />
+                                    <Toaster richColors expand duration={500} />
+                                  </SidebarProvider>
+                                </DeepLinkProvider>
+                              </ThemeProvider>
+                            </ScreenshotProvider>
+                          </PreviewIframeProvider>
+                        </VersionPreviewProvider>
                       </GithubOpsProvider>
                     </AppRunRemoteProvider>
                   </ChatStreamProvider>

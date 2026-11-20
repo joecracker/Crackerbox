@@ -15,7 +15,6 @@ import { windowRegistry } from "@/window_infrastructure/main/window_registry";
 import type { WindowSessionId } from "@/window_infrastructure/types";
 import { remoteMachineHost } from "./distributed_machine_actor_host";
 import { githubOpsDefinition } from "./github_ops_definition";
-import { imageGenerationDefinition } from "./image_generation_definition";
 import { versionPreviewDefinition } from "./version_preview_definition";
 
 export { remoteMachineHost };
@@ -24,7 +23,6 @@ const remoteMachineDefinitions = [
   appRunDefinition,
   defineLegacyRemoteMachineCompatibility(chatStreamDefinition),
   defineLegacyRemoteMachineCompatibility(githubOpsDefinition),
-  imageGenerationDefinition,
   defineLegacyRemoteMachineCompatibility(planHandoffDefinition),
   defineLegacyRemoteMachineCompatibility(versionPreviewDefinition),
 ] as const;

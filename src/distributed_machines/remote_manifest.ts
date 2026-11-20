@@ -12,7 +12,6 @@ import { MachineIdentitySchema } from "./remote_protocol";
 export const REMOTE_PROTOCOL_V1_COMPATIBILITY_INVENTORY = Object.freeze([
   "chat_stream",
   "github_ops",
-  "image_generation",
   "plan_handoff",
   "version_preview",
 ]);

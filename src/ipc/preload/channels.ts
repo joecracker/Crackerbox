@@ -57,10 +57,6 @@ import { planEvents, planContracts } from "../types/plan";
 import { audioContracts } from "../types/audio";
 import { mediaContracts, mediaSendContracts } from "../types/media";
 import {
-  imageGenerationContracts,
-  imageGenerationEvents,
-} from "../types/image_generation";
-import {
   appBlueprintContracts,
   appBlueprintEvents,
 } from "../types/app_blueprint";
@@ -158,7 +154,6 @@ export const VALID_INVOKE_CHANNELS = [
   ...getInvokeChannels(userInputContracts),
   ...getInvokeChannels(windowInfrastructureContracts),
   ...getInvokeChannels(distributedMachineContracts),
-  ...getInvokeChannels(imageGenerationContracts),
   ...getInvokeChannels(previewViewContracts),
 
   // Test-only channels
@@ -206,7 +201,6 @@ export const VALID_RECEIVE_CHANNELS = [
   ...getReceiveChannels(appBlueprintEvents),
   ...getReceiveChannels(testsEvents),
   ...getReceiveChannels(userInputEvents),
-  ...getReceiveChannels(imageGenerationEvents),
   ...getReceiveChannels(windowInfrastructureEvents),
   ...getReceiveChannels(distributedMachineEvents),
   ...getReceiveChannels(recordingEvents),

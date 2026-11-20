@@ -39,7 +39,6 @@ import {
 } from "@/components/mobile-bottom-nav";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
-import { ImageGenerationProvider } from "@/image_generation/ImageGenerationProvider";
 import {
   FirstPromptProvider,
   type FirstPromptChatStream,
@@ -77,18 +76,16 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <AppRunRemoteProvider>
           <ScreenshotProvider>
             <GithubOpsProvider>
-              <ImageGenerationProvider>
-                <FirstPromptProvider
-                  chatStream={firstPromptChatStream}
-                  clock={systemClock}
-                  idSource={uuidIdSource}
-                  settleDelayMs={settings?.isTestMode ? 0 : 2_000}
-                >
-                  <PlanHandoffProvider>
-                    <RootLayoutContent>{children}</RootLayoutContent>
-                  </PlanHandoffProvider>
-                </FirstPromptProvider>
-              </ImageGenerationProvider>
+              <FirstPromptProvider
+                chatStream={firstPromptChatStream}
+                clock={systemClock}
+                idSource={uuidIdSource}
+                settleDelayMs={settings?.isTestMode ? 0 : 2_000}
+              >
+                <PlanHandoffProvider>
+                  <RootLayoutContent>{children}</RootLayoutContent>
+                </PlanHandoffProvider>
+              </FirstPromptProvider>
             </GithubOpsProvider>
           </ScreenshotProvider>
         </AppRunRemoteProvider>

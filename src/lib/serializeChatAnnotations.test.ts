@@ -96,7 +96,6 @@ describe("serializeChatAnnotations", () => {
       hasChatComposerPayload({
         inputValue: "",
         attachmentCount: 0,
-        hasSuccessfulImageJobs: false,
         annotationCount: 1,
       }),
     ).toBe(true);
@@ -104,7 +103,6 @@ describe("serializeChatAnnotations", () => {
       hasChatComposerPayload({
         inputValue: "",
         attachmentCount: 0,
-        hasSuccessfulImageJobs: false,
         annotationCount: 0,
       }),
     ).toBe(false);

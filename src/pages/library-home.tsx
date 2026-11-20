@@ -15,7 +15,6 @@ import {
   type FilterType,
 } from "@/components/LibraryFilterTabs";
 import { DyadAppMediaFolder } from "@/components/DyadAppMediaFolder";
-import { ImageGenerationProgressButton } from "@/components/ImageGenerationProgressButton";
 import { filterMediaAppsByQuery } from "@/lib/mediaUtils";
 // ---------------------------------------------------------------------------
 // Main Library Homepage
@@ -129,7 +128,6 @@ export default function LibraryHomePage() {
               Library
             </h1>
             <div className="flex items-center gap-2">
-              <ImageGenerationProgressButton />
               <NewLibraryItemMenu
                 onNewPrompt={() => setPromptDialogOpen(true)}
                 onNewTheme={() => setCreateThemeDialogOpen(true)}

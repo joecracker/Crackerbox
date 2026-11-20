@@ -191,11 +191,6 @@ import { queryInvalidationBus } from "@/window_infrastructure/main/query_invalid
 import { entityDisposalBus } from "@/window_infrastructure/main/entity_disposal_bus";
 import { appRunActorService } from "../services/app_run_actor_service";
 import { githubOpsActorService } from "../services/github_ops_actor_service";
-import {
-  imageGenerationActorService,
-  type ImageGenerationDeletionFence,
-} from "../services/image_generation_actor_service";
-import { imageGenerationService } from "../services/image_generation_service";
 import { coolifyDeployRegistry } from "@/coolify_deploy/controller";
 import { githubOpsService } from "../services/github_ops_service";
 import { versionPreviewActorService } from "../services/version_preview_actor_service";
@@ -656,13 +651,9 @@ async function deleteAppByIdExclusive(
   let githubDeletionStarted = false;
   let coolifyDeletionStarted = false;
   let releaseStreamAdmissionBlock: (() => void) | undefined;
-  let imageGenerationDeletion: ImageGenerationDeletionFence | undefined;
   let releaseChatCreation: (() => void) | undefined;
   const releaseChatActorAdmission: (() => void)[] = [];
   const releaseSubagentAdmission: (() => void)[] = [];
-  let deletionCommitted = false;
-  let imageGenerationCleanupFailed = false;
-  let imageGenerationCleanupError: unknown;
   let deletedRow: typeof apps.$inferSelect | null = null;
   try {
     versionPreviewActorService.beginAppDeletion(appId);
@@ -672,17 +663,12 @@ async function deleteAppByIdExclusive(
     githubDeletionStarted = true;
     coolifyDeployRegistry.beginAppDeletion(appId);
     coolifyDeletionStarted = true;
-    imageGenerationDeletion =
-      imageGenerationActorService.beginAppDeletion(appId);
     releaseChatCreation = beginAppChatDeletion(appId);
 
     // Below the fences, not among them: draining a running deploy waits, and
     // every fence above has to be held before anything is allowed to wait.
     await coolifyDeployRegistry.dispose(appId);
     await versionPreviewActorService.prepareAppDeletion(appId);
-    await imageGenerationActorService.prepareAppDeletion(
-      imageGenerationDeletion,
-    );
     await appOperationDeletion.drain();
     // Actor cancellation can wait for an in-flight stream to finish writes.
     // Coordinator and actor admission are closed before either snapshot, so a
@@ -725,7 +711,6 @@ async function deleteAppByIdExclusive(
           if (options.allowMissing && options.knownAppPath) {
             await appRunDeletion.seal();
             appRunDeletion.commit();
-            deletionCommitted = true;
             return { appPath: options.knownAppPath, doomedRow: null };
           }
           throw new DyadError("App not found", DyadErrorKind.NotFound);
@@ -768,7 +753,6 @@ async function deleteAppByIdExclusive(
             await deleteChatJournals(chatId);
           await db.delete(apps).where(eq(apps.id, appId));
           appRunDeletion.commit();
-          deletionCommitted = true;
           // Note: Associated chats will cascade delete
           if (options.publishDisposal !== false) {
             for (const { id: chatId } of appChats) {
@@ -827,40 +811,18 @@ async function deleteAppByIdExclusive(
     for (const release of releaseChatActorAdmission) release();
     releaseChatCreation?.();
     try {
-      if (imageGenerationDeletion) {
-        try {
-          await imageGenerationActorService.finishAppDeletion(
-            imageGenerationDeletion,
-            deletionCommitted,
-          );
-        } catch (error) {
-          if (deletionCommitted) {
-            logger.warn(
-              `Post-deletion image-generation cleanup failed for app ${appId}`,
-              error,
-            );
-          } else {
-            imageGenerationCleanupFailed = true;
-            imageGenerationCleanupError = error;
-          }
-        }
-      }
+      if (githubDeletionStarted) githubOpsService.endAppDeletion(appId);
+      if (coolifyDeletionStarted) coolifyDeployRegistry.endAppDeletion(appId);
     } finally {
       try {
-        if (githubDeletionStarted) githubOpsService.endAppDeletion(appId);
-        if (coolifyDeletionStarted) coolifyDeployRegistry.endAppDeletion(appId);
-      } finally {
-        try {
-          if (versionPreviewDeletionStarted) {
-            versionPreviewActorService.endAppDeletion(appId);
-          }
-        } finally {
-          releaseStreamAdmissionBlock?.();
+        if (versionPreviewDeletionStarted) {
+          versionPreviewActorService.endAppDeletion(appId);
         }
+      } finally {
+        releaseStreamAdmissionBlock?.();
       }
     }
   }
-  if (imageGenerationCleanupFailed) throw imageGenerationCleanupError;
   return deletedRow;
 }
 
@@ -1978,7 +1940,6 @@ export function registerAppHandlers() {
     let appRunResetCompleted = false;
     versionPreviewService.beginReset();
     githubOpsService.beginReset();
-    imageGenerationService.beginReset();
     try {
       releaseSubagentReset = await subagentResetPromise;
       logger.log("start: resetting all apps and settings.");
@@ -2001,8 +1962,6 @@ export function registerAppHandlers() {
       logger.log("all app run actors disposed.");
       await githubOpsActorService.disposeAllApps();
       logger.log("all GitHub operation actors disposed.");
-      await imageGenerationActorService.disposeAllApps();
-      logger.log("all image generation actors disposed.");
       await coolifyDeployRegistry.disposeAll();
       logger.log("all Coolify deployment machines disposed.");
       await versionPreviewActorService.disposeAllApps();
@@ -2092,7 +2051,6 @@ export function registerAppHandlers() {
       } else if (!appRunResetCommitted) {
         appRunReset.abort();
       }
-      imageGenerationService.endReset();
       githubOpsService.endReset();
       versionPreviewService.endReset();
     }

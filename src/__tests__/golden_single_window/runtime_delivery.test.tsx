@@ -1,4 +1,4 @@
-import { act, render, renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { createStore, Provider } from "jotai";
 import type { PropsWithChildren } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -7,7 +7,6 @@ import { AppRunRemoteProvider } from "@/app_run/AppRunRemoteProvider";
 import { TestAppRunRemoteConnection } from "@/app_run/testing";
 import { selectedAppIdAtom } from "@/atoms/appAtoms";
 import { useAppOutputSubscription, useRunApp } from "@/hooks/useRunApp";
-import { ImageGenerationProvider } from "@/image_generation/ImageGenerationProvider";
 import { PackageManagerWarningProvider } from "@/package_manager_warnings/PackageManagerWarningProvider";
 import { PackageManagerWarningStore } from "@/package_manager_warnings/store";
 import { createSequentialIdSource } from "@/state_machines/testing";
@@ -19,22 +18,7 @@ import {
 const mocks = vi.hoisted(() => ({
   appOutputBatchListeners: new Set<(outputs: any[]) => void>(),
   appOutputListeners: new Set<(output: any) => void>(),
-  dismissImageGenerationToast: vi.fn(),
-  imagePresentationListener: undefined as
-    | ((event: {
-        type: "succeeded";
-        result: {
-          fileName: string;
-          appPath: string;
-          appId: number;
-          appName: string;
-        };
-        pendingCount: number;
-      }) => void)
-    | undefined,
   runApp: vi.fn(),
-  showImageGeneratingToast: vi.fn(),
-  showImageSuccessToast: vi.fn(),
   showInputRequest: vi.fn(),
 }));
 
@@ -51,16 +35,6 @@ vi.mock("@/ipc/types", async (importOriginal) => {
       },
       events: {
         ...original.ipc.events,
-        imageGeneration: {
-          onPresentation: (
-            listener: NonNullable<typeof mocks.imagePresentationListener>,
-          ) => {
-            mocks.imagePresentationListener = listener;
-            return () => {
-              mocks.imagePresentationListener = undefined;
-            };
-          },
-        },
         misc: {
           onAppOutput: (listener: (output: any) => void) => {
             mocks.appOutputListeners.add(listener);
@@ -89,12 +63,6 @@ vi.mock("@/hooks/useSettings", () => ({
 vi.mock("@/lib/toast", () => ({
   showError: vi.fn(),
   showInputRequest: mocks.showInputRequest,
-}));
-
-vi.mock("@/components/ImageGenerationToast", () => ({
-  dismissImageGenerationToast: mocks.dismissImageGenerationToast,
-  showImageGeneratingToast: mocks.showImageGeneratingToast,
-  showImageSuccessToast: mocks.showImageSuccessToast,
 }));
 
 vi.mock("sonner", () => ({
@@ -216,33 +184,5 @@ describe("golden single-window: runtime presentation delivery", () => {
       expect.any(Function),
     );
     hook.unmount();
-  });
-
-  it("presents one routed success when generation settles", () => {
-    const result = {
-      fileName: "generated.png",
-      appPath: "app",
-      appId: 7,
-      appName: "Golden app",
-    };
-    const view = render(
-      <ImageGenerationProvider>
-        <div />
-      </ImageGenerationProvider>,
-    );
-
-    act(() => {
-      mocks.imagePresentationListener?.({
-        type: "succeeded",
-        result,
-        pendingCount: 0,
-      });
-    });
-
-    expect(mocks.showImageSuccessToast).toHaveBeenCalledExactlyOnceWith(
-      result,
-      expect.any(Function),
-    );
-    view.unmount();
   });
 });

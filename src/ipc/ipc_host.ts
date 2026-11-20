@@ -59,7 +59,6 @@ import { registerUserInputHandlers } from "./handlers/user_input_handlers";
 import { registerFirstPromptHandlers } from "./handlers/first_prompt_handlers";
 import { registerWindowInfrastructureHandlers } from "./handlers/window_infrastructure_handlers";
 import { registerDistributedMachineHandlers } from "./handlers/distributed_machine_handlers";
-import { registerImageGenerationHandlers } from "./handlers/image_generation_handlers";
 import { registerCoolifyHandlers } from "./handlers/coolify_handlers";
 import { registerPreviewViewHandlers } from "./handlers/preview_view_handlers";
 import { registerNativeThemeHandlers } from "./handlers/native_theme_handlers";
@@ -128,7 +127,6 @@ export function registerIpcHandlers() {
   registerFirstPromptHandlers();
   registerWindowInfrastructureHandlers();
   registerDistributedMachineHandlers();
-  registerImageGenerationHandlers();
   registerCoolifyHandlers();
   registerPreviewViewHandlers();
   registerNativeThemeHandlers();

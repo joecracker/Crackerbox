@@ -5,14 +5,14 @@ import { PILOT_FINDINGS } from "./pilot_finding_catalog";
 
 describe("pilot finding enforcement catalog", () => {
   it("maps every exact PR7 and PR8 review finding once", () => {
-    expect(PILOT_FINDINGS).toHaveLength(25);
-    expect(new Set(PILOT_FINDINGS.map(({ id }) => id)).size).toBe(25);
+    expect(PILOT_FINDINGS).toHaveLength(17);
+    expect(new Set(PILOT_FINDINGS.map(({ id }) => id)).size).toBe(17);
     expect(
       PILOT_FINDINGS.reduce<Record<number, number>>((counts, finding) => {
         counts[finding.pr] = (counts[finding.pr] ?? 0) + 1;
         return counts;
       }, {}),
-    ).toEqual({ 4144: 13, 4145: 12 });
+    ).toEqual({ 4144: 5, 4145: 12 });
   });
 
   it("pins every executable coverage mapping to an exact named test", () => {
@@ -38,6 +38,6 @@ describe("pilot finding enforcement catalog", () => {
       PILOT_FINDINGS.filter(({ decisionBlocker }) => decisionBlocker).map(
         ({ id }) => id,
       ),
-    ).toEqual(["4144-3672394282", "4144-3675796771", "4144-3676159765"]);
+    ).toEqual([]);
   });
 });

@@ -30,7 +30,6 @@ export const distributedDefinitionInventory = [
   "app_run/definition.ts::appRunDefinition",
   "chat_stream/definition.ts::chatStreamDefinition",
   "ipc/services/github_ops_definition.ts::githubOpsDefinition",
-  "ipc/services/image_generation_definition.ts::imageGenerationDefinition",
   "ipc/services/version_preview_definition.ts::versionPreviewDefinition",
   "plan_handoff/definition.ts::planHandoffDefinition",
 ] as const;
@@ -254,19 +253,10 @@ export const frameworkOwnedBoundaryInventory = {
  * prohibited; these exact files own the remaining internal adapters.
  */
 export const migratedSurfaceBoundaryInventory = {
-  wideningCasts: [
-    owned("app_run/definition.ts", 1),
-    owned("ipc/services/image_generation_definition.ts", 1),
-  ],
-  rawDispatchOrEnqueue: [
-    owned("app_run/definition.ts", 1),
-    owned("image_generation/hooks.ts", 2),
-    owned("ipc/services/image_generation_actor_service.ts", 2),
-  ],
-  deletionResetFences: [owned("ipc/services/image_generation_service.ts", 8)],
-  initiatorRoutingMaps: [
-    owned("ipc/services/image_generation_presentation_service.ts", 6),
-  ],
+  wideningCasts: [owned("app_run/definition.ts", 1)],
+  rawDispatchOrEnqueue: [owned("app_run/definition.ts", 1)],
+  deletionResetFences: [],
+  initiatorRoutingMaps: [],
 } as const;
 
 /**
@@ -329,10 +319,6 @@ export const migratedStatefulOwnerInventory = [
   owned("app_run/remote_manager.ts", 1),
   owned("app_run/transport.ts", 1),
   owned("hooks/useRunApp.ts", 1),
-  owned("image_generation/selectors.ts", 1),
   owned("ipc/services/app_runtime_service.ts", 3),
   owned("ipc/services/app_runtime_transport.ts", 1),
-  owned("ipc/services/image_generation_definition.ts", 1),
-  owned("ipc/services/image_generation_presentation_service.ts", 2),
-  owned("ipc/services/image_generation_service.ts", 3),
 ] as const;

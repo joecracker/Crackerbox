@@ -349,7 +349,6 @@ export type {
   SelectNodeFolderResult,
   DoesReleaseNoteExistParams,
   UserBudgetInfo,
-  SubscriptionStatus,
   TelemetryEventPayload,
 } from "./system";
 
@@ -442,9 +441,6 @@ export type { FreeModelQuotaStatus } from "./free_model_quota";
 export type { OpenRouterBalance } from "./openrouter_balance";
 export type { VeniceBalance } from "./venice_balance";
 
-// Pro types
-export type { TranscribeAudioParams, TranscribeAudioResult } from "./audio";
-
 // Media types
 export type {
   MediaFile,
@@ -518,7 +514,7 @@ export {
   AgentToolSchema,
 } from "./agent";
 
-export { SubscriptionStatusSchema, UserBudgetInfoSchema } from "./system";
+export { UserBudgetInfoSchema } from "./system";
 
 // =============================================================================
 // Aggregated IPC Client

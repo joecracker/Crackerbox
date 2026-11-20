@@ -10,7 +10,6 @@ import {
 import log from "electron-log";
 import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
 import { getExtraProviderOptionsForEngine } from "./thinking_utils";
-import { getTestFetchOption } from "./test_fetch_override";
 import { DYAD_INTERNAL_REQUEST_ID_HEADER } from "./provider_options";
 import type { ModelSelection, UserSettings } from "../../lib/schemas";
 import type { LanguageModel } from "ai";
@@ -359,57 +358,6 @@ export function createDyadEngine(
   provider.anthropic = createAnthropicModel;
 
   return provider;
-}
-
-export async function transcribeWithDyadEngine(
-  audioBuffer: Buffer,
-  filename: string,
-  requestId: string,
-  options: ExampleProviderSettings,
-): Promise<string> {
-  const baseURL = withoutTrailingSlash(options.baseURL);
-  const apiKey = getDyadEngineApiKey(options.apiKey);
-  logger.info("transcribing with dyad engine with baseURL", baseURL);
-
-  const formData = new FormData();
-  const mimeType = filename.endsWith(".webm")
-    ? "audio/webm"
-    : filename.endsWith(".mp3")
-      ? "audio/mpeg"
-      : filename.endsWith(".wav")
-        ? "audio/wav"
-        : filename.endsWith(".m4a")
-          ? "audio/mp4"
-          : "audio/webm";
-  const audioBytes = new Uint8Array(
-    audioBuffer.buffer as ArrayBuffer,
-    audioBuffer.byteOffset,
-    audioBuffer.byteLength,
-  );
-  const blob = new Blob([audioBytes], { type: mimeType });
-  formData.append("file", blob, filename);
-  formData.append("model", "dyad/transcribe");
-
-  const fetchFn = options.fetch || getTestFetchOption().fetch || fetch;
-  const response = await fetchFn(`${baseURL}/audio/transcriptions`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "X-Dyad-Request-Id": requestId,
-      ...options.headers,
-    },
-    body: formData,
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new DyadError(
-      `Dyad Engine transcription failed: ${response.status} ${response.statusText} - ${errorText}`,
-      DyadErrorKind.External,
-    );
-  }
-  const data = (await response.json()) as { text: string };
-  return data.text;
 }
 
 function getDyadEngineApiKey(apiKey: string | undefined): string {

@@ -61,13 +61,6 @@ export class Settings {
     }
   }
 
-  async changeReleaseChannel(channel: "stable" | "beta") {
-    await this.page.getByRole("combobox", { name: "Release Channel" }).click();
-    await this.page
-      .getByRole("option", { name: channel === "stable" ? "Stable" : "Beta" })
-      .click();
-  }
-
   async changeRuntimeMode(mode: "host" | "docker" | "cloud") {
     await this.page.getByRole("combobox", { name: "Runtime Mode" }).click();
     await this.page

@@ -27,7 +27,6 @@ import { ChatEventNotificationSwitch } from "@/components/ChatEventNotificationS
 import { AutoUpdateSwitch } from "@/components/AutoUpdateSwitch";
 import { StartMinimizedSwitch } from "@/components/StartMinimizedSwitch";
 import { TrustedFoldersSetting } from "@/components/TrustedFoldersSetting";
-import { ReleaseChannelSelector } from "@/components/ReleaseChannelSelector";
 import { NeonIntegration } from "@/components/NeonIntegration";
 import { HomeAssistantSettings } from "@/components/HomeAssistantSettings";
 import { PreviewTabletSizeSettings } from "@/components/PreviewTabletSizeSettings";
@@ -589,10 +588,6 @@ export function GeneralSettings({ appVersion }: { appVersion: string | null }) {
           This will automatically update the app when new versions are
           available.
         </p>
-      </div>
-
-      <div id={SETTING_IDS.releaseChannel}>
-        <ReleaseChannelSelector />
       </div>
 
       <div id={SETTING_IDS.runtimeMode}>

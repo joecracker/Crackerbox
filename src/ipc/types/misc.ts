@@ -110,8 +110,6 @@ const DebugSettingsSchema = z.object({
   proLazyEditsMode: z.string().nullable(),
   /** Whether smart files context mode is enabled (Pro) */
   enableProSmartFilesContextMode: z.boolean().nullable(),
-  /** Whether web search is enabled (Pro) */
-  enableProWebSearch: z.boolean().nullable(),
   /** Smart context option: "balanced" | "conservative" | "deep" */
   proSmartContextOption: z.string().nullable(),
   /** Whether Supabase write SQL migration is enabled */

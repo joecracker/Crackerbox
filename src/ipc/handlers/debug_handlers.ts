@@ -223,7 +223,6 @@ function sanitizeSettingsForDebug(
     proLazyEditsMode: settings.proLazyEditsMode ?? null,
     enableProSmartFilesContextMode:
       settings.enableProSmartFilesContextMode ?? null,
-    enableProWebSearch: settings.enableProWebSearch ?? null,
     proSmartContextOption: settings.proSmartContextOption ?? null,
     enableSupabaseWriteSqlMigration:
       settings.enableSupabaseWriteSqlMigration ?? null,

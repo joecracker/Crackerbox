@@ -154,9 +154,6 @@ export type RegularProviderSetting = z.infer<
 export type AzureProviderSetting = z.infer<typeof AzureProviderSettingSchema>;
 export type VertexProviderSetting = z.infer<typeof VertexProviderSettingSchema>;
 
-export const RuntimeModeSchema = z.enum(["web-sandbox", "local-node", "unset"]);
-export type RuntimeMode = z.infer<typeof RuntimeModeSchema>;
-
 export const RuntimeMode2Schema = z.enum(["host", "docker", "cloud"]);
 export type RuntimeMode2 = z.infer<typeof RuntimeMode2Schema>;
 
@@ -380,12 +377,6 @@ export const ExperimentsSchema = z.object({
 });
 export type Experiments = z.infer<typeof ExperimentsSchema>;
 
-export const DyadProBudgetSchema = z.object({
-  budgetResetAt: z.string(),
-  maxBudget: z.number(),
-});
-export type DyadProBudget = z.infer<typeof DyadProBudgetSchema>;
-
 export const GlobPathSchema = z.object({
   globPath: z.string(),
 });
@@ -507,13 +498,6 @@ const BaseUserSettingsFields = {
   isTestMode: z.boolean().optional(),
 
   ////////////////////////////////
-  // DEPRECATED.
-  ////////////////////////////////
-  enableProSaverMode: z.boolean().optional(),
-  dyadProBudget: DyadProBudgetSchema.optional(),
-  runtimeMode: RuntimeModeSchema.optional(),
-
-  ////////////////////////////////
   // ACTIVE FIELDS.
   ////////////////////////////////
   selectedModel: LargeLanguageModelSchema,
@@ -566,7 +550,6 @@ const BaseUserSettingsFields = {
   enableProLazyEditsMode: z.boolean().optional(),
   proLazyEditsMode: z.enum(["off", "v1", "v2"]).optional(),
   enableProSmartFilesContextMode: z.boolean().optional(),
-  enableProWebSearch: z.boolean().optional(),
   proSmartContextOption: SmartContextModeSchema.optional(),
   selectedTemplateId: z.string(),
   selectedThemeId: z.string().optional(),

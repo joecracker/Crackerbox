@@ -4,7 +4,7 @@ import {
   FALLBACK_CODEX_CLIENT_VERSION,
   getBuiltinLanguageModelCatalog,
   getCodexClientVersion,
-} from "../shared/remote_language_model_catalog";
+} from "../shared/builtin_language_model_catalog";
 import { queryInvalidationBus } from "@/window_infrastructure/main/query_invalidation_bus";
 import {
   getCodexSubscriptionCredentials,

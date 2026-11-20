@@ -22,7 +22,6 @@ const h = vi.hoisted(() => {
   if (process.env.APPBENCH_CELL === "1") {
     // Must be set before app modules import (dyad_engine_url reads at import time).
     process.env.DYAD_ENGINE_URL = `http://127.0.0.1:${process.env.APPBENCH_PROXY_PORT ?? "7789"}`;
-    process.env.DYAD_LANGUAGE_MODEL_CATALOG_URL = `http://127.0.0.1:${process.env.APPBENCH_PROXY_PORT ?? "7789"}/catalog`;
     process.env.DYAD_NEON_API_BASE_URL = "http://127.0.0.1:7788/api/v2";
     // The in-process Neon mock must NOT engage; neon-sim only mirrors it.
     delete process.env.E2E_TEST_BUILD;
@@ -168,7 +167,6 @@ async function json(url: string, init?: RequestInit) {
       fixtureAppPath: TEMPLATE,
       chatMode: "local-agent",
       autoApprove: true,
-      useFakeCatalog: false,
       engine: false, // leave our DYAD_ENGINE_URL (recording proxy) untouched
       selectedModel: { provider: MODEL_PROVIDER, name: MODEL_NAME },
       settings: {

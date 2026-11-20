@@ -41,7 +41,7 @@ vi.mock("../shared/language_model_helpers", () => ({
     { id: "openai", name: "OpenAI", type: "cloud", gatewayPrefix: "" },
   ],
 }));
-vi.mock("../shared/remote_language_model_catalog", () => ({
+vi.mock("../shared/builtin_language_model_catalog", () => ({
   resolveBuiltinModelAlias: async (alias: string) =>
     alias === "dyad/auto/openai"
       ? { providerId: "openai", apiName: "test-model" }

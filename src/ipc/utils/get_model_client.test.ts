@@ -12,7 +12,7 @@ import { MockLanguageModelV3 } from "ai/test";
 import type { LanguageModelV3 } from "@ai-sdk/provider";
 import { getSubscriptionAccount } from "../services/codex_subscription_account";
 import { createCodexSubscriptionModel } from "./codex_subscription_provider";
-import { resolveBuiltinModelAlias } from "../shared/remote_language_model_catalog";
+import { resolveBuiltinModelAlias } from "../shared/builtin_language_model_catalog";
 
 vi.mock("../services/codex_subscription_account", () => ({
   getSubscriptionAccount: vi.fn(async () => ({ connected: false, models: [] })),
@@ -101,7 +101,7 @@ vi.mock("../shared/language_model_helpers", () => ({
   ]),
 }));
 
-vi.mock("../shared/remote_language_model_catalog", () => ({
+vi.mock("../shared/builtin_language_model_catalog", () => ({
   resolveBuiltinModelAlias: vi.fn(async (aliasId: string) => {
     switch (aliasId) {
       case "dyad/auto/openai":
@@ -627,7 +627,10 @@ describe("getModelClient", () => {
     );
     const fallback = modelClient.model as unknown as {
       modelId: string;
-      settings: { models: Array<{ modelId: string }>; fallbackOnRateLimit: boolean };
+      settings: {
+        models: Array<{ modelId: string }>;
+        fallbackOnRateLimit: boolean;
+      };
     };
     expect(fallback.settings.models.map(({ modelId }) => modelId)).toEqual([
       "gemini-3.5-flash",
@@ -635,8 +638,14 @@ describe("getModelClient", () => {
       "openrouter/free",
     ]);
     expect(fallback.settings.fallbackOnRateLimit).toBe(true);
-    expect(runtimeModel).toMatchObject({ provider: "google", name: "gemini-3.5-flash" });
-    expect(modelClient.getRuntimeModel?.()).toMatchObject({ provider: "google", name: "gemini-3.5-flash" });
+    expect(runtimeModel).toMatchObject({
+      provider: "google",
+      name: "gemini-3.5-flash",
+    });
+    expect(modelClient.getRuntimeModel?.()).toMatchObject({
+      provider: "google",
+      name: "gemini-3.5-flash",
+    });
     expect(isEngineEnabled).toBe(false);
   });
 

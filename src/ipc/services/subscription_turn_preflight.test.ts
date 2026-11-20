@@ -19,7 +19,7 @@ vi.mock("./codex_subscription_auth", () => ({
 vi.mock("./codex_subscription_credit_check", () => ({
   checkSubscriptionCredits: mocks.credits,
 }));
-vi.mock("../shared/remote_language_model_catalog", () => ({
+vi.mock("../shared/builtin_language_model_catalog", () => ({
   resolveBuiltinModelAlias: mocks.alias,
 }));
 vi.mock("../utils/model_effort", () => ({

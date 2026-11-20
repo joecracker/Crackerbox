@@ -26,7 +26,7 @@ vi.mock("electron-log", () => ({
     }),
   },
 }));
-vi.mock("../shared/remote_language_model_catalog", () => ({
+vi.mock("../shared/builtin_language_model_catalog", () => ({
   FALLBACK_CODEX_CLIENT_VERSION: "0.155.1",
   getCodexClientVersion: () => "0.155.1",
   getBuiltinLanguageModelCatalog: async () => ({

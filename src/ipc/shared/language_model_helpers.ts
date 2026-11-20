@@ -12,7 +12,7 @@ import {
   MODEL_OPTIONS,
   PROVIDER_TO_ENV_VAR,
 } from "./language_model_constants";
-import { getBuiltinLanguageModelCatalog } from "./remote_language_model_catalog";
+import { getBuiltinLanguageModelCatalog } from "./builtin_language_model_catalog";
 import {
   getCustomProviderModels,
   getProviderModels,
@@ -48,8 +48,6 @@ export async function getLanguageModelProviders(): Promise<
 
   const builtinCatalog = await getBuiltinLanguageModelCatalog();
   logger.debug("Loaded builtin catalog for provider list", {
-    source: builtinCatalog.source,
-    version: builtinCatalog.version,
     providerCount: builtinCatalog.providers.length,
   });
 
@@ -152,8 +150,6 @@ export async function getLanguageModels({
     const builtinCatalog = await getBuiltinLanguageModelCatalog();
     logger.debug("Loading cloud models from builtin catalog", {
       providerId,
-      source: builtinCatalog.source,
-      version: builtinCatalog.version,
       hasProviderModels: providerId in builtinCatalog.modelsByProvider,
     });
     if (providerId in builtinCatalog.modelsByProvider) {

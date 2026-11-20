@@ -33,7 +33,7 @@ import type {
 import {
   getThemeGenerationModelOptions,
   resolveBuiltinModelAlias,
-} from "@/ipc/shared/remote_language_model_catalog";
+} from "@/ipc/shared/builtin_language_model_catalog";
 import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
 
 const logger = log.scope("themes_handlers");

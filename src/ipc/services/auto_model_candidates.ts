@@ -1,5 +1,5 @@
 import type { ModelSelection, UserSettings } from "@/lib/schemas";
-import { resolveBuiltinModelAlias } from "../shared/remote_language_model_catalog";
+import { resolveBuiltinModelAlias } from "../shared/builtin_language_model_catalog";
 import { resolveModelSelection } from "../utils/model_effort";
 import { resolveSubscriptionModel } from "./resolve_subscription_model";
 

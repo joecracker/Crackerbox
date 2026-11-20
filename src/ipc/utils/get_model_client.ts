@@ -30,7 +30,7 @@ import { getMaxTokens, getTemperature } from "./token_utils";
 import log from "electron-log";
 import { FREE_OPENROUTER_MODEL_NAMES } from "../shared/language_model_constants";
 import { getLanguageModelProviders } from "../shared/language_model_helpers";
-import { resolveBuiltinModelAlias } from "../shared/remote_language_model_catalog";
+import { resolveBuiltinModelAlias } from "../shared/builtin_language_model_catalog";
 import { LanguageModelProvider } from "@/ipc/types";
 import {
   createDyadEngine,

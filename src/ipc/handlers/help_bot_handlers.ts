@@ -16,7 +16,7 @@ import {
 import { createTypedHandler } from "./base";
 import { helpContracts } from "../types/help";
 import { getTestFetchOption } from "../utils/test_fetch_override";
-import { resolveBuiltinModelAlias } from "../shared/remote_language_model_catalog";
+import { resolveBuiltinModelAlias } from "../shared/builtin_language_model_catalog";
 import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
 
 const logger = log.scope("help-bot");

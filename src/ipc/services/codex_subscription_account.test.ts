@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   catalog: vi.fn(),
   codexClientVersion: vi.fn(),
 }));
-vi.mock("../shared/remote_language_model_catalog", () => ({
+vi.mock("../shared/builtin_language_model_catalog", () => ({
   FALLBACK_CODEX_CLIENT_VERSION: "0.155.1",
   getBuiltinLanguageModelCatalog: mocks.catalog,
   getCodexClientVersion: mocks.codexClientVersion,

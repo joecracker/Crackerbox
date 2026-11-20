@@ -206,8 +206,17 @@ function snapshotDirs(root: string): string[] {
   }
 }
 
-/** Clears the read-only flag on everything under a folder so it can be deleted. */
+/**
+ * Clears the read-only flag on a folder and everything under it so it can be
+ * deleted. On Windows a read-only folder cannot be removed even when it is
+ * empty, so the folders themselves need clearing too, not just the files.
+ */
 function makeWritable(dir: string) {
+  try {
+    fs.chmodSync(dir, 0o777);
+  } catch {
+    // leave it; the delete will report it
+  }
   let entries: fs.Dirent[] = [];
   try {
     entries = fs.readdirSync(dir, { withFileTypes: true });

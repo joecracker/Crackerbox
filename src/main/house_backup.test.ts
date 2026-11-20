@@ -168,6 +168,23 @@ describe("house backup", () => {
     );
     expect(fs.readdirSync(path.join(ctx.root, "snapshots"))).toHaveLength(7);
   });
+
+  it("removes an old snapshot whose folders are read-only (Windows refuses to delete those)", () => {
+    const { ctx } = setup();
+    for (let d = 1; d <= 8; d++) {
+      fs.mkdirSync(path.join(ctx.root, "snapshots", `2026-11-0${d}`), {
+        recursive: true,
+      });
+    }
+    const old = path.join(ctx.root, "snapshots", "2026-11-01");
+    const sub = path.join(old, "docs");
+    fs.mkdirSync(sub, { recursive: true });
+    fs.chmodSync(sub, 0o555);
+    fs.chmodSync(old, 0o555);
+    pruneSnapshots(ctx.root);
+    expect(fs.existsSync(old)).toBe(false);
+    expect(fs.readdirSync(path.join(ctx.root, "snapshots"))).toHaveLength(7);
+  });
 });
 
 describe("backup retry gate", () => {

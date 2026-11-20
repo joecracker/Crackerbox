@@ -5,7 +5,6 @@ import { app, safeStorage } from "electron";
 import {
   readSettings,
   resolveEffectiveSettings,
-  readEffectiveSettings,
   getSettingsFilePath,
   recordRendererCrash,
   readRendererCrashRecord,
@@ -23,7 +22,6 @@ import {
 import { getUserDataPath } from "@/paths/paths";
 import { forgottenCoolify, UserSettings } from "@/lib/schemas";
 import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
-import { getRemoteDesktopConfig } from "@/ipc/shared/remote_desktop_config";
 import {
   getRecoveryStats,
   recoverLegacySafeStorageSecret,
@@ -60,9 +58,6 @@ vi.mock("electron", () => ({
 vi.mock("@/paths/paths", () => ({
   getUserDataPath: vi.fn(),
 }));
-vi.mock("@/ipc/shared/remote_desktop_config", () => ({
-  getRemoteDesktopConfig: vi.fn(),
-}));
 // settings.ts falls back to legacy Keychain recovery when a secret fails to
 // decrypt; unit tests must never shell out to the real `security` CLI.
 vi.mock("@/main/safe_storage_legacy", () => ({
@@ -74,7 +69,6 @@ const mockFs = vi.mocked(fs);
 const mockPath = vi.mocked(path);
 const mockSafeStorage = vi.mocked(safeStorage);
 const mockGetUserDataPath = vi.mocked(getUserDataPath);
-const mockGetRemoteDesktopConfig = vi.mocked(getRemoteDesktopConfig);
 
 describe("readSettings", () => {
   const mockUserDataPath = "/mock/user/data";
@@ -753,39 +747,23 @@ describe("readSettings", () => {
   });
 
   describe("effective settings", () => {
-    it("applies the remote default when the user has not explicitly set the setting", async () => {
-      mockGetRemoteDesktopConfig.mockResolvedValue({
-        defaults: { blockUnsafeNpmPackages: false },
-      });
-      mockFs.existsSync.mockReturnValue(true);
-      mockFs.readFileSync.mockReturnValue(JSON.stringify({}));
-
-      const result = await readEffectiveSettings();
-
-      expect(result.blockUnsafeNpmPackages).toBe(false);
-      expect(mockFs.writeFileSync).not.toHaveBeenCalled();
-    });
-
     it("does not override an explicitly stored local value", () => {
       mockFs.existsSync.mockReturnValue(true);
       mockFs.readFileSync.mockReturnValue(JSON.stringify({}));
 
-      const result = resolveEffectiveSettings(
-        {
-          ...readSettings(),
-          blockUnsafeNpmPackages: true,
-        },
-        null,
-      );
+      const result = resolveEffectiveSettings({
+        ...readSettings(),
+        blockUnsafeNpmPackages: true,
+      });
 
       expect(result.blockUnsafeNpmPackages).toBe(true);
     });
 
-    it("falls back to the built-in default when remote config is missing", () => {
+    it("defaults to blocking unsafe npm packages when the user has not chosen", () => {
       mockFs.existsSync.mockReturnValue(true);
       mockFs.readFileSync.mockReturnValue(JSON.stringify({}));
 
-      const result = resolveEffectiveSettings(readSettings(), null);
+      const result = resolveEffectiveSettings(readSettings());
 
       expect(result.blockUnsafeNpmPackages).toBe(true);
     });

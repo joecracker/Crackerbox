@@ -23,10 +23,6 @@ import log from "electron-log";
 import { DEFAULT_TEMPLATE_ID } from "@/shared/templates";
 import { DEFAULT_THEME_ID } from "@/shared/themes";
 import { IS_TEST_BUILD } from "@/ipc/utils/test_utils";
-import {
-  getRemoteDesktopConfig,
-  type RemoteDesktopConfig,
-} from "@/ipc/shared/remote_desktop_config";
 import { DyadError, DyadErrorKind } from "@/errors/dyad_error";
 import { ZodError } from "zod";
 import { parseSettingsWithRepair } from "@/lib/settingsRepair";
@@ -334,25 +330,19 @@ export function readSettings(): UserSettings {
   }
 }
 
-export function resolveEffectiveSettings(
-  settings: UserSettings,
-  remoteConfig: RemoteDesktopConfig | null,
-): UserSettings {
+export function resolveEffectiveSettings(settings: UserSettings): UserSettings {
   if (typeof settings.blockUnsafeNpmPackages === "boolean") {
     return settings;
   }
 
   return {
     ...settings,
-    blockUnsafeNpmPackages:
-      remoteConfig?.defaults?.blockUnsafeNpmPackages ?? true,
+    blockUnsafeNpmPackages: true,
   };
 }
 
 export async function readEffectiveSettings(): Promise<UserSettings> {
-  const settings = readSettings();
-  const remoteConfig = await getRemoteDesktopConfig();
-  return resolveEffectiveSettings(settings, remoteConfig);
+  return resolveEffectiveSettings(readSettings());
 }
 
 export function rewriteRecoveredSafeStorageSecretsAfterKeychainUnlock(): number {

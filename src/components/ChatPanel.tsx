@@ -21,8 +21,6 @@ import { ChatHeader } from "./chat/ChatHeader";
 import { MessagesList } from "./chat/MessagesList";
 import { ChatInput } from "./chat/ChatInput";
 import { VersionPane } from "./chat/VersionPane";
-import { FreeAgentQuotaBanner } from "./chat/FreeAgentQuotaBanner";
-import { PRO_BILLING_FEATURES_ENABLED } from "@/lib/proBillingFlags";
 import { NotificationBanner } from "./chat/NotificationBanner";
 import { SupabaseLegacyKeyBanner } from "./chat/SupabaseLegacyKeyBanner";
 import { Button } from "@/components/ui/button";
@@ -35,10 +33,6 @@ import { ArrowDown, Square } from "lucide-react";
 import { useSettings } from "@/hooks/useSettings";
 import { useSpokenVoice } from "@/hooks/useSpokenVoice";
 import { selectedAppIdAtom } from "@/atoms/appAtoms";
-import { useFreeAgentQuota } from "@/hooks/useFreeAgentQuota";
-import { useChatMode } from "@/hooks/useChatMode";
-import { isDyadProEnabled } from "@/lib/schemas";
-import { isFreeProModel } from "@/lib/freeProModel";
 import { terminalOpenByChatIdAtom } from "@/atoms/terminalAtoms";
 import { useReducedMotionPref } from "@/hooks/useReducedMotion";
 import { useLoadApps } from "@/hooks/useLoadApps";
@@ -111,14 +105,6 @@ export function ChatPanel({
   const speechPlayback = useSpeechPlayback();
   const autoSpeakSawActiveStreamRef = useRef(false);
   const autoSpokenMessageIdsRef = useRef(new Set<number>());
-  const { selectedMode, selectedModel, setChatMode } = useChatMode(chatId);
-  const { isQuotaExceeded } = useFreeAgentQuota();
-  const showFreeAgentQuotaBanner =
-    PRO_BILLING_FEATURES_ENABLED &&
-    settings &&
-    !isDyadProEnabled(settings) &&
-    selectedMode === "local-agent" &&
-    isQuotaExceeded;
 
   const {
     scrollerRef,
@@ -362,15 +348,6 @@ export function ChatPanel({
                       </div>
                     )}
                   </div>
-                  {showFreeAgentQuotaBanner && (
-                    <FreeAgentQuotaBanner
-                      onSwitchToBuildMode={
-                        isFreeProModel(selectedModel)
-                          ? undefined
-                          : () => void setChatMode("build").catch(() => {})
-                      }
-                    />
-                  )}
                   <SupabaseLegacyKeyBanner appId={selectedAppId} />
                   <NotificationBanner />
                   {speechPlayback.status !== "idle" && (

@@ -9,15 +9,6 @@ export interface Template {
   requiresNeon?: boolean;
 }
 
-// API Template interface from the external API
-export interface ApiTemplate {
-  githubOrg: string;
-  githubRepo: string;
-  title: string;
-  description: string;
-  imageUrl: string;
-}
-
 export const DEFAULT_TEMPLATE_ID = "react";
 export const DEFAULT_TEMPLATE = {
   id: "react",

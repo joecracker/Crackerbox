@@ -411,11 +411,14 @@ function buildCtx(): BackupCtx {
   return {
     root,
     also,
-    targets: readRoster().map((s) => ({
-      id: s.id,
-      folder: getDyadAppPath(s.id),
-      memoryDir: agentMemoryDir(s.appId),
-    })),
+    // Helpers (askEveryStep) are not sisters: no docs, no .env, nothing to guard.
+    targets: readRoster()
+      .filter((s) => !s.askEveryStep)
+      .map((s) => ({
+        id: s.id,
+        folder: getDyadAppPath(s.id),
+        memoryDir: agentMemoryDir(s.appId),
+      })),
     houseDir: houseDir(),
     extraFiles: [],
     databaseFiles: ["sqlite.db", "sqlite.db-wal", "sqlite.db-shm"].map((n) =>

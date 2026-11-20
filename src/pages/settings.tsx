@@ -417,15 +417,16 @@ export default function SettingsPage() {
             title="Early features"
             description="Early features that may not be stable yet. Enable at your own risk."
           >
+            <div id={SETTING_IDS.enableClaudeCodeSubscription}>
+              <ClaudeCodeSubscriptionExperimentSwitch />
+            </div>
+
             <div id={SETTING_IDS.enableCloudSandbox}>
               <CloudSandboxExperimentSwitch />
             </div>
 
             <div id={SETTING_IDS.enableMultiWindow}>
               <MultiWindowExperimentSwitch />
-            </div>
-            <div id={SETTING_IDS.enableClaudeCodeSubscription}>
-              <ClaudeCodeSubscriptionExperimentSwitch />
             </div>
 
             <div id={SETTING_IDS.enableTestRunInPreview}>

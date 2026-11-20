@@ -66,6 +66,14 @@ describe("stripDyadTags and jobPrompt", () => {
     expect(p).toContain("Work in this folder: C:\\x");
     expect(p).toContain("Do not send a letter");
   });
+  it("carries the standing rules: measured numbers, stay in the folder, say what was checked", () => {
+    const p = jobPrompt({ fromName: "Dextra", task: "Count files" });
+    expect(p).toContain("Standing rules for every job");
+    expect(p).toContain("never from counting by eye");
+    expect(p).toContain("I did not count this");
+    expect(p).toContain("touch only what the job names");
+    expect(p).toContain("what you checked and what you did not");
+  });
 });
 
 describe("runHelperJob", () => {

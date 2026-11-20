@@ -93,7 +93,7 @@ export function jobPrompt(input: {
   const where = input.folder?.trim()
     ? `\n\nWork in this folder: ${input.folder.trim()}`
     : "";
-  return `Job from ${input.fromName}, handed to you directly (not by letter). Tim approved handing it to you, and he approves each step you take.\n\nJob:\n${input.task.trim()}${where}\n\nWhen you are done, make your LAST message a plain summary: what you did, which files changed, and anything left over or blocked. That last message goes straight back to ${input.fromName}. Do not send a letter for this job.`;
+  return `Job from ${input.fromName}, handed to you directly (not by letter). Tim approved handing it to you, and he approves each step you take.\n\nJob:\n${input.task.trim()}${where}\n\nStanding rules for every job:\n- Any number you report (counts, sizes, lines, totals) must come from a command or tool result you actually ran, never from counting by eye. If you did not measure it, write \"I did not count this\" instead of guessing.\n- Stay inside the folder named for this job and touch only what the job names. If it needs more than that, stop and say so.\n- Say plainly what you checked and what you did not.\n\nWhen you are done, make your LAST message a plain summary: what you did, which files changed, and anything left over or blocked. That last message goes straight back to ${input.fromName}. Do not send a letter for this job.`;
 }
 
 async function lastAssistantText(chatId: number): Promise<string> {

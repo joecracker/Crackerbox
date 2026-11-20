@@ -81,10 +81,23 @@ describe("a helper's Always-allow rules in Settings > The house", () => {
     });
   });
 
-  it("says there are none when the helper has no rules", async () => {
+  it("shows nothing at all when the helper has no rules", async () => {
     mocks.listSisters.mockResolvedValue([entity("laptop", "Laptop", true)]);
     mocks.listEntityAlways.mockResolvedValue([]);
     renderSettings();
-    expect(await screen.findByText(/asks before every step/)).toBeTruthy();
+    await screen.findByTestId("house-entity-laptop");
+    await waitFor(() => expect(mocks.listEntityAlways).toHaveBeenCalled());
+    expect(screen.queryByTestId("house-rules-laptop")).toBeNull();
+  });
+
+  it("keeps the list closed until it is opened", async () => {
+    mocks.listSisters.mockResolvedValue([entity("laptop", "Laptop", true)]);
+    mocks.listEntityAlways.mockResolvedValue(["run_command"]);
+    renderSettings();
+    const box = (await screen.findByTestId(
+      "house-rules-laptop",
+    )) as HTMLDetailsElement;
+    expect(box.open).toBe(false);
+    expect(screen.getByText("Always-allowed tools (1)")).toBeTruthy();
   });
 });

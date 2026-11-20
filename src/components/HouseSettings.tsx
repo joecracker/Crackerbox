@@ -30,10 +30,12 @@ export const HOUSE_DESCRIPTION =
 
 /**
  * A helper that asks before every step keeps its own "Always allow" list.
- * Clicking Always allow in its chat adds a tool here; Remove puts that tool
- * back on "ask" and leaves the rest alone.
+ * Clicking Always allow in its chat adds a tool here. The list stays out of
+ * sight: nothing shows until there is at least one rule, and then only a
+ * closed line you can open. Remove puts that tool back on "ask" and leaves the
+ * rest alone.
  */
-function HelperRules({ id, name }: { id: string; name: string }) {
+function HelperRules({ id }: { id: string }) {
   const queryClient = useQueryClient();
   const rules = useQuery({
     queryKey: ["house", "always", id],
@@ -43,37 +45,31 @@ function HelperRules({ id, name }: { id: string; name: string }) {
     const left = await ipc.chat.forgetEntityAlways({ id, toolName });
     queryClient.setQueryData(["house", "always", id], left);
   };
+  if (!rules.data || rules.data.length === 0) return null;
   return (
-    <div className="space-y-1" data-testid={`house-rules-${id}`}>
-      <span className="text-xs text-muted-foreground">
-        Always allowed for {name} (it never asks for these)
-      </span>
-      {rules.data && rules.data.length > 0 ? (
-        <ul className="space-y-1">
-          {rules.data.map((toolName) => (
-            <li
-              key={toolName}
-              className="flex items-center justify-between gap-2 rounded border px-2 py-1"
+    <details className="text-sm" data-testid={`house-rules-${id}`}>
+      <summary className="cursor-pointer text-xs text-muted-foreground">
+        Always-allowed tools ({rules.data.length})
+      </summary>
+      <ul className="mt-1 space-y-1">
+        {rules.data.map((toolName) => (
+          <li
+            key={toolName}
+            className="flex items-center justify-between gap-2 rounded border px-2 py-1"
+          >
+            <code className="text-xs">{toolName}</code>
+            <Button
+              variant="outline"
+              size="sm"
+              aria-label={`Remove always allow for ${toolName}`}
+              onClick={() => void remove(toolName)}
             >
-              <code className="text-xs">{toolName}</code>
-              <Button
-                variant="outline"
-                size="sm"
-                aria-label={`Remove always allow for ${toolName}`}
-                onClick={() => void remove(toolName)}
-              >
-                Remove
-              </Button>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-[13px] text-muted-foreground">
-          None. {name} asks before every step. When you click "Always allow" in
-          its chat, that tool shows up here.
-        </p>
-      )}
-    </div>
+              Remove
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
 
@@ -156,9 +152,7 @@ export function HouseSettings() {
                 <span>Wild</span>
               </div>
             </div>
-            {sister.askEveryStep && (
-              <HelperRules id={sister.id} name={sister.name} />
-            )}
+            {sister.askEveryStep && <HelperRules id={sister.id} />}
           </div>
         );
       })}

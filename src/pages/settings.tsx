@@ -222,8 +222,6 @@ export default function SettingsPage() {
           <GeneralSettings appVersion={appVersion} />
           <WorkflowSettings />
           <AISettings />
-          <VoiceSection />
-          <HouseSection />
 
           <SettingsSection
             id={SECTION_IDS.cbMemory}
@@ -235,6 +233,9 @@ export default function SettingsPage() {
               onSave={(value) => updateSettings({ cbMemory: value })}
             />
           </SettingsSection>
+
+          <VoiceSection />
+          <HouseSection />
 
           <SettingsSection
             id={SECTION_IDS.addPhone}

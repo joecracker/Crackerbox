@@ -283,6 +283,54 @@ export default function SettingsPage() {
             <div id={SETTING_IDS.gmail}>
               <GmailIntegration />
             </div>
+
+            <div
+              id={SETTING_IDS.enableOwnServerDeployment}
+              className="space-y-1.5"
+            >
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="enable-own-server-deployment"
+                  aria-label="Allow deployment to your own server"
+                  checked={!!settings?.enableOwnServerDeployment}
+                  onCheckedChange={(checked) => {
+                    updateSettings({ enableOwnServerDeployment: checked });
+                  }}
+                />
+                <Label htmlFor="enable-own-server-deployment">
+                  Allow deployment to your own server
+                </Label>
+              </div>
+              <p className={hint}>
+                Integrates with Coolify so you can deploy an app to a server you
+                run yourself. This is in early development: it is undocumented,
+                unstable, and may change or break without notice.
+              </p>
+            </div>
+
+            <div
+              id={SETTING_IDS.enableCloudflareDeployment}
+              className="space-y-1.5"
+            >
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="enable-cloudflare-deployment"
+                  aria-label="Allow deployment to Cloudflare Workers"
+                  checked={!!settings?.enableCloudflareDeployment}
+                  onCheckedChange={(checked) => {
+                    updateSettings({ enableCloudflareDeployment: checked });
+                  }}
+                />
+                <Label htmlFor="enable-cloudflare-deployment">
+                  Allow deployment to Cloudflare Workers
+                </Label>
+              </div>
+              <p className={hint}>
+                Adds a Cloudflare tab to the Publish panel that deploys a Worker
+                from your app when you sync changes to GitHub. Turning this off
+                hides the tab, but Workers you already connected keep deploying.
+              </p>
+            </div>
           </SettingsSection>
 
           <SettingsSection
@@ -360,6 +408,8 @@ export default function SettingsPage() {
             <div id={SETTING_IDS.blockUnsafeNpmPackages}>
               <BlockUnsafeNpmPackagesSwitch />
             </div>
+
+            <SubagentSettings />
           </SettingsSection>
 
           <SettingsSection
@@ -380,54 +430,6 @@ export default function SettingsPage() {
 
             <div id={SETTING_IDS.enableTestRunInPreview}>
               <TestRunInPreviewSwitch />
-            </div>
-
-            <div
-              id={SETTING_IDS.enableOwnServerDeployment}
-              className="space-y-1.5"
-            >
-              <div className="flex items-center gap-2">
-                <Switch
-                  id="enable-own-server-deployment"
-                  aria-label="Allow deployment to your own server"
-                  checked={!!settings?.enableOwnServerDeployment}
-                  onCheckedChange={(checked) => {
-                    updateSettings({ enableOwnServerDeployment: checked });
-                  }}
-                />
-                <Label htmlFor="enable-own-server-deployment">
-                  Allow deployment to your own server
-                </Label>
-              </div>
-              <p className={hint}>
-                Integrates with Coolify so you can deploy an app to a server you
-                run yourself. This is in early development: it is undocumented,
-                unstable, and may change or break without notice.
-              </p>
-            </div>
-
-            <div
-              id={SETTING_IDS.enableCloudflareDeployment}
-              className="space-y-1.5"
-            >
-              <div className="flex items-center gap-2">
-                <Switch
-                  id="enable-cloudflare-deployment"
-                  aria-label="Allow deployment to Cloudflare Workers"
-                  checked={!!settings?.enableCloudflareDeployment}
-                  onCheckedChange={(checked) => {
-                    updateSettings({ enableCloudflareDeployment: checked });
-                  }}
-                />
-                <Label htmlFor="enable-cloudflare-deployment">
-                  Allow deployment to Cloudflare Workers
-                </Label>
-              </div>
-              <p className={hint}>
-                Adds a Cloudflare tab to the Publish panel that deploys a Worker
-                from your app when you sync changes to GitHub. Turning this off
-                hides the tab, but Workers you already connected keep deploying.
-              </p>
             </div>
 
             <div
@@ -478,8 +480,6 @@ export default function SettingsPage() {
             </div>
 
             <RunTypeScriptForWholeProjectSwitch />
-
-            <SubagentSettings />
           </SettingsSection>
 
           <SettingsSection

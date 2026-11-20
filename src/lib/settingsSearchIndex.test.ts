@@ -224,8 +224,8 @@ describe("SETTINGS_SEARCH_INDEX", () => {
         "follow-up",
         "pro",
       ],
-      sectionId: SECTION_IDS.experiments,
-      sectionLabel: "Early features",
+      sectionId: SECTION_IDS.agentPermissions,
+      sectionLabel: "Permissions and safety",
     });
   });
 });

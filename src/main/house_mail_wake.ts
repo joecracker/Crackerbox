@@ -188,9 +188,37 @@ export function pickMailWakes(
   return { wakes, state: next };
 }
 
-export function mailWakePrompt(fromName: string, subject: string): string {
-  const subj = subject.replace(/[\r\n"]+/g, " ").slice(0, 80);
-  return `House trigger: a letter from ${fromName} just arrived for you ("${subj}"). Tim is not typing and may not be at the screen; do not ask him questions here. Open it with the house tool (inbox, then read_mail). If you have something to say back, send it with send_mail. If you have nothing to add, send nothing and end with one short line. Keep this chat short.`;
+export interface WaitingLetter {
+  fromName: string;
+  subject: string;
+}
+
+const cleanSubject = (s: string) => s.replace(/[\r\n"]+/g, " ").slice(0, 80);
+const MAX_LISTED = 8;
+
+/**
+ * What a woken sister is told. One wake covers her whole inbox (the other
+ * waiting letters are marked as woken so they never wake her again), so when
+ * several are waiting the prompt names every one and asks her to read them all.
+ * Naming only the newest let older letters sit unread for days (2026-11-20).
+ */
+export function mailWakePrompt(
+  fromName: string,
+  subject: string,
+  waiting: WaitingLetter[] = [],
+): string {
+  if (waiting.length <= 1) {
+    return `House trigger: a letter from ${fromName} just arrived for you ("${cleanSubject(subject)}"). Tim is not typing and may not be at the screen; do not ask him questions here. Open it with the house tool (inbox, then read_mail). If you have something to say back, send it with send_mail. If you have nothing to add, send nothing and end with one short line. Keep this chat short.`;
+  }
+  const listed = waiting
+    .slice(0, MAX_LISTED)
+    .map((l, i) => `${i + 1}. from ${l.fromName}: "${cleanSubject(l.subject)}"`)
+    .join("; ");
+  const more =
+    waiting.length > MAX_LISTED
+      ? `, and ${waiting.length - MAX_LISTED} more`
+      : "";
+  return `House trigger: ${waiting.length} letters are waiting for you: ${listed}${more}. Tim is not typing and may not be at the screen; do not ask him questions here. Open your inbox with the house tool and read EVERY unread letter with read_mail, oldest first, before you answer any of them. If you have something to say back, send it with send_mail. If you have nothing to add to a letter, send nothing for it. When all are read, end with one short line. Keep this chat short.`;
 }
 
 function configFile() {
@@ -343,7 +371,13 @@ export function startMailWake(
           send({
             appId: sister.appId,
             sisterId: sister.id,
-            prompt: mailWakePrompt(w.letter.fromName, w.letter.subject),
+            prompt: mailWakePrompt(
+              w.letter.fromName,
+              w.letter.subject,
+              letters
+                .filter((l) => l.to === w.letter.to)
+                .sort((a, b) => a.file.localeCompare(b.file)),
+            ),
             title: `${sister.name} <- ${w.letter.fromName}: ${w.letter.subject.slice(0, 40)}`,
           });
         if (!ok) {

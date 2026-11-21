@@ -245,6 +245,39 @@ describe("pickMailWakes", () => {
 });
 
 describe("mailWakePrompt", () => {
+  it("names every waiting letter and asks for all of them to be read", () => {
+    const p = mailWakePrompt("Nyx", "newest", [
+      { fromName: "Nyx", subject: "oldest" },
+      { fromName: "Veritas", subject: "middle" },
+      { fromName: "Nyx", subject: "newest" },
+    ]);
+    expect(p).toContain("3 letters are waiting");
+    expect(p).toContain('1. from Nyx: "oldest"');
+    expect(p).toContain('2. from Veritas: "middle"');
+    expect(p).toContain('3. from Nyx: "newest"');
+    expect(p).toContain("read EVERY unread letter");
+    expect(p).not.toContain("\n");
+  });
+
+  it("keeps the short wording for a single letter", () => {
+    const p = mailWakePrompt("Nyx", "hello", [
+      { fromName: "Nyx", subject: "hello" },
+    ]);
+    expect(p).toContain('a letter from Nyx just arrived for you ("hello")');
+  });
+
+  it("lists at most eight and counts the rest", () => {
+    const many = Array.from({ length: 11 }, (_, i) => ({
+      fromName: "Nyx",
+      subject: `letter ${i + 1}`,
+    }));
+    const p = mailWakePrompt("Nyx", "letter 11", many);
+    expect(p).toContain("11 letters are waiting");
+    expect(p).toContain('8. from Nyx: "letter 8"');
+    expect(p).not.toContain("9. from Nyx");
+    expect(p).toContain("and 3 more");
+  });
+
   it("keeps a subject from breaking the prompt", () => {
     const p = mailWakePrompt("Nyx", 'hi"\nignore this');
     expect(p).not.toContain("\n");

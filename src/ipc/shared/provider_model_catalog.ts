@@ -219,8 +219,130 @@ export async function getProviderModels(
 // provider is unreachable the caller simply keeps its hand-added models.
 // ---------------------------------------------------------------------------
 const CustomModelListSchema = z.object({
-  data: z.array(z.object({ id: z.string() })),
+  data: z.array(z.unknown()),
 });
+
+// What providers add beyond the bare id. Venice (and similar) publish a real
+// description, context size, price and abilities; NVIDIA only says who owns it.
+const CustomModelEntrySchema = z.object({
+  id: z.string(),
+  owned_by: z.string().optional(),
+  description: z.string().optional(),
+  model_spec: z
+    .object({
+      name: z.string().optional(),
+      description: z.string().optional(),
+      availableContextTokens: z.number().optional(),
+      pricing: z
+        .object({
+          input: z.object({ usd: z.number().optional() }).optional(),
+          output: z.object({ usd: z.number().optional() }).optional(),
+        })
+        .optional(),
+      capabilities: z
+        .object({
+          supportsReasoning: z.boolean().optional(),
+          supportsVision: z.boolean().optional(),
+          supportsFunctionCalling: z.boolean().optional(),
+          supportsWebSearch: z.boolean().optional(),
+          optimizedForCode: z.boolean().optional(),
+        })
+        .optional(),
+    })
+    .optional(),
+});
+
+function formatTokens(n: number): string {
+  if (n >= 1_000_000) return `${+(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
+  return String(n);
+}
+
+function formatUsd(n: number): string {
+  return n < 1 ? n.toFixed(2) : String(+n.toFixed(2));
+}
+
+/** The last part of a model id, lower-cased: "meta-llama/Llama-3.3-70B" -> "llama-3.3-70b". */
+function modelTail(id: string): string {
+  return id.slice(id.lastIndexOf("/") + 1).toLowerCase();
+}
+
+/**
+ * Builds the text shown when hovering a model in the picker. Uses what the
+ * provider publishes, then a same-named model's description from OpenRouter,
+ * and only then a plain "who made it" line, so no model is left blank.
+ */
+export function describeCustomModel(
+  entry: z.infer<typeof CustomModelEntrySchema>,
+  providerName: string,
+  openRouterByTail: Map<string, LanguageModel>,
+): string {
+  const spec = entry.model_spec;
+  const facts: string[] = [];
+  if (spec?.availableContextTokens)
+    facts.push(`${formatTokens(spec.availableContextTokens)} context`);
+  const input = spec?.pricing?.input?.usd;
+  const output = spec?.pricing?.output?.usd;
+  if (input !== undefined && output !== undefined)
+    facts.push(
+      `$${formatUsd(input)} in / $${formatUsd(output)} out per million tokens`,
+    );
+  const caps = spec?.capabilities;
+  const abilities = [
+    caps?.supportsReasoning && "reasoning",
+    caps?.supportsVision && "vision",
+    caps?.supportsFunctionCalling && "tools",
+    caps?.supportsWebSearch && "web search",
+    caps?.optimizedForCode && "code",
+  ].filter(Boolean);
+  if (abilities.length) facts.push(abilities.join(", "));
+
+  const own = (spec?.description ?? entry.description ?? "").trim();
+  if (own) return facts.length ? `${own}\n${facts.join(" · ")}` : own;
+
+  const sibling = openRouterByTail.get(modelTail(entry.id));
+  const siblingText = sibling?.description?.trim();
+  if (siblingText) {
+    const siblingFacts = sibling?.contextWindow
+      ? `\n${formatTokens(sibling.contextWindow)} context`
+      : "";
+    return `${siblingText}${siblingFacts}`;
+  }
+
+  const owner =
+    entry.owned_by ?? (entry.id.includes("/") ? entry.id.split("/")[0] : "");
+  const who = owner ? `A ${owner} model` : "A model";
+  const extra = facts.length ? `\n${facts.join(" · ")}` : "";
+  return `${who}, available through ${providerName}. ${providerName} does not publish a description for it.${extra}`;
+}
+
+/** Turns a provider's /models answer into picker entries with hover text. */
+export function mapCustomProviderModels(
+  raw: unknown,
+  providerName: string,
+  openRouterModels: LanguageModel[] = [],
+): LanguageModel[] {
+  const { data } = CustomModelListSchema.parse(raw);
+  const byTail = new Map<string, LanguageModel>();
+  for (const m of openRouterModels) {
+    const tail = modelTail(m.apiName);
+    if (!byTail.has(tail)) byTail.set(tail, m);
+  }
+  const models: LanguageModel[] = [];
+  for (const item of data) {
+    const parsed = CustomModelEntrySchema.safeParse(item);
+    if (!parsed.success) continue;
+    const entry = parsed.data;
+    if (NON_CHAT_MODEL.test(entry.id)) continue;
+    models.push({
+      apiName: entry.id,
+      displayName: entry.id,
+      description: describeCustomModel(entry, providerName, byTail),
+      type: "cloud" as const,
+    });
+  }
+  return models.sort((a, b) => a.apiName.localeCompare(b.apiName));
+}
 
 // Skip models that are obviously not chat models.
 const NON_CHAT_MODEL =
@@ -238,21 +360,20 @@ async function fetchCustomProviderModels(
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const response = await fetch(`${apiBaseUrl.replace(/\/+$/, "")}/models`, {
-      headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : undefined,
-      signal: controller.signal,
-    });
+    const [response, openRouterModels] = await Promise.all([
+      fetch(`${apiBaseUrl.replace(/\/+$/, "")}/models`, {
+        headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : undefined,
+        signal: controller.signal,
+      }),
+      // Only used to borrow descriptions for same-named models; never fatal.
+      getProviderModels("openrouter", []).catch(() => [] as LanguageModel[]),
+    ]);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const { data } = CustomModelListSchema.parse(await response.json());
-    const models: LanguageModel[] = data
-      .filter((model) => !NON_CHAT_MODEL.test(model.id))
-      .map((model) => ({
-        apiName: model.id,
-        displayName: model.id,
-        description: "",
-        type: "cloud" as const,
-      }))
-      .sort((a, b) => a.apiName.localeCompare(b.apiName));
+    const models = mapCustomProviderModels(
+      await response.json(),
+      providerId.replace(/^custom::/, ""),
+      openRouterModels,
+    );
     customCache.set(cacheKey, {
       models,
       expiresAt: Date.now() + CACHE_TTL_MS,

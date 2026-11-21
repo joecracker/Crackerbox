@@ -128,3 +128,83 @@ describe("custom provider catalog", () => {
     ).toEqual([]);
   });
 });
+
+describe("hover descriptions for custom provider models", () => {
+  it("keeps the description, size, price and abilities a provider publishes", async () => {
+    const { mapCustomProviderModels } =
+      await import("./provider_model_catalog");
+    const [model] = mapCustomProviderModels(
+      {
+        data: [
+          {
+            id: "example-reasoner",
+            model_spec: {
+              description: "A made-up reasoning model for tests.",
+              availableContextTokens: 1_000_000,
+              pricing: { input: { usd: 0.33 }, output: { usd: 1.32 } },
+              capabilities: {
+                supportsReasoning: true,
+                supportsVision: true,
+                supportsFunctionCalling: true,
+              },
+            },
+          },
+        ],
+      },
+      "Venice AI",
+    );
+
+    expect(model.description).toBe(
+      "A made-up reasoning model for tests.\n1M context · $0.33 in / $1.32 out per million tokens · reasoning, vision, tools",
+    );
+  });
+
+  it("borrows OpenRouter's description for a same-named model", async () => {
+    const { mapCustomProviderModels } =
+      await import("./provider_model_catalog");
+    const [model] = mapCustomProviderModels(
+      { data: [{ id: "meta/llama-3.3-70b-instruct", owned_by: "meta" }] },
+      "NVIDIA Build",
+      [
+        {
+          apiName: "meta-llama/llama-3.3-70b-instruct",
+          displayName: "Llama 3.3 70B",
+          description: "A made-up OpenRouter blurb.",
+          contextWindow: 131_072,
+          type: "cloud",
+        },
+      ],
+    );
+
+    expect(model.description).toBe("A made-up OpenRouter blurb.\n131K context");
+  });
+
+  it("never leaves a model blank: says who made it and that no description exists", async () => {
+    const { mapCustomProviderModels } =
+      await import("./provider_model_catalog");
+    const models = mapCustomProviderModels(
+      {
+        data: [
+          { id: "acme/mystery-1", owned_by: "acme" },
+          { id: "plain-name" },
+        ],
+      },
+      "Siray",
+    );
+
+    expect(models.map((m) => m.description)).toEqual([
+      "A acme model, available through Siray. Siray does not publish a description for it.",
+      "A model, available through Siray. Siray does not publish a description for it.",
+    ]);
+  });
+
+  it("skips entries it cannot read instead of failing the whole list", async () => {
+    const { mapCustomProviderModels } =
+      await import("./provider_model_catalog");
+    const models = mapCustomProviderModels(
+      { data: [{ nope: true }, { id: "good-one" }, "text"] },
+      "Siray",
+    );
+    expect(models.map((m) => m.apiName)).toEqual(["good-one"]);
+  });
+});

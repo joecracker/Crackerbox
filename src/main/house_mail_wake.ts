@@ -5,6 +5,7 @@ import log from "electron-log";
 import {
   houseDir,
   listMail,
+  readMail,
   readRoster,
   type Sister,
 } from "@/pro/main/ipc/handlers/local_agent/house";
@@ -191,10 +192,38 @@ export function pickMailWakes(
 export interface WaitingLetter {
   fromName: string;
   subject: string;
+  /** The letter's text. When present it can be delivered inside the wake. */
+  body?: string;
 }
 
 const cleanSubject = (s: string) => s.replace(/[\r\n"]+/g, " ").slice(0, 80);
 const MAX_LISTED = 8;
+const MAX_DELIVERED = 8;
+const MAX_LETTER_CHARS = 3000;
+const MAX_TOTAL_CHARS = 14000;
+
+/**
+ * Which waiting letters have their full text put inside the wake message, in
+ * the same order as `waiting`. Short ones, oldest first, up to a total size;
+ * anything longer stays in the inbox for her to open with read_mail.
+ */
+export function selectDelivered(waiting: WaitingLetter[]): boolean[] {
+  let total = 0;
+  let count = 0;
+  return waiting.map((l) => {
+    const body = l.body?.trim();
+    if (!body) return false;
+    if (
+      count >= MAX_DELIVERED ||
+      body.length > MAX_LETTER_CHARS ||
+      total + body.length > MAX_TOTAL_CHARS
+    )
+      return false;
+    total += body.length;
+    count++;
+    return true;
+  });
+}
 
 /**
  * What a woken sister is told. One wake covers her whole inbox (the other
@@ -207,6 +236,29 @@ export function mailWakePrompt(
   subject: string,
   waiting: WaitingLetter[] = [],
 ): string {
+  const delivered = selectDelivered(waiting);
+  if (delivered.some(Boolean)) {
+    const total = waiting.length;
+    const inside = delivered.filter(Boolean).length;
+    const blocks = waiting
+      .map((l, i) =>
+        delivered[i]
+          ? `--- Letter ${i + 1} of ${total}, from ${l.fromName}, subject "${cleanSubject(l.subject)}" ---\n${l.body!.trim()}\n--- end of letter ${i + 1} ---`
+          : null,
+      )
+      .filter((b): b is string => b !== null)
+      .join("\n\n");
+    const left = waiting
+      .map((l, i) => (delivered[i] ? null : l))
+      .filter((l): l is WaitingLetter => l !== null);
+    const leftNote = left.length
+      ? `\n\nStill waiting in your inbox (too long to include here; open each with the house tool's read_mail): ${left
+          .map((l) => `from ${l.fromName}: "${cleanSubject(l.subject)}"`)
+          .join("; ")}.`
+      : "";
+    const intro = `House trigger: ${total === 1 ? "a letter has" : `${total} letters have`} arrived for you. ${inside === total ? (total === 1 ? "Its full text is" : "The full text of each is") : `The full text of ${inside} of them is`} below${total > 1 ? ", oldest first" : ""}, so there is nothing to open: read ${total === 1 ? "it" : "them all"} now. Tim is not typing and may not be at the screen; do not ask him questions here. Answer any that need an answer with send_mail; if one needs no reply, send nothing for it. When you have dealt with ${total === 1 ? "it" : "all of them"}, end with one short line. Keep this chat short.`;
+    return `${intro}\n\n${blocks}${leftNote}`;
+  }
   if (waiting.length <= 1) {
     return `House trigger: a letter from ${fromName} just arrived for you ("${cleanSubject(subject)}"). Tim is not typing and may not be at the screen; do not ask him questions here. Open it with the house tool (inbox, then read_mail). If you have something to say back, send it with send_mail. If you have nothing to add, send nothing and end with one short line. Keep this chat short.`;
   }
@@ -290,6 +342,20 @@ export function pruneMailWakeState(s: MailWakeState, now: Date): MailWakeState {
   return { ...s, woken };
 }
 
+/** The text of a waiting letter (without its header lines), or undefined if it cannot be read. */
+export function letterBody(to: string, file: string): string | undefined {
+  try {
+    const text = fs.readFileSync(
+      path.join(houseDir(), "mailbox", to, file),
+      "utf8",
+    );
+    const i = text.indexOf("\n\n");
+    return i >= 0 ? text.slice(i + 2) : text;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Unread letters addressed to a sister and written by a sister. */
 export function collectSisterLetters(roster: Sister[]): WakeLetter[] {
   const out: WakeLetter[] = [];
@@ -366,6 +432,16 @@ export function startMailWake(
       let failed = false;
       for (const w of wakes) {
         const sister = roster.find((s) => s.id === w.letter.to);
+        // Everything waiting for her, oldest first, with each letter's text so
+        // the wake itself carries them and nothing depends on her opening them.
+        const waitingFor = letters
+          .filter((l) => l.to === w.letter.to)
+          .sort((a, b) => a.file.localeCompare(b.file));
+        const waiting: WaitingLetter[] = waitingFor.map((l) => ({
+          fromName: l.fromName,
+          subject: l.subject,
+          body: letterBody(l.to, l.file),
+        }));
         const ok =
           !!sister &&
           send({
@@ -374,9 +450,7 @@ export function startMailWake(
             prompt: mailWakePrompt(
               w.letter.fromName,
               w.letter.subject,
-              letters
-                .filter((l) => l.to === w.letter.to)
-                .sort((a, b) => a.file.localeCompare(b.file)),
+              waiting,
             ),
             title: `${sister.name} <- ${w.letter.fromName}: ${w.letter.subject.slice(0, 40)}`,
           });
@@ -385,6 +459,16 @@ export function startMailWake(
           logger.warn("Could not hand a mail wake to the window; will retry");
           break;
         }
+        // Handed over, so the letters whose text went inside the wake are now read.
+        const delivered = selectDelivered(waiting);
+        waitingFor.forEach((l, i) => {
+          if (!delivered[i]) return;
+          try {
+            readMail(l.to, l.file);
+          } catch (e) {
+            logger.warn(`Could not mark ${l.file} read after delivering it`, e);
+          }
+        });
         committed = w.stateAfter;
         logger.info(`Mail wake: ${w.letter.fromId} -> ${w.letter.to}`);
       }

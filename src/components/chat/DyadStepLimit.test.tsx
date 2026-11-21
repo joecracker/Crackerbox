@@ -62,9 +62,20 @@ describe("DyadStepLimit", () => {
 
     expect(streamChatMocks.clearPauseOnly).toHaveBeenCalledTimes(1);
   });
+
+  it("explains a reply that was stopped for turning to word salad, with a Continue button", () => {
+    renderStepLimit({ reason: "glitch" });
+
+    expect(
+      screen.getByText(
+        "Reply stopped (the model started producing random words)",
+      ),
+    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Continue" })).toBeTruthy();
+  });
 });
 
-function renderStepLimit() {
+function renderStepLimit(extra: { reason?: string } = {}) {
   const store = createStore();
   store.set(selectedChatIdAtom, 123);
 
@@ -76,6 +87,7 @@ function renderStepLimit() {
             steps: "100",
             limit: "100",
             state: "finished",
+            ...extra,
           },
         }}
       />

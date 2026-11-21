@@ -59,7 +59,9 @@ export function DyadStepLimit({ node, children }: DyadStepLimitProps) {
             ? "Reply cut off (hit the length limit)"
             : reason === "garbled"
               ? "Her command came out as text and did not run"
-              : `Paused after ${steps} tool calls`}
+              : reason === "glitch"
+                ? "Reply stopped (the model started producing random words)"
+                : `Paused after ${steps} tool calls`}
         </span>
         {isFinished && (
           <Button

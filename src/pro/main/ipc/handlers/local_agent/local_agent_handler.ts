@@ -44,6 +44,11 @@ import {
   MODEL_SILENCE_MS,
   ModelSilenceError,
 } from "./model_watchdog";
+import {
+  createGibberishGuard,
+  GLITCH_NOTE_FOR_MODEL,
+  GLITCH_NOTICE_XML,
+} from "./gibberish_guard";
 import { reportStalledScheduledChat } from "@/main/house_stall";
 import { parseMcpToolKey, sanitizeMcpName } from "@/ipc/utils/mcp_tool_utils";
 import { sanitizeMcpToolResult } from "@/ipc/utils/mcp_result_sanitizer";
@@ -1371,6 +1376,9 @@ export async function handleLocalAgentStream(
     let totalStepsExecuted = 0;
     let hitStepLimit = false;
     let modelRefused = false;
+    // The model turned to word salad and was stopped (see gibberish_guard.ts).
+    let modelGlitched = false;
+    let glitchCutAt = 0;
 
     // If there are persisted todos from a previous turn, inject a synthetic
     // user message so the LLM is aware of them. Inserted BEFORE the user's
@@ -1475,6 +1483,9 @@ export async function handleLocalAgentStream(
           abortController.signal,
           attemptAbort.signal,
         ]);
+        // Guard: a model that keeps talking but has turned to random words from
+        // many alphabets is stopped, instead of filling the chat.
+        const gibberishGuard = createGibberishGuard();
         const watchdog = createModelWatchdog(() => {
           logger.warn(
             `Model silent for ${MODEL_SILENCE_MS / 1000}s on chat ${req.chatId}; cutting the request off`,
@@ -2046,6 +2057,21 @@ export async function handleLocalAgentStream(
                   break;
               }
 
+              if (
+                part.type === "text-delta" ||
+                part.type === "reasoning-delta"
+              ) {
+                const cutAt = gibberishGuard.push(
+                  part.text,
+                  fullResponse.length,
+                );
+                if (cutAt !== null) {
+                  modelGlitched = true;
+                  glitchCutAt = cutAt;
+                  chunk = "";
+                }
+              }
+
               if (chunk) {
                 fullResponse += chunk;
                 if (part.type === "text-delta" && chunk.includes("</think>")) {
@@ -2064,6 +2090,14 @@ export async function handleLocalAgentStream(
               if (modelRefused) {
                 break;
               }
+
+              if (modelGlitched) {
+                logger.warn(
+                  `Model turned to word salad on chat ${req.chatId}; stopping the reply`,
+                );
+                attemptAbort.abort();
+                break;
+              }
             }
           } catch (error) {
             if (!abortController.signal.aborted) {
@@ -2080,6 +2114,18 @@ export async function handleLocalAgentStream(
             streamErrorFromIteration = new ModelSilenceError(MODEL_SILENCE_MS);
           }
 
+          if (modelGlitched) {
+            // Keep everything before the word salad, close any open think
+            // block, and tell the user (with a Continue button).
+            fullResponse = repairOrphanThink(
+              fullResponse.slice(0, glitchCutAt),
+            );
+            fullResponse += GLITCH_NOTICE_XML;
+            inThinkingBlock = false;
+            await updateResponseInDb(placeholderMessageId, fullResponse);
+            sendChunk(fullResponse);
+          }
+
           // Close thinking block if still open
           if (inThinkingBlock) {
             const closingThinkBlock = "</think>\n";
@@ -2093,7 +2139,7 @@ export async function handleLocalAgentStream(
             break;
           }
 
-          if (modelRefused) {
+          if (modelRefused || modelGlitched) {
             responseMessages = [];
             steps = [];
             break;
@@ -2218,7 +2264,7 @@ export async function handleLocalAgentStream(
         break;
       }
 
-      if (modelRefused) {
+      if (modelRefused || modelGlitched) {
         break;
       }
 
@@ -2404,6 +2450,12 @@ export async function handleLocalAgentStream(
       accumulatedAiMessages.push({
         role: "assistant",
         content: [{ type: "text", text: MODEL_REFUSAL_WARNING }],
+      });
+    }
+    if (modelGlitched) {
+      accumulatedAiMessages.push({
+        role: "assistant",
+        content: [{ type: "text", text: GLITCH_NOTE_FOR_MODEL }],
       });
     }
 

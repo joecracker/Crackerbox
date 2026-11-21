@@ -154,9 +154,9 @@
     "update-electron-app": "^3.1.2",
     "use-sync-external-store": "^1.6.0",
     "uuid": "^11.1.0",
-    "ws": "^8.19.0",
+    "ws": "^8.23.0",
     "yaml": "^2.8.1",
-    "zod": "^4.3.6"
+    "zod": "^4.6.7"
   },
   "optionalDependencies": {
     "dyad-keychain-reader": "file:native/keychain-reader"
